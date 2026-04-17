@@ -1,0 +1,19 @@
+{
+  "name": "modelado-numerico",
+  "version": "1.0.0",
+  "description": "Numerical Methods Solver & Visualizer",
+  "scripts": {
+    "build": "esbuild src/main.ts --bundle --outfile=dist/bundle.js --format=iife --platform=browser --sourcemap",
+    "watch": "esbuild src/main.ts --bundle --outfile=dist/bundle.js --format=iife --platform=browser --sourcemap --watch",
+    "dev": "esbuild src/main.ts --bundle --outfile=dist/bundle.js --format=iife --platform=browser --sourcemap --watch --serve=8080 --servedir=."
+  },
+  "dependencies": {
+    "chart.js": "^4.4.7",
+    "katex": "^0.16.44",
+    "mathjs": "^13.2.2"
+  },
+  "devDependencies": {
+    "esbuild": "^0.24.2",
+    "typescript": "^5.7.2"
+  }
+}

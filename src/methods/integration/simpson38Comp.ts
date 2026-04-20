@@ -1,5 +1,26 @@
 import type { MethodDefinition, MethodResult, ChartData } from '../types';
 import { parseExpression, linspace } from '../../parser';
+import { simpson38Error, relativeErrorPercent } from '../../integrationHelpers';
+
+function runSimpson38(f: (x: number) => number, a: number, b: number, nReq: number): { integral: number; iterations: MethodResult['iterations']; h: number; n: number } {
+  let n = nReq;
+  if (n % 3 !== 0) n = n + (3 - n % 3);
+  const h = (b - a) / n;
+  const iterations: MethodResult['iterations'] = [];
+  let sum = 0;
+  for (let i = 0; i <= n; i++) {
+    const xi = a + i * h;
+    const fxi = f(xi);
+    let coeff: number;
+    if (i === 0 || i === n) coeff = 1;
+    else if (i % 3 === 0) coeff = 2;
+    else coeff = 3;
+    const contrib = coeff * fxi;
+    sum += contrib;
+    iterations.push({ i, xi, fxi, coeff, contrib });
+  }
+  return { integral: (3 * h / 8) * sum, iterations, h, n };
+}
 
 export const simpson38Comp: MethodDefinition = {
   id: 'simpson38Comp',
@@ -12,6 +33,7 @@ export const simpson38Comp: MethodDefinition = {
     { id: 'a', label: 'a (limite inferior)', placeholder: '0', type: 'number', defaultValue: '0' },
     { id: 'b', label: 'b (limite superior)', placeholder: '1', type: 'number', defaultValue: '1' },
     { id: 'n', label: 'n (subintervalos, multiplo de 3)', placeholder: '9', type: 'number', defaultValue: '9' },
+    { id: 'exact', label: 'Valor exacto (opcional)', placeholder: 'p.ej. 0.333333', type: 'number', hint: 'Si se provee, se calcula error relativo y se reintenta con n=21 si supera 1%.' },
   ],
   tableColumns: [
     { key: 'i', label: 'i' },
@@ -20,47 +42,61 @@ export const simpson38Comp: MethodDefinition = {
     { key: 'coeff', label: 'Coeficiente' },
     { key: 'contrib', label: 'Contribucion' },
   ],
+  steps: [
+    'Escribe <code>f(x)</code>, limites <code>a</code>, <code>b</code>, y subintervalos <code>n</code>. <b>Importante</b>: <code>n</code> debe ser <b>multiplo de 3</b> (la regla agrupa los puntos de 3 en 3). Si no lo es, la app lo redondea al siguiente multiplo (y te avisa).',
+    'Paso <code>h = (b - a) / n</code>. Puntos <code>x_i = a + i·h</code> para <code>i = 0, 1, ..., n</code>.',
+    'Formula: <code>I ≈ 3h/8 · [f(x_0) + 3f(x_1) + 3f(x_2) + 2f(x_3) + 3f(x_4) + 3f(x_5) + 2f(x_6) + ... + f(x_n)]</code>. Patron: <b>1, 3, 3, 2, 3, 3, 2, ..., 3, 3, 1</b>.',
+    'Pulsa <b>Resolver</b>. La tabla muestra cada punto con su coeficiente; verifica el patron visualmente en la grafica de coeficientes.',
+    '<b>Error de truncamiento</b>: <code>|E| ≤ (b-a)·h⁴/80 · M₄</code> con <code>M₄ = max|f⁽⁴⁾|</code>. Orden <code>O(h⁴)</code> igual que Simpson 1/3, pero la constante (<code>1/80</code>) es peor que <code>1/180</code>.',
+    'En practica <em>Simpson 1/3 es preferible</em>. Usa 3/8 cuando <code>n</code> no sea par, o como complemento: por ejemplo, si <code>n = 7</code>, aplica 1/3 con <code>n = 4</code> y 3/8 con <code>n = 3</code>.',
+    'Si diste <b>valor exacto</b>: calcula error relativo y reintenta con <code>n = 21</code> si > 1%.',
+  ],
 
   solve(params) {
     const f = parseExpression(params.fx);
     const a = parseFloat(params.a);
     const b = parseFloat(params.b);
-    let n = parseInt(params.n) || 9;
+    const nReq = parseInt(params.n) || 9;
+    const exactRaw = (params.exact ?? '').trim();
+    const exact = exactRaw === '' ? undefined : parseFloat(exactRaw);
 
     if (isNaN(a) || isNaN(b)) throw new Error('a y b deben ser numeros validos');
     if (a >= b) throw new Error('a debe ser menor que b');
-    if (n < 3) throw new Error('n debe ser >= 3');
-    // Round up to nearest multiple of 3
-    if (n % 3 !== 0) {
-      n = n + (3 - n % 3);
-    }
+    if (nReq < 3) throw new Error('n debe ser >= 3');
 
-    const h = (b - a) / n;
-    const iterations: MethodResult['iterations'] = [];
-    let sum = 0;
+    let run = runSimpson38(f, a, b, nReq);
+    let retried = false;
+    let relErr: number | undefined;
 
-    // Simpson 3/8 composite: (3h/8) * [f(x0) + 3f(x1) + 3f(x2) + 2f(x3) + 3f(x4) + 3f(x5) + 2f(x6) + ... + f(xn)]
-    // Pattern: 1, 3, 3, 2, 3, 3, 2, ..., 3, 3, 1
-    for (let i = 0; i <= n; i++) {
-      const xi = a + i * h;
-      const fxi = f(xi);
-      let coeff: number;
-      if (i === 0 || i === n) {
-        coeff = 1;
-      } else if (i % 3 === 0) {
-        coeff = 2;
-      } else {
-        coeff = 3;
+    if (exact !== undefined && !isNaN(exact)) {
+      relErr = relativeErrorPercent(run.integral, exact);
+      if (relErr > 1 && run.n < 21) {
+        run = runSimpson38(f, a, b, 21);
+        relErr = relativeErrorPercent(run.integral, exact);
+        retried = true;
       }
-      const contrib = coeff * fxi;
-      sum += contrib;
-      iterations.push({ i, xi, fxi, coeff, contrib });
     }
 
-    const integral = (3 * h / 8) * sum;
+    const errInfo = simpson38Error(params.fx, a, b, run.h);
+
+    const msgParts = [`h = ${run.h.toPrecision(6)}, n = ${run.n} (multiplo de 3)`];
+    if (errInfo.derivativeExpr) msgParts.push(`f⁴(x) = ${errInfo.derivativeExpr}`);
+    if (retried) msgParts.push('reintento automatico con n=21 tras error > 1%');
+
     return {
-      integral, iterations, converged: true, error: 0,
-      message: `h = ${h.toPrecision(6)}, n = ${n} (multiplo de 3)`,
+      integral: run.integral,
+      iterations: run.iterations,
+      converged: true,
+      error: errInfo.bound,
+      exact,
+      relativeErrorPercent: relErr,
+      truncationBound: errInfo.bound,
+      truncationOrder: 4,
+      maxDerivative: errInfo.max,
+      xiApprox: errInfo.xAtMax,
+      derivativeExpr: errInfo.derivativeExpr ?? undefined,
+      retried,
+      message: msgParts.join(' · '),
     };
   },
 
@@ -69,6 +105,7 @@ export const simpson38Comp: MethodDefinition = {
     const a = parseFloat(params.a);
     const b = parseFloat(params.b);
     let n = parseInt(params.n) || 9;
+    if (result.retried) n = 21;
     if (n % 3 !== 0) n = n + (3 - n % 3);
     const h = (b - a) / n;
 

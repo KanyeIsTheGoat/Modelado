@@ -17,6 +17,12 @@ export const trapezoidal: MethodDefinition = {
     { key: 'x', label: 'x' },
     { key: 'fx', label: 'f(x)' },
   ],
+  steps: [
+    'Version simple con un solo trapecio entre a y b. Util para <em>didactico</em> o verificar una formula — pero en el parcial siempre piden version compuesta (<code>trapezoidalComp</code>).',
+    'Formula: <code>I ≈ (b-a)/2 · [f(a) + f(b)]</code>.',
+    'Si el parcial da <code>n = 4</code> o <code>n = 10</code>, usa <b>Trapecio compuesto</b>, no este.',
+    'La cota de error: <code>|E| = -(b-a)³/12 · f\'\'(ξ)</code> para algun ξ ∈ (a, b).',
+  ],
 
   solve(params) {
     const f = parseExpression(params.fx);

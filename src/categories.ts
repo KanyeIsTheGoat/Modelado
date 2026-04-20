@@ -7,6 +7,7 @@ import { newtonRaphson } from './methods/rootFinding/newtonRaphson';
 import { secant } from './methods/rootFinding/secant';
 import { falsePosition } from './methods/rootFinding/falsePosition';
 import { aitken } from './methods/rootFinding/aitken';
+import { steffensen } from './methods/rootFinding/steffensen';
 
 // Integration
 import { midpoint } from './methods/integration/midpoint';
@@ -18,6 +19,12 @@ import { simpson38 } from './methods/integration/simpson38';
 import { simpson38Comp } from './methods/integration/simpson38Comp';
 import { montecarlo } from './methods/integration/montecarlo';
 import { montecarloPi } from './methods/integration/montecarloPi';
+import { montecarlo2D } from './methods/integration/montecarlo2D';
+import { montecarloArea } from './methods/integration/montecarloArea';
+
+// Interpolation
+import { lagrange } from './methods/interpolation/lagrange';
+import { newtonDD } from './methods/interpolation/newtonDD';
 
 // ODE
 import { euler } from './methods/ode/euler';
@@ -43,13 +50,19 @@ export const categories: Category[] = [
     id: 'rootFinding',
     name: 'Busqueda de Raices',
     cssClass: '',
-    methods: [bisection, fixedPoint, newtonRaphson, secant, falsePosition, aitken],
+    methods: [bisection, fixedPoint, newtonRaphson, secant, falsePosition, aitken, steffensen],
   },
   {
     id: 'integration',
     name: 'Integracion Numerica (Newton-Cotes)',
     cssClass: 'integration',
-    methods: [midpoint, trapezoidal, trapezoidalComp, simpson13, simpson13Comp, simpson38, simpson38Comp, montecarlo, montecarloPi],
+    methods: [midpoint, trapezoidal, trapezoidalComp, simpson13, simpson13Comp, simpson38, simpson38Comp, montecarlo, montecarlo2D, montecarloArea, montecarloPi],
+  },
+  {
+    id: 'interpolation',
+    name: 'Interpolacion Polinomica',
+    cssClass: 'interpolation',
+    methods: [lagrange, newtonDD],
   },
   {
     id: 'ode',

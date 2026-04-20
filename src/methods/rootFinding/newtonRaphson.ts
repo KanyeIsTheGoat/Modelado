@@ -13,13 +13,25 @@ export const newtonRaphson: MethodDefinition = {
     { id: 'x0', label: 'x₀ (valor inicial)', placeholder: '2', type: 'number', defaultValue: '2' },
     { id: 'tol', label: 'Tolerancia', placeholder: '1e-6', defaultValue: '1e-6' },
     { id: 'maxIter', label: 'Max iteraciones', placeholder: '100', type: 'number', defaultValue: '100' },
+    { id: 'exact', label: 'Valor exacto (opcional)', placeholder: 'p.ej. 1.52138', type: 'number', hint: 'Si se provee, agrega columna de error relativo %.' },
   ],
   tableColumns: [
     { key: 'iter', label: 'n' },
     { key: 'xn', label: 'x_n' },
     { key: 'fxn', label: 'f(x_n)' },
     { key: 'dfxn', label: "f'(x_n)" },
-    { key: 'error', label: 'Error' },
+    { key: 'error', label: '|x_{n+1}-x_n|' },
+    { key: 'relErrPct', label: 'Err. rel. %' },
+  ],
+  steps: [
+    'Escribi la funcion <code>f(x)</code> en el primer campo. Ej: <code>x^3 - 3x - 4</code>.',
+    'Calcula <b>f\'(x)</b> analiticamente (derivada simbolica) y escribila en el segundo campo. Para <code>x^3 - 3x - 4</code> la derivada es <code>3*x^2 - 3</code>. Si dejas el campo vacio, el metodo usa derivada numerica central como respaldo — no recomendado para el parcial porque pierde precision.',
+    'Ubica la <b>raiz aproximada</b>: mira la grafica de <code>f(x)</code> o aplica <em>Bolzano</em>: si <code>f(a)·f(b) &lt; 0</code> en el intervalo pedido, hay al menos una raiz adentro. Elegi <code>x₀</code> cerca de la raiz (tipicamente el extremo donde el signo cambia o el punto medio).',
+    'Configura la <b>tolerancia</b>: en el parcial suele pedirse <code>1e-8</code> (8 cifras) o "error menor al 1 %". Si piden 6 cifras significativas, usa <code>1e-6</code>.',
+    'Opcional pero recomendado para el parcial: en "Valor exacto" pega la raiz conocida (si viene en el enunciado) o una corrida previa con alta precision. Asi la tabla muestra el <em>error relativo %</em> por iteracion para demostrar que cae por debajo del 1 %.',
+    'Pulsa <b>Resolver</b>. La tabla genera las columnas <code>n, x_n, f(x_n), f\'(x_n), |x_{n+1}-x_n|, Err. rel. %</code>. Cada fila aplica <code>x_{n+1} = x_n - f(x_n)/f\'(x_n)</code>.',
+    'Analiza convergencia: Newton-Raphson tiene <em>convergencia cuadratica</em> cerca de la raiz. El error deberia mas o menos duplicar sus cifras por iteracion (3 → 6 → 12 decimales correctos). Si se estanca o diverge, la semilla esta lejos o <code>f\'(x₀) ≈ 0</code>.',
+    'Para el informe: captura la tabla, la grafica con la raiz marcada, exporta con <b>Exportar reporte</b>, y agrega un breve analisis de velocidad de convergencia comparando con Aitken/Steffensen si el parcial lo pide.',
   ],
 
   solve(params) {
@@ -30,6 +42,8 @@ export const newtonRaphson: MethodDefinition = {
     let x = parseFloat(params.x0);
     const tol = parseFloat(params.tol) || 1e-6;
     const maxIter = parseInt(params.maxIter) || 100;
+    const exactRaw = (params.exact ?? '').trim();
+    const exact = exactRaw === '' ? undefined : parseFloat(exactRaw);
 
     if (isNaN(x)) throw new Error('x₀ debe ser un numero valido');
 
@@ -37,22 +51,28 @@ export const newtonRaphson: MethodDefinition = {
     let converged = false;
     let error = Infinity;
 
+    const relErrOf = (val: number): number | null => {
+      if (exact === undefined || isNaN(exact)) return null;
+      const denom = Math.abs(exact) > 1e-14 ? Math.abs(exact) : 1;
+      return Math.abs(val - exact) / denom * 100;
+    };
+
     for (let i = 1; i <= maxIter; i++) {
       const fxn = f(x);
       const dfxn = df(x);
 
       if (Math.abs(dfxn) < 1e-14) {
-        iterations.push({ iter: i, xn: x, fxn, dfxn, error });
-        return { root: x, iterations, converged: false, error, message: "f'(x) ≈ 0, division por cero" };
+        iterations.push({ iter: i, xn: x, fxn, dfxn, error, relErrPct: relErrOf(x) });
+        return { root: x, iterations, converged: false, error, exact, message: "f'(x) ≈ 0, division por cero" };
       }
 
       const xNew = x - fxn / dfxn;
       error = Math.abs(xNew - x);
 
-      iterations.push({ iter: i, xn: x, fxn, dfxn, error });
+      iterations.push({ iter: i, xn: x, fxn, dfxn, error, relErrPct: relErrOf(xNew) });
 
       if (isNaN(xNew) || !isFinite(xNew)) {
-        return { root: x, iterations, converged: false, error, message: 'Divergencia detectada' };
+        return { root: x, iterations, converged: false, error, exact, message: 'Divergencia detectada' };
       }
 
       if (error < tol || Math.abs(fxn) < 1e-15) {
@@ -63,7 +83,15 @@ export const newtonRaphson: MethodDefinition = {
       x = xNew;
     }
 
-    return { root: x, iterations, converged, error };
+    const relFinal = relErrOf(x);
+    return {
+      root: x,
+      iterations,
+      converged,
+      error,
+      exact,
+      relativeErrorPercent: relFinal ?? undefined,
+    };
   },
 
   getCharts(params, result) {

@@ -18,6 +18,15 @@ export const simpson38: MethodDefinition = {
     { key: 'fx', label: 'f(x)' },
     { key: 'coeff', label: 'Coeficiente' },
   ],
+  steps: [
+    'Version <em>simple</em> de Simpson 3/8: usa <b>4 puntos</b> equiespaciados — <code>a</code>, <code>x_1</code>, <code>x_2</code>, <code>b</code> con <code>h = (b-a)/3</code> — y ajusta un <b>polinomio cubico</b>.',
+    'Escribe <code>f(x)</code> y los limites <code>a</code>, <code>b</code>.',
+    'Formula: <code>I ≈ (b-a)/8 · [f(a) + 3·f(x_1) + 3·f(x_2) + f(b)]</code>. Pesos: <b>1, 3, 3, 1</b>. Viene de integrar el polinomio cubico de Lagrange en [a, b].',
+    'Pulsa <b>Resolver</b>. La grafica muestra la cubica ajustada contra <code>f(x)</code>.',
+    'Error: <code>|E| = -3(b-a)⁵/6480 · f⁽⁴⁾(ξ)</code> — tambien <code>O(h⁵)</code> como Simpson 1/3, pero la constante es un poco peor. Exacto para polinomios de grado ≤ 3 (igual que 1/3).',
+    'Se usa principalmente cuando el <b>numero de subintervalos no es par</b> (requisito de Simpson 1/3). Si <code>n = 5</code>, podes aplicar 3/8 en los primeros 3 y 1/3 en los ultimos 2.',
+    'Para n multiple de 3, usa <b>Simpson 3/8 compuesto</b>.',
+  ],
 
   solve(params) {
     const f = parseExpression(params.fx);

@@ -1,5 +1,6 @@
 import type { MethodDefinition, MethodResult, ChartData } from '../types';
 import { parseExpression, parseExpression2, linspace } from '../../parser';
+import { commonOdeInputs, applyOdeTargetAndVerification, verifyDiffColumn } from '../../odeHelpers';
 
 export const euler: MethodDefinition = {
   id: 'euler',
@@ -14,6 +15,7 @@ export const euler: MethodDefinition = {
     { id: 'xEnd', label: 'x final', placeholder: '2', type: 'number', defaultValue: '2' },
     { id: 'h', label: 'h (paso)', placeholder: '0.1', type: 'number', defaultValue: '0.1' },
     { id: 'exact', label: 'Solucion exacta y(x) (opcional)', placeholder: '2*exp(x) - x - 1', hint: 'Para calcular error' },
+    ...commonOdeInputs,
   ],
   tableColumns: [
     { key: 'step', label: 'Paso n' },
@@ -23,6 +25,17 @@ export const euler: MethodDefinition = {
     { key: 'yNext', label: 'yₙ₊₁' },
     { key: 'exact', label: 'y exacta' },
     { key: 'error', label: '|Error|' },
+    verifyDiffColumn,
+  ],
+  steps: [
+    'Identifica la EDO: debe tener la forma <code>dy/dx = f(x, y)</code>. Ejemplo parcial tipico: <code>dy/dx = x + y</code> con <code>y(0) = 1</code>, resolver hasta <code>x = 2</code>.',
+    'Escribe <code>f(x, y)</code> en el primer campo. Usa sintaxis <code>math.js</code>: <code>x + y</code>, <code>x*y - sin(x)</code>, <code>exp(-x)*y</code>, etc.',
+    'Completa: <code>x₀</code> (valor inicial de x), <code>y₀</code> (condicion inicial), <code>x_final</code> (donde termina), <code>h</code> (paso). <em>Mas pequeño h → mas preciso pero mas pasos</em>. Tipico: <code>h = 0.1</code> o <code>h = 0.05</code>.',
+    'Si tenes la <b>solucion analitica</b> <code>y(x)</code> (obtenida con separacion de variables o factor integrante), ponla en <em>Solucion exacta</em> para comparar. Ej: para <code>y\' = x + y</code>, <code>y(0) = 1</code>: solucion exacta <code>y(x) = 2·eˣ - x - 1</code>.',
+    'Pulsa <b>Resolver</b>. Por cada paso la tabla muestra:<br>&nbsp;&nbsp;• <code>xₙ = x₀ + n·h</code><br>&nbsp;&nbsp;• <code>yₙ</code> (aproximacion)<br>&nbsp;&nbsp;• <code>f(xₙ, yₙ)</code> (pendiente)<br>&nbsp;&nbsp;• <code>yₙ₊₁ = yₙ + h·f(xₙ, yₙ)</code> <em>(formula de Euler)</em><br>&nbsp;&nbsp;• <code>y(xₙ)</code> exacta (si se dio)<br>&nbsp;&nbsp;• <code>|error|</code> absoluto.',
+    '<b>Error global</b>: Euler es <code>O(h)</code> — si reduces h a la mitad, el error se reduce a la mitad (lineal). Por eso es poco preciso. Usa Heun (O(h²)) o RK4 (O(h⁴)) para mejor precision.',
+    'Interpretacion visual: el <em>campo de pendientes</em> (grafica 4) muestra en cada punto la direccion <code>(1, f(x,y))</code>. La trayectoria de Euler sigue estas pendientes con pasos rectos de longitud h.',
+    'Para el informe: (1) tabla completa de pasos; (2) <code>y(x_final)</code> estimado; (3) si hay exacta: <code>|y_N - y(x_final)|</code>; (4) observacion de error creciente con n (acumulacion). Menciona la limitacion de Euler: asume pendiente constante en todo el intervalo [xₙ, xₙ₊₁].',
   ],
 
   solve(params) {
@@ -72,13 +85,15 @@ export const euler: MethodDefinition = {
       if (n < N) y = yNext;
     }
 
-    return {
+    const result: MethodResult = {
       root: y,
       iterations,
       converged: true,
       error: maxError,
       message: `y(${xEnd}) ≈ ${y.toFixed(8)} | ${N} pasos, h=${h}${maxError > 0 ? ` | Error max = ${maxError.toExponential(4)}` : ''}`,
     };
+    applyOdeTargetAndVerification(result, params);
+    return result;
   },
 
   getCharts(params, result) {

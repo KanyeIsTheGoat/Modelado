@@ -1,5 +1,6 @@
 import type { MethodDefinition, MethodResult, ChartData } from '../types';
 import { parseExpression, linspace } from '../../parser';
+import { checkLipschitz, renderLipschitzPanel } from '../../theorems';
 
 export const aitken: MethodDefinition = {
   id: 'aitken',
@@ -12,6 +13,9 @@ export const aitken: MethodDefinition = {
     { id: 'x0', label: 'x₀ (valor inicial)', placeholder: '1', type: 'number', defaultValue: '1' },
     { id: 'tol', label: 'Tolerancia', placeholder: '1e-6', defaultValue: '1e-6' },
     { id: 'maxIter', label: 'Max iteraciones', placeholder: '100', type: 'number', defaultValue: '100' },
+    { id: 'exact', label: 'Valor exacto (opcional)', placeholder: 'p.ej. 1.41421356', type: 'number', hint: 'Si se provee, agrega columna de error relativo %.' },
+    { id: 'a', label: 'a (para Lipschitz, opcional)', placeholder: '0.5', type: 'number', hint: 'Extremo inferior para verificar |g\'(x)| < 1.' },
+    { id: 'b', label: 'b (para Lipschitz, opcional)', placeholder: '2', type: 'number', hint: 'Extremo superior para verificar |g\'(x)| < 1.' },
   ],
   tableColumns: [
     { key: 'iter', label: 'n' },
@@ -19,6 +23,17 @@ export const aitken: MethodDefinition = {
     { key: 'xn_aitken', label: 'x̂_n (Aitken)' },
     { key: 'error_plain', label: 'Error plain' },
     { key: 'error_aitken', label: 'Error Aitken' },
+    { key: 'relErrPct', label: 'Err. rel. %' },
+  ],
+  steps: [
+    'Parti de <code>f(x) = 0</code> y <b>despeja una funcion auxiliar</b> <code>g(x)</code> tal que <code>x = g(x)</code>. Para <code>f(x) = cos(x) - x</code>, la auxiliar directa es <code>g(x) = cos(x)</code>. Para <code>f(x) = eˣ - 3x²</code>, podes usar <code>g(x) = sqrt(exp(x)/3)</code> u otra que converja.',
+    'Verifica <b>condicion de Lipschitz</b> en un compacto [a, b] alrededor de la raiz: <code>|g\'(x)| &lt; 1</code> para todo x en [a, b]. Si no se cumple, el punto fijo no converge — proba otra <code>g(x)</code> equivalente. Completa los campos <em>a</em> y <em>b</em>; la app te muestra un panel con el chequeo y el grafico de <code>|g\'(x)|</code>.',
+    'Escribe <code>g(x)</code> en el primer campo. Semilla <code>x₀</code>: el parcial la especifica (ej. <code>0.5</code> para cos(x) - x en [0, 1]).',
+    'Configura tolerancia: el parcial pide <em>6 cifras de precision</em>, usa <code>1e-6</code>.',
+    'Opcional para el analisis: pega el valor exacto (calculalo con Newton-Raphson primero si no lo sabes) en "Valor exacto".',
+    'Pulsa <b>Resolver</b>. La tabla compara dos columnas: <code>x_n (plain)</code> = iteracion cruda <code>g(g(...g(x₀)))</code>, y <code>x̂_n (Aitken)</code> = iteracion acelerada por formula Δ²: <code>x̂_n = x_n - (x_{n+1}-x_n)² / (x_{n+2} - 2x_{n+1} + x_n)</code>.',
+    'Analisis para el informe: <em>Aitken reduce drasticamente el numero de iteraciones</em> respecto a punto fijo crudo. Mostra ambos errores en la misma tabla para justificar la aceleracion. Si punto fijo crudo tarda ~30 iter y Aitken converge en ~5, es el numero que hay que reportar.',
+    'Comparacion de metodos para el parcial: <b>Aitken</b> necesita solo <code>g(x)</code> (no derivada), pero la convergencia depende de cuan chico es <code>|g\'(x*)|</code>. <b>Newton</b> necesita <code>f\'(x)</code> pero siempre es cuadratico cerca de la raiz. <b>Steffensen</b> es Aitken aplicado <em>dentro</em> de cada paso → convergencia cuadratica sin derivada.',
   ],
 
   solve(params) {
@@ -26,8 +41,16 @@ export const aitken: MethodDefinition = {
     const x0 = parseFloat(params.x0);
     const tol = parseFloat(params.tol) || 1e-6;
     const maxIter = parseInt(params.maxIter) || 100;
+    const exactRaw = (params.exact ?? '').trim();
+    const exact = exactRaw === '' ? undefined : parseFloat(exactRaw);
 
     if (isNaN(x0)) throw new Error('x₀ debe ser un numero valido');
+
+    const relErrOf = (val: number): number | null => {
+      if (exact === undefined || isNaN(exact)) return null;
+      const denom = Math.abs(exact) > 1e-14 ? Math.abs(exact) : 1;
+      return Math.abs(val - exact) / denom * 100;
+    };
 
     const iterations: MethodResult['iterations'] = [];
     let converged = false;
@@ -68,6 +91,7 @@ export const aitken: MethodDefinition = {
         xn_aitken: aitkenVal,
         error_plain: errorPlain,
         error_aitken: errorAitken,
+        relErrPct: relErrOf(aitkenVal),
       });
 
       if (errorAitken < tol) {
@@ -78,7 +102,28 @@ export const aitken: MethodDefinition = {
       lastAitken = aitkenVal;
     }
 
-    return { root: lastAitken, iterations, converged, error };
+    const theoremPanels: string[] = [];
+    const aRaw = (params.a ?? '').trim();
+    const bRaw = (params.b ?? '').trim();
+    if (aRaw !== '' && bRaw !== '') {
+      const a = parseFloat(aRaw);
+      const b = parseFloat(bRaw);
+      if (!isNaN(a) && !isNaN(b) && a < b) {
+        const lip = checkLipschitz(params.gx, a, b);
+        theoremPanels.push(renderLipschitzPanel(lip));
+      }
+    }
+
+    const relFinal = relErrOf(lastAitken);
+    return {
+      root: lastAitken,
+      iterations,
+      converged,
+      error,
+      exact,
+      relativeErrorPercent: relFinal ?? undefined,
+      theoremPanels,
+    };
   },
 
   getCharts(params, result) {

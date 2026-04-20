@@ -24,11 +24,11 @@ export function renderCompareView(): string {
   return `
     <div class="compare-header">
       <h2>Comparar Metodos</h2>
-      <p style="color:var(--subtext0)">Selecciona metodos de la misma categoria, ingresa los parametros y compara resultados.</p>
+      <p style="color:var(--subtext0)">Selecciona metodos de la misma categoria, ingresa los parametros y compara resultados. Para EDOs, usa <code>f(x,y)</code> como f(x) y completa x final / h.</p>
     </div>
     <div class="compare-config">
       <div class="input-group">
-        <label>Funcion f(x)</label>
+        <label>Funcion f(x) o f(x,y) para EDOs</label>
         <input id="compare-fx" type="text" placeholder="x^3 - x - 2" value="x^3 - x - 2" style="font-family:Consolas,monospace">
       </div>
       <div style="display:flex;gap:12px;flex-wrap:wrap;">
@@ -37,7 +37,7 @@ export function renderCompareView(): string {
           <input id="compare-a" type="number" value="1">
         </div>
         <div class="input-group" style="flex:1;min-width:120px;">
-          <label>b / x₁</label>
+          <label>b / x final</label>
           <input id="compare-b" type="number" value="2">
         </div>
         <div class="input-group" style="flex:1;min-width:120px;">
@@ -47,6 +47,14 @@ export function renderCompareView(): string {
         <div class="input-group" style="flex:1;min-width:120px;">
           <label>Max iter / n</label>
           <input id="compare-max" type="number" value="100">
+        </div>
+        <div class="input-group" style="flex:1;min-width:120px;">
+          <label>y₀ (EDO)</label>
+          <input id="compare-y0" type="number" value="1">
+        </div>
+        <div class="input-group" style="flex:1;min-width:120px;">
+          <label>h (EDO)</label>
+          <input id="compare-h" type="number" value="0.1" step="0.01">
         </div>
       </div>
       <div>
@@ -90,6 +98,8 @@ function runComparison(): void {
   const b = (document.getElementById('compare-b') as HTMLInputElement)?.value || '2';
   const tol = (document.getElementById('compare-tol') as HTMLInputElement)?.value || '1e-6';
   const maxIter = (document.getElementById('compare-max') as HTMLInputElement)?.value || '100';
+  const y0 = (document.getElementById('compare-y0') as HTMLInputElement)?.value || '1';
+  const hStep = (document.getElementById('compare-h') as HTMLInputElement)?.value || '0.1';
 
   const selectedIds: string[] = [];
   document.querySelectorAll('.method-chip.selected').forEach(chip => {
@@ -111,15 +121,17 @@ function runComparison(): void {
     // Build params based on method inputs
     const params: Record<string, string> = {};
     for (const inp of method.inputs) {
-      if (inp.id === 'fx' || inp.id === 'gx') params[inp.id] = fx;
+      if (inp.id === 'fx' || inp.id === 'gx' || inp.id === 'fxy') params[inp.id] = fx;
       else if (inp.id === 'a') params[inp.id] = a;
       else if (inp.id === 'b') params[inp.id] = b;
       else if (inp.id === 'x0') params[inp.id] = a;
       else if (inp.id === 'x1') params[inp.id] = b;
+      else if (inp.id === 'xEnd') params[inp.id] = b;
+      else if (inp.id === 'y0') params[inp.id] = y0;
       else if (inp.id === 'tol') params[inp.id] = tol;
       else if (inp.id === 'maxIter') params[inp.id] = maxIter;
       else if (inp.id === 'n') params[inp.id] = maxIter;
-      else if (inp.id === 'h') params[inp.id] = '0.1';
+      else if (inp.id === 'h') params[inp.id] = hStep;
       else if (inp.id === 'dfx') params[inp.id] = '';
       else if (inp.id === 'ddfx') params[inp.id] = '';
       else if (inp.id === 'levels') params[inp.id] = '4';
@@ -160,9 +172,14 @@ function runComparison(): void {
   // Render convergence chart
   const COLORS = ['#89b4fa', '#a6e3a1', '#fab387', '#cba6f7', '#f38ba8', '#94e2d5', '#f9e2af', '#f5c2e7'];
 
+  const isOdeSet = results.every(r => r.method.category === 'ode');
   const convDatasets = results.filter(r => r.result.iterations.length > 0).map(({ method, result }, i) => {
+    if (method.category === 'ode') {
+      const xs = result.iterations.map(r => r.xn as number);
+      const ys = result.iterations.map(r => r.yn as number);
+      return { label: method.name, x: xs, y: ys, color: COLORS[i % COLORS.length], pointRadius: 2 };
+    }
     const iters = result.iterations.map((_, idx) => idx + 1);
-    // Try to get the "value" column - root convergence
     const values = result.iterations.map(row => {
       return (row.c ?? row.xn ?? row.gxn ?? row.xn_aitken ?? row.approx ?? row.fxi ?? 0) as number;
     });
@@ -172,10 +189,11 @@ function runComparison(): void {
   if (convDatasets.length > 0) {
     try {
       renderChart('compare-chart-convergence', {
-        title: 'Convergencia de valores',
+        title: isOdeSet ? 'Trayectoria y(x) — comparacion de metodos ODE' : 'Convergencia de valores',
         type: 'line',
         datasets: convDatasets,
-        xLabel: 'Iteracion', yLabel: 'Valor',
+        xLabel: isOdeSet ? 'x' : 'Iteracion',
+        yLabel: isOdeSet ? 'y' : 'Valor',
       });
     } catch {}
   }

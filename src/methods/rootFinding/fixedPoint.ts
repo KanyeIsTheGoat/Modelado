@@ -1,5 +1,6 @@
 import type { MethodDefinition, MethodResult, ChartData } from '../types';
 import { parseExpression, linspace } from '../../parser';
+import { checkLipschitz, renderLipschitzPanel } from '../../theorems';
 
 export const fixedPoint: MethodDefinition = {
   id: 'fixedPoint',
@@ -12,12 +13,23 @@ export const fixedPoint: MethodDefinition = {
     { id: 'x0', label: 'x₀ (valor inicial)', placeholder: '1', type: 'number', defaultValue: '1' },
     { id: 'tol', label: 'Tolerancia', placeholder: '1e-6', defaultValue: '1e-6' },
     { id: 'maxIter', label: 'Max iteraciones', placeholder: '100', type: 'number', defaultValue: '100' },
+    { id: 'a', label: 'a (para Lipschitz, opcional)', placeholder: '0.5', type: 'number', hint: 'Extremo inferior para verificar |g\'(x)| < 1.' },
+    { id: 'b', label: 'b (para Lipschitz, opcional)', placeholder: '2', type: 'number', hint: 'Extremo superior para verificar |g\'(x)| < 1.' },
   ],
   tableColumns: [
     { key: 'iter', label: 'n' },
     { key: 'xn', label: 'x_n' },
     { key: 'gxn', label: 'g(x_n)' },
     { key: 'error', label: 'Error' },
+  ],
+  steps: [
+    'Parti de <code>f(x) = 0</code> y <b>despeja</b> una funcion <code>g(x)</code> equivalente: <code>x = g(x)</code>. Para <code>x² = 2</code> → <code>g(x) = (x + 2/x)/2</code>. Casi siempre hay multiples formas validas; conviene la que sea <em>contractiva</em>.',
+    '<b>Verifica Lipschitz</b>: <code>|g\'(x)| &lt; 1</code> en un intervalo [a, b] que contenga la semilla y el punto fijo. Completa los campos <em>a</em> y <em>b</em> — la app calcula <code>max |g\'(x)|</code> numericamente y te dice si el metodo va a converger.',
+    'Elegi semilla <code>x₀</code> cerca del punto fijo (lo mas cerca posible para acelerar la convergencia).',
+    'Tolerancia: <code>1e-6</code> si el parcial pide 6 cifras.',
+    'Pulsa <b>Resolver</b>. Cada fila es simplemente <code>x_{n+1} = g(x_n)</code>. La convergencia es <em>lineal</em>: el error se multiplica por <code>|g\'(x*)|</code> en cada paso.',
+    'Si converge pero lento, usa <b>Aitken</b> (acelera la sucesion completa) o <b>Steffensen</b> (acelera dentro de cada paso → cuadratico).',
+    'Si diverge u oscila, tu <code>g(x)</code> no es contractiva cerca de la raiz. Probar otra forma de despeje.',
   ],
 
   solve(params) {
@@ -50,7 +62,18 @@ export const fixedPoint: MethodDefinition = {
       x = xNew;
     }
 
-    return { root: x, iterations, converged, error };
+    const theoremPanels: string[] = [];
+    const aRaw = (params.a ?? '').trim();
+    const bRaw = (params.b ?? '').trim();
+    if (aRaw !== '' && bRaw !== '') {
+      const a = parseFloat(aRaw);
+      const b = parseFloat(bRaw);
+      if (!isNaN(a) && !isNaN(b) && a < b) {
+        const lip = checkLipschitz(params.gx, a, b);
+        theoremPanels.push(renderLipschitzPanel(lip));
+      }
+    }
+    return { root: x, iterations, converged, error, theoremPanels };
   },
 
   getCharts(params, result) {

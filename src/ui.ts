@@ -1,8 +1,28 @@
-import type { MethodResult, MethodDefinition } from './methods/types';
+import type { MethodResult, MethodDefinition, MethodInput } from './methods/types';
 import { texInline, texBlock, renderNumber, FORMULAS } from './latex';
+import { formatNum, getPrecisionMode, setPrecisionMode, ALL_PRECISION_MODES, precisionModeLabel, PrecisionMode } from './precision';
 
-export function createInputForm(method: MethodDefinition): string {
-  const inputs = method.inputs.map(inp => `
+function renderSingleInput(inp: MethodInput): string {
+  if (inp.type === 'table') {
+    const cols = inp.tableColumns || 2;
+    const headers = inp.tableHeaders || Array.from({ length: cols }, (_, i) => `col${i + 1}`);
+    const defaultRows = inp.defaultValue || '';
+    return `
+      <div class="input-group input-group-table" data-table-input="${inp.id}" data-cols="${cols}">
+        <label>${inp.label}</label>
+        <table class="data-input-table" id="input-${inp.id}">
+          <thead><tr>${headers.map(h => `<th>${h}</th>`).join('')}<th></th></tr></thead>
+          <tbody data-rows-for="${inp.id}"></tbody>
+        </table>
+        <div class="table-input-actions">
+          <button type="button" class="btn-mini" data-table-add="${inp.id}">+ fila</button>
+        </div>
+        <input type="hidden" data-table-default="${inp.id}" value="${defaultRows.replace(/"/g, '&quot;')}">
+        ${inp.hint ? `<div class="hint">${inp.hint}</div>` : ''}
+      </div>
+    `;
+  }
+  return `
     <div class="input-group">
       <label for="input-${inp.id}">${inp.label}</label>
       <input
@@ -15,13 +35,22 @@ export function createInputForm(method: MethodDefinition): string {
       >
       ${inp.hint ? `<div class="hint">${inp.hint}</div>` : ''}
     </div>
-  `).join('');
+  `;
+}
+
+export function createInputForm(method: MethodDefinition): string {
+  const inputs = method.inputs.map(renderSingleInput).join('');
 
   // Use LaTeX formula if available, otherwise plain text
   const latexFormula = FORMULAS[method.id];
   const formulaHtml = latexFormula
     ? texBlock(latexFormula)
     : `<div class="method-formula-plain">${method.formula}</div>`;
+
+  const currentMode = getPrecisionMode();
+  const precisionOptions = ALL_PRECISION_MODES.map(m =>
+    `<option value="${m}" ${m === currentMode ? 'selected' : ''}>${precisionModeLabel(m)}</option>`
+  ).join('');
 
   return `
     <div class="method-header">
@@ -36,19 +65,134 @@ export function createInputForm(method: MethodDefinition): string {
       <div class="btn-row">
         <button class="btn btn-primary" id="btn-solve">Resolver</button>
         <button class="btn btn-secondary" id="btn-clear">Limpiar</button>
+        <button class="btn btn-secondary" id="btn-export" title="Descarga un .md con parametros, resultados y graficos">Exportar reporte</button>
+        <label class="precision-select-label">
+          Precision
+          <select id="precision-select">${precisionOptions}</select>
+        </label>
       </div>
       <div id="error-container"></div>
+      <div id="theorem-panels"></div>
     </div>
   `;
+}
+
+/**
+ * After the method view is mounted, initialize table inputs with their default rows
+ * and wire the add/remove buttons.
+ */
+export function initTableInputs(method: MethodDefinition): void {
+  for (const inp of method.inputs) {
+    if (inp.type !== 'table') continue;
+    const cols = inp.tableColumns || 2;
+    const tbody = document.querySelector(`tbody[data-rows-for="${inp.id}"]`) as HTMLTableSectionElement | null;
+    if (!tbody) continue;
+    // Parse default as "x1,y1;x2,y2;..."
+    const parsed = parseTableValue(inp.defaultValue || '', cols);
+    const rows = parsed.length > 0 ? parsed : [Array(cols).fill('')];
+    tbody.innerHTML = '';
+    for (const r of rows) addTableRow(tbody, cols, r);
+  }
+
+  document.querySelectorAll('button[data-table-add]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id = btn.getAttribute('data-table-add')!;
+      const container = document.querySelector(`[data-table-input="${id}"]`);
+      const cols = parseInt(container?.getAttribute('data-cols') || '2', 10);
+      const tbody = document.querySelector(`tbody[data-rows-for="${id}"]`) as HTMLTableSectionElement | null;
+      if (tbody) addTableRow(tbody, cols, Array(cols).fill(''));
+    });
+  });
+
+  // Wire precision selector
+  const sel = document.getElementById('precision-select') as HTMLSelectElement | null;
+  if (sel) {
+    sel.addEventListener('change', () => {
+      setPrecisionMode(sel.value as PrecisionMode);
+      // Notify any listeners (method view re-renders table via a custom event)
+      document.dispatchEvent(new CustomEvent('precision-changed'));
+    });
+  }
+}
+
+function addTableRow(tbody: HTMLTableSectionElement, cols: number, values: string[]): void {
+  const tr = document.createElement('tr');
+  for (let i = 0; i < cols; i++) {
+    const td = document.createElement('td');
+    const inp = document.createElement('input');
+    inp.type = 'text';
+    inp.value = values[i] ?? '';
+    inp.className = 'table-cell-input';
+    td.appendChild(inp);
+    tr.appendChild(td);
+  }
+  const delTd = document.createElement('td');
+  const delBtn = document.createElement('button');
+  delBtn.type = 'button';
+  delBtn.className = 'btn-mini btn-mini-danger';
+  delBtn.textContent = '×';
+  delBtn.addEventListener('click', () => tr.remove());
+  delTd.appendChild(delBtn);
+  tr.appendChild(delTd);
+  tbody.appendChild(tr);
+}
+
+function parseTableValue(raw: string, cols: number): string[][] {
+  if (!raw.trim()) return [];
+  return raw.split(';').map(row => {
+    const parts = row.split(',').map(s => s.trim());
+    while (parts.length < cols) parts.push('');
+    return parts.slice(0, cols);
+  });
+}
+
+export function setInputValues(method: MethodDefinition, values: Record<string, string>): void {
+  for (const inp of method.inputs) {
+    const raw = values[inp.id];
+    if (raw === undefined) continue;
+    if (inp.type === 'table') {
+      const cols = inp.tableColumns || 2;
+      const tbody = document.querySelector(`tbody[data-rows-for="${inp.id}"]`) as HTMLTableSectionElement | null;
+      if (!tbody) continue;
+      const parsed = parseTableValue(raw, cols);
+      const rows = parsed.length > 0 ? parsed : [Array(cols).fill('')];
+      tbody.innerHTML = '';
+      for (const r of rows) addTableRow(tbody, cols, r);
+    } else {
+      const el = document.getElementById(`input-${inp.id}`) as HTMLInputElement;
+      if (el) el.value = raw;
+    }
+  }
 }
 
 export function getInputValues(method: MethodDefinition): Record<string, string> {
   const values: Record<string, string> = {};
   for (const inp of method.inputs) {
-    const el = document.getElementById(`input-${inp.id}`) as HTMLInputElement;
-    values[inp.id] = el?.value ?? '';
+    if (inp.type === 'table') {
+      const tbody = document.querySelector(`tbody[data-rows-for="${inp.id}"]`) as HTMLTableSectionElement | null;
+      if (!tbody) { values[inp.id] = ''; continue; }
+      const rows: string[] = [];
+      tbody.querySelectorAll('tr').forEach(tr => {
+        const cells = Array.from(tr.querySelectorAll('input.table-cell-input')).map(i => (i as HTMLInputElement).value.trim());
+        if (cells.some(c => c !== '')) rows.push(cells.join(','));
+      });
+      values[inp.id] = rows.join(';');
+    } else {
+      const el = document.getElementById(`input-${inp.id}`) as HTMLInputElement;
+      values[inp.id] = el?.value ?? '';
+    }
   }
   return values;
+}
+
+/**
+ * Parse a table-input string "x1,y1;x2,y2;..." into an array of number arrays.
+ */
+export function parseTableData(raw: string): number[][] {
+  if (!raw || !raw.trim()) return [];
+  return raw.split(';').map(row =>
+    row.split(',').map(s => parseFloat(s.trim())).filter(n => !isNaN(n))
+  ).filter(r => r.length > 0);
 }
 
 export function renderResultSummary(result: MethodResult): string {
@@ -59,6 +203,24 @@ export function renderResultSummary(result: MethodResult): string {
   }
   if (result.integral !== undefined) {
     items.push(`<div class="result-item"><span class="label">Integral aproximada</span><span class="value">${renderNumber(result.integral)}</span></div>`);
+  }
+  if (result.exact !== undefined) {
+    items.push(`<div class="result-item"><span class="label">Valor exacto</span><span class="value">${renderNumber(result.exact)}</span></div>`);
+  }
+  if (result.relativeErrorPercent !== undefined) {
+    const pctClass = result.relativeErrorPercent > 1 ? 'error' : '';
+    items.push(`<div class="result-item"><span class="label">Error relativo</span><span class="value ${pctClass}">${formatNum(result.relativeErrorPercent)} %</span></div>`);
+  }
+  if (result.truncationBound !== undefined) {
+    const order = result.truncationOrder ?? 2;
+    items.push(`<div class="result-item"><span class="label">Cota de error |E| (f<sup>(${order})</sup>)</span><span class="value">${renderNumber(result.truncationBound)}</span></div>`);
+  }
+  if (result.maxDerivative !== undefined && result.xiApprox !== undefined) {
+    const order = result.truncationOrder ?? 2;
+    items.push(`<div class="result-item"><span class="label">max |f<sup>(${order})</sup>(ξ)|</span><span class="value">${formatNum(result.maxDerivative)} en ξ ≈ ${formatNum(result.xiApprox)}</span></div>`);
+  }
+  if (result.retried) {
+    items.push(`<div class="result-item"><span class="label">Reintento</span><span class="value">Error > 1 % → n refinado</span></div>`);
   }
   if (result.derivative !== undefined) {
     items.push(`<div class="result-item"><span class="label">Derivada aproximada</span><span class="value">${renderNumber(result.derivative)}</span></div>`);
@@ -88,10 +250,16 @@ export function renderIterationTable(result: MethodResult, columns: { key: strin
   const rows = result.iterations.map(row => {
     const cells = columns.map(c => {
       const v = row[c.key];
-      if (typeof v === 'number') return `<td>${v.toPrecision(10)}</td>`;
+      if (v === null || v === undefined) return `<td class="td-null">—</td>`;
+      if (typeof v === 'number') return `<td>${formatNum(v)}</td>`;
       return `<td>${v}</td>`;
     }).join('');
-    return `<tr>${cells}</tr>`;
+    const highlight = typeof row._highlight === 'string' ? row._highlight : '';
+    const rowClasses: string[] = [];
+    if (highlight.includes('target')) rowClasses.push('row-highlight-target');
+    if (highlight.includes('verify')) rowClasses.push('row-highlight-verify');
+    const classAttr = rowClasses.length > 0 ? ` class="${rowClasses.join(' ')}"` : '';
+    return `<tr${classAttr}>${cells}</tr>`;
   }).join('');
 
   return `

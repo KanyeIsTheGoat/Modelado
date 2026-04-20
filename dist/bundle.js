@@ -1892,8 +1892,8 @@
   // node_modules/seedrandom/seedrandom.js
   var require_seedrandom = __commonJS({
     "node_modules/seedrandom/seedrandom.js"(exports, module) {
-      (function(global, pool, math6) {
-        var width = 256, chunks = 6, digits2 = 52, rngname = "random", startdenom = math6.pow(width, chunks), significance = math6.pow(2, digits2), overflow = significance * 2, mask = width - 1, nodecrypto;
+      (function(global, pool, math7) {
+        var width = 256, chunks = 6, digits2 = 52, rngname = "random", startdenom = math7.pow(width, chunks), significance = math7.pow(2, digits2), overflow = significance * 2, mask = width - 1, nodecrypto;
         function seedrandom2(seed, options, callback2) {
           var key = [];
           options = options == true ? { entropy: true } : options || {};
@@ -1934,13 +1934,13 @@
               };
             }
             if (is_math_call) {
-              math6[rngname] = prng2;
+              math7[rngname] = prng2;
               return seed2;
             } else return prng2;
           })(
             prng,
             shortseed,
-            "global" in options ? options.global : this == math6,
+            "global" in options ? options.global : this == math7,
             options.state
           );
         }
@@ -2011,7 +2011,7 @@
         function tostring(a) {
           return String.fromCharCode.apply(0, a);
         }
-        mixkey(math6.random(), pool);
+        mixkey(math7.random(), pool);
         if (typeof module == "object" && module.exports) {
           module.exports = seedrandom2;
           try {
@@ -2023,7 +2023,7 @@
             return seedrandom2;
           });
         } else {
-          math6["seed" + rngname] = seedrandom2;
+          math7["seed" + rngname] = seedrandom2;
         }
       })(
         // global: `self` in browsers (including strict mode and web workers),
@@ -17103,7 +17103,7 @@
       multiply: multiply2,
       pow: pow3,
       divide: divide3,
-      factorial: factorial2,
+      factorial: factorial4,
       equal: equal2,
       smallerEq: smallerEq2,
       isNegative: isNegative2,
@@ -17163,7 +17163,7 @@
     function d(k, n) {
       var S2 = k;
       for (var j = k; smallerEq2(j, n); j = add3(j, 1)) {
-        var factor = divide3(multiply2(factorial2(add3(n, subtract2(j, 1))), pow3(4, j)), multiply2(factorial2(subtract2(n, j)), factorial2(multiply2(2, j))));
+        var factor = divide3(multiply2(factorial4(add3(n, subtract2(j, 1))), pow3(4, j)), multiply2(factorial4(subtract2(n, j)), factorial4(multiply2(2, j))));
         S2 = add3(S2, factor);
       }
       return multiply2(n, S2);
@@ -25439,7 +25439,7 @@
        * @return {function} Returns a function which can be called like:
        *                        evalNode(scope: Object, args: Object, context: *)
        */
-      _compile(math6, argNames) {
+      _compile(math7, argNames) {
         throw new Error("Method _compile must be implemented by type " + this.type);
       }
       /**
@@ -25804,9 +25804,9 @@
        * @return {function} Returns a function which can be called like:
        *                        evalNode(scope: Object, args: Object, context: *)
        */
-      _compile(math6, argNames) {
-        var evalObject = this.object._compile(math6, argNames);
-        var evalIndex = this.index._compile(math6, argNames);
+      _compile(math7, argNames) {
+        var evalObject = this.object._compile(math7, argNames);
+        var evalIndex = this.index._compile(math7, argNames);
         if (this.index.isObjectProperty()) {
           var prop = this.index.getObjectProperty();
           return function evalAccessorNode(scope, args, context) {
@@ -25950,13 +25950,13 @@
        * @return {function} Returns a function which can be called like:
        *                        evalNode(scope: Object, args: Object, context: *)
        */
-      _compile(math6, argNames) {
+      _compile(math7, argNames) {
         var evalItems = map(this.items, function(item) {
-          return item._compile(math6, argNames);
+          return item._compile(math7, argNames);
         });
-        var asMatrix = math6.config.matrix !== "Array";
+        var asMatrix = math7.config.matrix !== "Array";
         if (asMatrix) {
-          var matrix2 = math6.matrix;
+          var matrix2 = math7.matrix;
           return function evalArrayNode(scope, args, context) {
             return matrix2(map(evalItems, function(evalItem) {
               return evalItem(scope, args, context);
@@ -26509,10 +26509,10 @@
        * @return {function} Returns a function which can be called like:
        *                        evalNode(scope: Object, args: Object, context: *)
        */
-      _compile(math6, argNames) {
-        var evalObject = this.object._compile(math6, argNames);
-        var evalIndex = this.index ? this.index._compile(math6, argNames) : null;
-        var evalValue = this.value._compile(math6, argNames);
+      _compile(math7, argNames) {
+        var evalObject = this.object._compile(math7, argNames);
+        var evalIndex = this.index ? this.index._compile(math7, argNames) : null;
+        var evalValue = this.value._compile(math7, argNames);
         var name315 = this.object.name;
         if (!this.index) {
           if (!isSymbolNode(this.object)) {
@@ -26540,7 +26540,7 @@
             return value;
           };
         } else {
-          var evalParentObject = this.object.object._compile(math6, argNames);
+          var evalParentObject = this.object.object._compile(math7, argNames);
           if (this.object.index.isObjectProperty()) {
             var parentProp = this.object.index.getObjectProperty();
             return function evalAssignmentNode(scope, args, context) {
@@ -26552,7 +26552,7 @@
               return value;
             };
           } else {
-            var evalParentIndex = this.object.index._compile(math6, argNames);
+            var evalParentIndex = this.object.index._compile(math7, argNames);
             return function evalAssignmentNode(scope, args, context) {
               var parent = evalParentObject(scope, args, context);
               var parentIndex = evalParentIndex(scope, args, parent);
@@ -26722,10 +26722,10 @@
        * @return {function} Returns a function which can be called like:
        *                        evalNode(scope: Object, args: Object, context: *)
        */
-      _compile(math6, argNames) {
+      _compile(math7, argNames) {
         var evalBlocks = map(this.blocks, function(block) {
           return {
-            evaluate: block.node._compile(math6, argNames),
+            evaluate: block.node._compile(math7, argNames),
             visible: block.visible
           };
         });
@@ -26913,10 +26913,10 @@
        * @return {function} Returns a function which can be called like:
        *                        evalNode(scope: Object, args: Object, context: *)
        */
-      _compile(math6, argNames) {
-        var evalCondition = this.condition._compile(math6, argNames);
-        var evalTrueExpr = this.trueExpr._compile(math6, argNames);
-        var evalFalseExpr = this.falseExpr._compile(math6, argNames);
+      _compile(math7, argNames) {
+        var evalCondition = this.condition._compile(math7, argNames);
+        var evalTrueExpr = this.trueExpr._compile(math7, argNames);
+        var evalFalseExpr = this.falseExpr._compile(math7, argNames);
         return function evalConditionalNode(scope, args, context) {
           return testCondition(evalCondition(scope, args, context)) ? evalTrueExpr(scope, args, context) : evalFalseExpr(scope, args, context);
         };
@@ -27567,7 +27567,7 @@
        * @return {function} Returns a function which can be called like:
        *                        evalNode(scope: Object, args: Object, context: *)
        */
-      _compile(math6, argNames) {
+      _compile(math7, argNames) {
         var value = this.value;
         return function evalConstantNode() {
           return value;
@@ -27765,12 +27765,12 @@
        * @return {function} Returns a function which can be called like:
        *                        evalNode(scope: Object, args: Object, context: *)
        */
-      _compile(math6, argNames) {
+      _compile(math7, argNames) {
         var childArgNames = Object.create(argNames);
         forEach(this.params, function(param) {
           childArgNames[param] = true;
         });
-        var evalExpr = this.expr._compile(math6, childArgNames);
+        var evalExpr = this.expr._compile(math7, childArgNames);
         var name315 = this.name;
         var params = this.params;
         var signature = join(this.types, ",");
@@ -27951,13 +27951,13 @@
        * @return {function} Returns a function which can be called like:
        *                        evalNode(scope: Object, args: Object, context: *)
        */
-      _compile(math6, argNames) {
+      _compile(math7, argNames) {
         var evalDimensions = map(this.dimensions, function(dimension, i2) {
           var needsEnd = dimension.filter((node) => node.isSymbolNode && node.name === "end").length > 0;
           if (needsEnd) {
             var childArgNames = Object.create(argNames);
             childArgNames.end = true;
-            var _evalDimension = dimension._compile(math6, childArgNames);
+            var _evalDimension = dimension._compile(math7, childArgNames);
             return function evalDimension(scope, args, context) {
               if (!isMatrix(context) && !isArray(context) && !isString(context)) {
                 throw new TypeError('Cannot resolve "end": context must be a Matrix, Array, or string but is ' + typeOf(context));
@@ -27968,10 +27968,10 @@
               return _evalDimension(scope, childArgs, context);
             };
           } else {
-            return dimension._compile(math6, argNames);
+            return dimension._compile(math7, argNames);
           }
         });
-        var index3 = getSafeProperty(math6, "index");
+        var index3 = getSafeProperty(math7, "index");
         return function evalIndexNode(scope, args, context) {
           var dimensions = map(evalDimensions, function(evalDimension) {
             return evalDimension(scope, args, context);
@@ -28132,14 +28132,14 @@
        * @return {function} Returns a function which can be called like:
        *                        evalNode(scope: Object, args: Object, context: *)
        */
-      _compile(math6, argNames) {
+      _compile(math7, argNames) {
         var evalEntries = {};
         for (var key in this.properties) {
           if (hasOwnProperty(this.properties, key)) {
             var stringifiedKey = stringify(key);
             var parsedKey = JSON.parse(stringifiedKey);
             var prop = getSafeProperty(this.properties, key);
-            evalEntries[parsedKey] = prop._compile(math6, argNames);
+            evalEntries[parsedKey] = prop._compile(math7, argNames);
           }
         }
         return function evalObjectNode(scope, args, context) {
@@ -28476,22 +28476,22 @@
        * @return {function} Returns a function which can be called like:
        *                        evalNode(scope: Object, args: Object, context: *)
        */
-      _compile(math6, argNames) {
-        if (typeof this.fn !== "string" || !isSafeMethod(math6, this.fn)) {
-          if (!math6[this.fn]) {
+      _compile(math7, argNames) {
+        if (typeof this.fn !== "string" || !isSafeMethod(math7, this.fn)) {
+          if (!math7[this.fn]) {
             throw new Error("Function " + this.fn + ' missing in provided namespace "math"');
           } else {
             throw new Error('No access to function "' + this.fn + '"');
           }
         }
-        var fn = getSafeProperty(math6, this.fn);
+        var fn = getSafeProperty(math7, this.fn);
         var evalArgs = map(this.args, function(arg2) {
-          return arg2._compile(math6, argNames);
+          return arg2._compile(math7, argNames);
         });
         if (typeof fn === "function" && fn.rawArgs === true) {
           var rawArgs = this.args;
           return function evalOperatorNode(scope, args, context) {
-            return fn(rawArgs, math6, createSubScope(scope, args));
+            return fn(rawArgs, math7, createSubScope(scope, args));
           };
         } else if (evalArgs.length === 1) {
           var evalArg0 = evalArgs[0];
@@ -28827,8 +28827,8 @@
        * @return {function} Returns a function which can be called like:
        *                        evalNode(scope: Object, args: Object, context: *)
        */
-      _compile(math6, argNames) {
-        return this.content._compile(math6, argNames);
+      _compile(math7, argNames) {
+        return this.content._compile(math7, argNames);
       }
       /**
        * Get the content of the current Node.
@@ -28995,12 +28995,12 @@
        * @return {function} Returns a function which can be called like:
        *                        evalNode(scope: Object, args: Object, context: *)
        */
-      _compile(math6, argNames) {
-        var range2 = math6.range;
-        var evalStart = this.start._compile(math6, argNames);
-        var evalEnd = this.end._compile(math6, argNames);
+      _compile(math7, argNames) {
+        var range2 = math7.range;
+        var evalStart = this.start._compile(math7, argNames);
+        var evalEnd = this.end._compile(math7, argNames);
         if (this.step) {
-          var evalStep = this.step._compile(math6, argNames);
+          var evalStep = this.step._compile(math7, argNames);
           return function evalRangeNode(scope, args, context) {
             return range2(evalStart(scope, args, context), evalEnd(scope, args, context), evalStep(scope, args, context));
           };
@@ -29210,16 +29210,16 @@
        * @return {function} Returns a function which can be called like:
        *                        evalNode(scope: Object, args: Object, context: *)
        */
-      _compile(math6, argNames) {
+      _compile(math7, argNames) {
         var self2 = this;
-        var compiled = this.params.map((p) => p._compile(math6, argNames));
+        var compiled = this.params.map((p) => p._compile(math7, argNames));
         return function evalRelationalNode(scope, args, context) {
           var evalLhs;
           var evalRhs = compiled[0](scope, args, context);
           for (var i2 = 0; i2 < self2.conditionals.length; i2++) {
             evalLhs = evalRhs;
             evalRhs = compiled[i2 + 1](scope, args, context);
-            var condFn = getSafeProperty(math6, self2.conditionals[i2]);
+            var condFn = getSafeProperty(math7, self2.conditionals[i2]);
             if (!condFn(evalLhs, evalRhs)) {
               return false;
             }
@@ -29340,7 +29340,7 @@
   var dependencies221 = ["math", "?Unit", "Node"];
   var createSymbolNode = /* @__PURE__ */ factory(name220, dependencies221, (_ref) => {
     var {
-      math: math6,
+      math: math7,
       Unit: Unit2,
       Node: Node2
     } = _ref;
@@ -29381,15 +29381,15 @@
        * @return {function} Returns a function which can be called like:
        *                        evalNode(scope: Object, args: Object, context: *)
        */
-      _compile(math7, argNames) {
+      _compile(math8, argNames) {
         var name315 = this.name;
         if (argNames[name315] === true) {
           return function(scope, args, context) {
             return getSafeProperty(args, name315);
           };
-        } else if (name315 in math7) {
+        } else if (name315 in math8) {
           return function(scope, args, context) {
-            return scope.has(name315) ? scope.get(name315) : getSafeProperty(math7, name315);
+            return scope.has(name315) ? scope.get(name315) : getSafeProperty(math8, name315);
           };
         } else {
           var isUnit2 = isValuelessUnit(name315);
@@ -29487,7 +29487,7 @@
        */
       _toTex(options) {
         var isUnit2 = false;
-        if (typeof math6[this.name] === "undefined" && isValuelessUnit(this.name)) {
+        if (typeof math7[this.name] === "undefined" && isValuelessUnit(this.name)) {
           isUnit2 = true;
         }
         var symbol = toSymbol(this.name, isUnit2);
@@ -29509,7 +29509,7 @@
   var createFunctionNode = /* @__PURE__ */ factory(name221, dependencies222, (_ref) => {
     var _FunctionNode;
     var {
-      math: math6,
+      math: math7,
       Node: Node2,
       SymbolNode: SymbolNode3
     } = _ref;
@@ -29612,19 +29612,19 @@
        * @return {function} Returns a function which can be called like:
        *                        evalNode(scope: Object, args: Object, context: *)
        */
-      _compile(math7, argNames) {
-        var evalArgs = this.args.map((arg2) => arg2._compile(math7, argNames));
+      _compile(math8, argNames) {
+        var evalArgs = this.args.map((arg2) => arg2._compile(math8, argNames));
         if (isSymbolNode(this.fn)) {
           var _name = this.fn.name;
           if (!argNames[_name]) {
-            var fn = _name in math7 ? getSafeProperty(math7, _name) : void 0;
+            var fn = _name in math8 ? getSafeProperty(math8, _name) : void 0;
             var isRaw = typeof fn === "function" && fn.rawArgs === true;
             var resolveFn = (scope) => {
               var value;
               if (scope.has(_name)) {
                 value = scope.get(_name);
-              } else if (_name in math7) {
-                value = getSafeProperty(math7, _name);
+              } else if (_name in math8) {
+                value = getSafeProperty(math8, _name);
               } else {
                 return FunctionNode2.onUndefinedFunction(_name);
               }
@@ -29638,7 +29638,7 @@
               return function evalFunctionNode(scope, args, context) {
                 var fn2 = resolveFn(scope);
                 if (fn2.rawArgs === true) {
-                  return fn2(rawArgs, math7, createSubScope(scope, args));
+                  return fn2(rawArgs, math8, createSubScope(scope, args));
                 } else {
                   var values = evalArgs.map((evalArg) => evalArg(scope, args, context));
                   return fn2(...values);
@@ -29680,7 +29680,7 @@
                 throw new TypeError("Argument '".concat(_name, "' was not a function; received: ").concat(strin(fn2)));
               }
               if (fn2.rawArgs) {
-                return fn2(_rawArgs, math7, createSubScope(scope, args));
+                return fn2(_rawArgs, math8, createSubScope(scope, args));
               } else {
                 var values = evalArgs.map((evalArg) => evalArg(scope, args, context));
                 return fn2.apply(fn2, values);
@@ -29688,14 +29688,14 @@
             };
           }
         } else if (isAccessorNode(this.fn) && isIndexNode(this.fn.index) && this.fn.index.isObjectProperty()) {
-          var evalObject = this.fn.object._compile(math7, argNames);
+          var evalObject = this.fn.object._compile(math8, argNames);
           var prop = this.fn.index.getObjectProperty();
           var _rawArgs2 = this.args;
           return function evalFunctionNode(scope, args, context) {
             var object = evalObject(scope, args, context);
             var fn2 = getSafeMethod(object, prop);
             if (fn2 !== null && fn2 !== void 0 && fn2.rawArgs) {
-              return fn2(_rawArgs2, math7, createSubScope(scope, args));
+              return fn2(_rawArgs2, math8, createSubScope(scope, args));
             } else {
               var values = evalArgs.map((evalArg) => evalArg(scope, args, context));
               return fn2.apply(object, values);
@@ -29703,7 +29703,7 @@
           };
         } else {
           var fnExpr = this.fn.toString();
-          var evalFn = this.fn._compile(math7, argNames);
+          var evalFn = this.fn._compile(math8, argNames);
           var _rawArgs3 = this.args;
           return function evalFunctionNode(scope, args, context) {
             var fn2 = evalFn(scope, args, context);
@@ -29711,7 +29711,7 @@
               throw new TypeError("Expression '".concat(fnExpr, "' did not evaluate to a function; value is:") + "\n  ".concat(strin(fn2)));
             }
             if (fn2.rawArgs) {
-              return fn2(_rawArgs3, math7, createSubScope(scope, args));
+              return fn2(_rawArgs3, math8, createSubScope(scope, args));
             } else {
               var values = evalArgs.map((evalArg) => evalArg(scope, args, context));
               return fn2.apply(fn2, values);
@@ -29852,8 +29852,8 @@
         if (latexFunctions[this.name]) {
           latexConverter = latexFunctions[this.name];
         }
-        if (math6[this.name] && (typeof math6[this.name].toTex === "function" || typeof math6[this.name].toTex === "object" || typeof math6[this.name].toTex === "string")) {
-          latexConverter = math6[this.name].toTex;
+        if (math7[this.name] && (typeof math7[this.name].toTex === "function" || typeof math7[this.name].toTex === "object" || typeof math7[this.name].toTex === "string")) {
+          latexConverter = math7[this.name].toTex;
         }
         var customToTex;
         switch (typeof latexConverter) {
@@ -32712,7 +32712,7 @@
   var createChainClass = /* @__PURE__ */ factory(name238, dependencies239, (_ref) => {
     var {
       on,
-      math: math6,
+      math: math7,
       typed: typed3
     } = _ref;
     function Chain2(value) {
@@ -32802,7 +32802,7 @@
       isChain: true
       // conflicts with the property isChain of a Chain instance
     };
-    Chain2.createProxy(math6);
+    Chain2.createProxy(math7);
     if (on) {
       on("import", function(name315, resolver, path2) {
         if (!path2) {
@@ -38684,7 +38684,7 @@
       add: add3,
       divide: divide3,
       multiply: multiply2,
-      factorial: factorial2,
+      factorial: factorial4,
       isInteger: isInteger3,
       isPositive: isPositive2
     } = _ref;
@@ -38697,9 +38697,9 @@
             throw new TypeError("Positive integer value expected in function multinomial");
           }
           sum3 = add3(sum3, ai);
-          denom = multiply2(denom, factorial2(ai));
+          denom = multiply2(denom, factorial4(ai));
         });
-        return divide3(factorial2(sum3), denom);
+        return divide3(factorial4(sum3), denom);
       }
     });
   });
@@ -38710,10 +38710,10 @@
   var createPermutations = /* @__PURE__ */ factory(name269, dependencies270, (_ref) => {
     var {
       typed: typed3,
-      factorial: factorial2
+      factorial: factorial4
     } = _ref;
     return typed3(name269, {
-      "number | BigNumber": factorial2,
+      "number | BigNumber": factorial4,
       "number, number": function number_number(n, k) {
         if (!isInteger(n) || n < 0) {
           throw new TypeError("Positive integer value expected in function permutations");
@@ -38958,7 +38958,7 @@
       multiplyScalar: multiplyScalar2,
       divideScalar: divideScalar2,
       pow: pow3,
-      factorial: factorial2,
+      factorial: factorial4,
       combinations: combinations2,
       isNegative: isNegative2,
       isInteger: isInteger3,
@@ -42479,9 +42479,9 @@
   });
 
   // node_modules/mathjs/lib/esm/expression/transform/utils/compileInlineExpression.js
-  function compileInlineExpression(expression, math6, scope) {
+  function compileInlineExpression(expression, math7, scope) {
     var symbol = expression.filter(function(node) {
-      return isSymbolNode(node) && !(node.name in math6) && !scope.has(node.name);
+      return isSymbolNode(node) && !(node.name in math7) && !scope.has(node.name);
     })[0];
     if (!symbol) {
       throw new Error('No undefined variable found in inline expression "' + expression + '"');
@@ -42564,7 +42564,7 @@
     var {
       typed: typed3
     } = _ref;
-    function filterTransform(args, math6, scope) {
+    function filterTransform(args, math7, scope) {
       var filter3 = createFilter({
         typed: typed3
       });
@@ -42587,7 +42587,7 @@
         if (isSymbolNode(callback2) || isFunctionAssignmentNode(callback2)) {
           callback2 = _compileAndEvaluate(callback2, scope);
         } else {
-          callback2 = compileInlineExpression(callback2, math6, scope);
+          callback2 = compileInlineExpression(callback2, math7, scope);
         }
       }
       return filter3(x, transformCallback(callback2, N));
@@ -42614,7 +42614,7 @@
     var transformCallback = createTransformCallback({
       typed: typed3
     });
-    function forEachTransform(args, math6, scope) {
+    function forEachTransform(args, math7, scope) {
       if (args.length === 0) {
         return forEach3();
       }
@@ -42631,7 +42631,7 @@
         if (isSymbolNode(callback2) || isFunctionAssignmentNode(callback2)) {
           callback2 = _compileAndEvaluate(callback2, scope);
         } else {
-          callback2 = compileInlineExpression(callback2, math6, scope);
+          callback2 = compileInlineExpression(callback2, math7, scope);
         }
       }
       return forEach3(x, transformCallback(callback2, N));
@@ -42701,7 +42701,7 @@
     var transformCallback = createTransformCallback({
       typed: typed3
     });
-    function mapTransform(args, math6, scope) {
+    function mapTransform(args, math7, scope) {
       if (args.length === 0) {
         return map5();
       }
@@ -42716,7 +42716,7 @@
         if (isSymbolNode(callback2) || isFunctionAssignmentNode(callback2)) {
           callback2 = _compileAndEvaluate(callback2, scope);
         } else {
-          callback2 = compileInlineExpression(callback2, math6, scope);
+          callback2 = compileInlineExpression(callback2, math7, scope);
         }
       }
       return map5(...X, transformCallback(callback2, N));
@@ -43256,7 +43256,7 @@
       not: not2,
       concat: concat3
     });
-    function andTransform(args, math6, scope) {
+    function andTransform(args, math7, scope) {
       var condition1 = args[0].compile().evaluate(scope);
       if (!isCollection(condition1) && !and2(condition1, true)) {
         return false;
@@ -43288,7 +43288,7 @@
       DenseMatrix: DenseMatrix2,
       concat: concat3
     });
-    function orTransform(args, math6, scope) {
+    function orTransform(args, math7, scope) {
       var condition1 = args[0].compile().evaluate(scope);
       if (!isCollection(condition1) && or2(condition1, false)) {
         return true;
@@ -43322,7 +43322,7 @@
       not: not2,
       concat: concat3
     });
-    function bitAndTransform(args, math6, scope) {
+    function bitAndTransform(args, math7, scope) {
       var condition1 = args[0].compile().evaluate(scope);
       if (!isCollection(condition1)) {
         if (isNaN(condition1)) {
@@ -43359,7 +43359,7 @@
       DenseMatrix: DenseMatrix2,
       concat: concat3
     });
-    function bitOrTransform(args, math6, scope) {
+    function bitOrTransform(args, math7, scope) {
       var condition1 = args[0].compile().evaluate(scope);
       if (!isCollection(condition1)) {
         if (isNaN(condition1)) {
@@ -45917,7 +45917,7 @@
   }
 
   // node_modules/mathjs/lib/esm/core/function/import.js
-  function importFactory(typed3, load, math6, importedFactories) {
+  function importFactory(typed3, load, math7, importedFactories) {
     function mathImport(functions2, options) {
       var num = arguments.length;
       if (num !== 1 && num !== 2) {
@@ -45973,25 +45973,25 @@
           [value.signature]: value
         });
       }
-      if (typed3.isTypedFunction(math6[name315]) && typed3.isTypedFunction(value)) {
+      if (typed3.isTypedFunction(math7[name315]) && typed3.isTypedFunction(value)) {
         if (options.override) {
           value = typed3(name315, value.signatures);
         } else {
-          value = typed3(math6[name315], value);
+          value = typed3(math7[name315], value);
         }
-        math6[name315] = value;
+        math7[name315] = value;
         delete importedFactories[name315];
         _importTransform(name315, value);
-        math6.emit("import", name315, function resolver() {
+        math7.emit("import", name315, function resolver() {
           return value;
         });
         return;
       }
-      if (math6[name315] === void 0 || options.override) {
-        math6[name315] = value;
+      if (math7[name315] === void 0 || options.override) {
+        math7[name315] = value;
         delete importedFactories[name315];
         _importTransform(name315, value);
-        math6.emit("import", name315, function resolver() {
+        math7.emit("import", name315, function resolver() {
           return value;
         });
         return;
@@ -46002,23 +46002,23 @@
     }
     function _importTransform(name315, value) {
       if (value && typeof value.transform === "function") {
-        math6.expression.transform[name315] = value.transform;
+        math7.expression.transform[name315] = value.transform;
         if (allowedInExpressions(name315)) {
-          math6.expression.mathWithTransform[name315] = value.transform;
+          math7.expression.mathWithTransform[name315] = value.transform;
         }
       } else {
-        delete math6.expression.transform[name315];
+        delete math7.expression.transform[name315];
         if (allowedInExpressions(name315)) {
-          math6.expression.mathWithTransform[name315] = value;
+          math7.expression.mathWithTransform[name315] = value;
         }
       }
     }
     function _deleteTransform(name315) {
-      delete math6.expression.transform[name315];
+      delete math7.expression.transform[name315];
       if (allowedInExpressions(name315)) {
-        math6.expression.mathWithTransform[name315] = math6[name315];
+        math7.expression.mathWithTransform[name315] = math7[name315];
       } else {
-        delete math6.expression.mathWithTransform[name315];
+        delete math7.expression.mathWithTransform[name315];
       }
     }
     function _wrap(fn) {
@@ -46028,7 +46028,7 @@
           var arg2 = arguments[i2];
           args[i2] = arg2 && arg2.valueOf();
         }
-        return fn.apply(math6, args);
+        return fn.apply(math7, args);
       };
       if (fn.transform) {
         wrapper.transform = fn.transform;
@@ -46040,8 +46040,8 @@
       if (name315.includes(".")) {
         throw new Error("Factory name should not contain a nested path. Name: " + JSON.stringify(name315));
       }
-      var namespace = isTransformFunctionFactory(factory2) ? math6.expression.transform : math6;
-      var existingTransform = name315 in math6.expression.transform;
+      var namespace = isTransformFunctionFactory(factory2) ? math7.expression.transform : math7;
+      var existingTransform = name315 in math7.expression.transform;
       var existing = hasOwnProperty(namespace, name315) ? namespace[name315] : void 0;
       var resolver = function resolver2() {
         var dependencies316 = {};
@@ -46050,13 +46050,13 @@
             throw new Error("Factory dependency should not contain a nested path. Name: " + JSON.stringify(dependency));
           }
           if (dependency === "math") {
-            dependencies316.math = math6;
+            dependencies316.math = math7;
           } else if (dependency === "mathWithTransform") {
-            dependencies316.mathWithTransform = math6.expression.mathWithTransform;
+            dependencies316.mathWithTransform = math7.expression.mathWithTransform;
           } else if (dependency === "classes") {
-            dependencies316.classes = math6;
+            dependencies316.classes = math7;
           } else {
-            dependencies316[dependency] = math6[dependency];
+            dependencies316[dependency] = math7[dependency];
           }
         });
         var instance = /* @__PURE__ */ factory2(dependencies316);
@@ -46081,7 +46081,7 @@
           _deleteTransform(name315);
         } else {
           if (isTransformFunctionFactory(factory2) || factoryAllowedInExpressions(factory2)) {
-            lazy(math6.expression.mathWithTransform, name315, () => namespace[name315]);
+            lazy(math7.expression.mathWithTransform, name315, () => namespace[name315]);
           }
         }
       } else {
@@ -46090,12 +46090,12 @@
           _deleteTransform(name315);
         } else {
           if (isTransformFunctionFactory(factory2) || factoryAllowedInExpressions(factory2)) {
-            lazy(math6.expression.mathWithTransform, name315, () => namespace[name315]);
+            lazy(math7.expression.mathWithTransform, name315, () => namespace[name315]);
           }
         }
       }
       importedFactories[name315] = factory2;
-      math6.emit("import", name315, resolver);
+      math7.emit("import", name315, resolver);
     }
     function isSupportedType(object) {
       return typeof object === "function" || typeof object === "number" || typeof object === "string" || typeof object === "boolean" || object === null || isUnit(object) || isComplex(object) || isBigNumber(object) || isFraction(object) || isMatrix(object) || Array.isArray(object);
@@ -46131,7 +46131,7 @@
     if (typeof Object.create !== "function") {
       throw new Error("ES5 not supported by this JavaScript engine. Please load the es5-shim and es5-sham library for compatibility.");
     }
-    var math6 = mixin({
+    var math7 = mixin({
       // only here for backward compatibility for legacy factory functions
       isNumber,
       isComplex,
@@ -46177,22 +46177,22 @@
       isSymbolNode,
       isChain
     });
-    math6.config = configFactory(configInternal, math6.emit);
-    math6.expression = {
+    math7.config = configFactory(configInternal, math7.emit);
+    math7.expression = {
       transform: {},
       mathWithTransform: {
-        config: math6.config
+        config: math7.config
       }
     };
     var legacyFactories = [];
     var legacyInstances = [];
     function load(factory2) {
       if (isFactory(factory2)) {
-        return factory2(math6);
+        return factory2(math7);
       }
       var firstProperty = factory2[Object.keys(factory2)[0]];
       if (isFactory(firstProperty)) {
-        return firstProperty(math6);
+        return firstProperty(math7);
       }
       if (!isLegacyFactory(factory2)) {
         console.warn("Factory object with properties `type`, `name`, and `factory` expected", factory2);
@@ -46202,9 +46202,9 @@
       var instance;
       if (index3 === -1) {
         if (factory2.math === true) {
-          instance = factory2.factory(math6.type, configInternal, load, math6.typed, math6);
+          instance = factory2.factory(math7.type, configInternal, load, math7.typed, math7);
         } else {
-          instance = factory2.factory(math6.type, configInternal, load, math6.typed);
+          instance = factory2.factory(math7.type, configInternal, load, math7.typed);
         }
         legacyFactories.push(factory2);
         legacyInstances.push(instance);
@@ -46218,12 +46218,12 @@
       for (var _len = arguments.length, args = new Array(_len), _key = 0; _key < _len; _key++) {
         args[_key] = arguments[_key];
       }
-      return math6.typed.apply(math6.typed, args);
+      return math7.typed.apply(math7.typed, args);
     }
     lazyTyped.isTypedFunction = import_typed_function3.default.isTypedFunction;
-    var internalImport = importFactory(lazyTyped, load, math6, importedFactories);
-    math6.import = internalImport;
-    math6.on("config", () => {
+    var internalImport = importFactory(lazyTyped, load, math7, importedFactories);
+    math7.import = internalImport;
+    math7.on("config", () => {
       Object.values(importedFactories).forEach((factory2) => {
         if (factory2 && factory2.meta && factory2.meta.recreateOnConfigChange) {
           internalImport(factory2, {
@@ -46232,13 +46232,13 @@
         }
       });
     });
-    math6.create = create.bind(null, factories);
-    math6.factory = factory;
-    math6.import(Object.values(deepFlatten(factories)));
-    math6.ArgumentsError = ArgumentsError;
-    math6.DimensionError = DimensionError;
-    math6.IndexError = IndexError;
-    return math6;
+    math7.create = create.bind(null, factories);
+    math7.factory = factory;
+    math7.import(Object.values(deepFlatten(factories)));
+    math7.ArgumentsError = ArgumentsError;
+    math7.DimensionError = DimensionError;
+    math7.IndexError = IndexError;
+    return math7;
   }
 
   // src/parser.ts
@@ -46287,6 +46287,130 @@
     return (f(x + h) - f(x - h)) / (2 * h);
   }
 
+  // src/precision.ts
+  var STORAGE_KEY = "modelado.precision";
+  var DEFAULT_MODE = "decimals-6";
+  function getPrecisionMode() {
+    try {
+      const v = localStorage.getItem(STORAGE_KEY);
+      if (v && isValidMode(v)) return v;
+    } catch {
+    }
+    return DEFAULT_MODE;
+  }
+  function setPrecisionMode(mode2) {
+    try {
+      localStorage.setItem(STORAGE_KEY, mode2);
+    } catch {
+    }
+  }
+  function isValidMode(v) {
+    return [
+      "decimals-4",
+      "decimals-6",
+      "decimals-8",
+      "decimals-10",
+      "sig-4",
+      "sig-6",
+      "sig-8"
+    ].includes(v);
+  }
+  function parseMode(mode2) {
+    const [kind, nStr] = mode2.split("-");
+    return { kind, n: parseInt(nStr, 10) };
+  }
+  function formatNum(n, mode2) {
+    if (n === null || n === void 0 || isNaN(n)) return String(n);
+    if (!isFinite(n)) return n > 0 ? "\u221E" : "-\u221E";
+    const m = mode2 ?? getPrecisionMode();
+    const { kind, n: prec } = parseMode(m);
+    const abs3 = Math.abs(n);
+    if (kind === "sig") {
+      return n.toPrecision(prec);
+    }
+    if (abs3 !== 0 && (abs3 < Math.pow(10, -prec) || abs3 >= 1e6)) {
+      return n.toExponential(prec);
+    }
+    return n.toFixed(prec);
+  }
+  function precisionModeLabel(mode2) {
+    const { kind, n } = parseMode(mode2);
+    return kind === "decimals" ? `${n} decimales` : `${n} cifras sig.`;
+  }
+  var ALL_PRECISION_MODES = [
+    "decimals-4",
+    "decimals-6",
+    "decimals-8",
+    "decimals-10",
+    "sig-4",
+    "sig-6",
+    "sig-8"
+  ];
+
+  // src/theorems.ts
+  function checkBolzano(fxExpr, a, b) {
+    const f = parseExpression(fxExpr);
+    const fa = f(a);
+    const fb = f(b);
+    const product3 = fa * fb;
+    const passes = isFinite(fa) && isFinite(fb) && product3 < 0;
+    let message;
+    if (!isFinite(fa) || !isFinite(fb)) {
+      message = `f(a) o f(b) no son finitos \u2014 revisar dominio o expresion.`;
+    } else if (product3 < 0) {
+      message = `f(${a})\xB7f(${b}) = ${formatNum(product3)} < 0 \u2192 existe al menos una raiz en (${a}, ${b}).`;
+    } else if (product3 === 0) {
+      message = `f(${a})\xB7f(${b}) = 0 \u2192 uno de los extremos es raiz exacta.`;
+    } else {
+      message = `f(${a})\xB7f(${b}) = ${formatNum(product3)} > 0 \u2192 Bolzano no garantiza raiz.`;
+    }
+    return { passes, fa, fb, product: product3, message };
+  }
+  function checkLipschitz(gxExpr, a, b, nSamples = 400) {
+    const g = parseExpression(gxExpr);
+    const xs = linspace(a, b, nSamples);
+    let maxAbs = 0;
+    let xAtMax = a;
+    for (const x of xs) {
+      const gp = numericalDerivative(g, x);
+      if (isFinite(gp) && Math.abs(gp) > maxAbs) {
+        maxAbs = Math.abs(gp);
+        xAtMax = x;
+      }
+    }
+    const passes = maxAbs < 1;
+    const message = passes ? `max |g'(x)| \u2248 ${formatNum(maxAbs)} en x \u2248 ${formatNum(xAtMax)} < 1 \u2192 g es contractiva (Lipschitz con L = ${formatNum(maxAbs)}).` : `max |g'(x)| \u2248 ${formatNum(maxAbs)} en x \u2248 ${formatNum(xAtMax)} \u2265 1 \u2192 no se garantiza contraccion; la iteracion puede divergir.`;
+    return { passes, maxAbsDerivative: maxAbs, samples: nSamples, xAtMax, message };
+  }
+  function renderBolzanoPanel(result) {
+    const statusClass = result.passes ? "theorem-pass" : "theorem-fail";
+    const icon = result.passes ? "\u2713" : "\u2717";
+    return `
+    <div class="theorem-panel ${statusClass}">
+      <div class="theorem-header"><span class="theorem-icon">${icon}</span> Teorema de Bolzano</div>
+      <div class="theorem-body">
+        <div>f(a) = ${formatNum(result.fa)}, f(b) = ${formatNum(result.fb)}</div>
+        <div>f(a) \xB7 f(b) = ${formatNum(result.product)}</div>
+        <div class="theorem-message">${result.message}</div>
+      </div>
+    </div>
+  `;
+  }
+  function renderLipschitzPanel(result) {
+    const statusClass = result.passes ? "theorem-pass" : "theorem-fail";
+    const icon = result.passes ? "\u2713" : "\u2717";
+    return `
+    <div class="theorem-panel ${statusClass}">
+      <div class="theorem-header"><span class="theorem-icon">${icon}</span> Condicion de Lipschitz (contraccion)</div>
+      <div class="theorem-body">
+        <div>max |g'(x)| \u2248 ${formatNum(result.maxAbsDerivative)} (muestreo ${result.samples} puntos)</div>
+        <div>x del maximo \u2248 ${formatNum(result.xAtMax)}</div>
+        <div class="theorem-message">${result.message}</div>
+      </div>
+    </div>
+  `;
+  }
+
   // src/methods/rootFinding/bisection.ts
   var bisection = {
     id: "bisection",
@@ -46308,6 +46432,14 @@
       { key: "c", label: "c" },
       { key: "fc", label: "f(c)" },
       { key: "error", label: "Error" }
+    ],
+    steps: [
+      "Escribe <code>f(x)</code> en el primer campo.",
+      "Define el intervalo <code>[a, b]</code>. <b>Verifica Bolzano</b>: <code>f(a)\xB7f(b) &lt; 0</code>. Si no se cumple, este metodo no garantiza raiz \u2014 cambia el intervalo. La app muestra un panel con el chequeo automatico.",
+      "Configura tolerancia (ej. <code>1e-6</code>) y maximo de iteraciones.",
+      "Pulsa <b>Resolver</b>. En cada iteracion: <code>c = (a+b)/2</code>, evalua <code>f(c)</code>, y reduce el intervalo conservando el subintervalo donde sigue el cambio de signo.",
+      "Es un metodo <em>lento pero seguro</em> \u2014 convergencia lineal: el error se divide por 2 en cada iteracion. Para 6 decimales hacen falta ~20 iteraciones.",
+      "Bueno para usar como <b>arranque seguro</b> antes de pasar a Newton-Raphson o Secante, que son mas rapidos pero requieren buena semilla."
     ],
     solve(params) {
       const f = parseExpression(params.fx);
@@ -46341,7 +46473,14 @@
           a = c;
         }
       }
-      return { root: c, iterations, converged, error };
+      const bolzano = checkBolzano(params.fx, parseFloat(params.a), parseFloat(params.b));
+      return {
+        root: c,
+        iterations,
+        converged,
+        error,
+        theoremPanels: [renderBolzanoPanel(bolzano)]
+      };
     },
     getCharts(params, result) {
       const f = parseExpression(params.fx);
@@ -46418,13 +46557,24 @@
       { id: "gx", label: "g(x)", placeholder: "(x + 2/x) / 2", hint: "Funcion de iteracion x = g(x)", defaultValue: "(x + 2/x) / 2" },
       { id: "x0", label: "x\u2080 (valor inicial)", placeholder: "1", type: "number", defaultValue: "1" },
       { id: "tol", label: "Tolerancia", placeholder: "1e-6", defaultValue: "1e-6" },
-      { id: "maxIter", label: "Max iteraciones", placeholder: "100", type: "number", defaultValue: "100" }
+      { id: "maxIter", label: "Max iteraciones", placeholder: "100", type: "number", defaultValue: "100" },
+      { id: "a", label: "a (para Lipschitz, opcional)", placeholder: "0.5", type: "number", hint: "Extremo inferior para verificar |g'(x)| < 1." },
+      { id: "b", label: "b (para Lipschitz, opcional)", placeholder: "2", type: "number", hint: "Extremo superior para verificar |g'(x)| < 1." }
     ],
     tableColumns: [
       { key: "iter", label: "n" },
       { key: "xn", label: "x_n" },
       { key: "gxn", label: "g(x_n)" },
       { key: "error", label: "Error" }
+    ],
+    steps: [
+      "Parti de <code>f(x) = 0</code> y <b>despeja</b> una funcion <code>g(x)</code> equivalente: <code>x = g(x)</code>. Para <code>x\xB2 = 2</code> \u2192 <code>g(x) = (x + 2/x)/2</code>. Casi siempre hay multiples formas validas; conviene la que sea <em>contractiva</em>.",
+      "<b>Verifica Lipschitz</b>: <code>|g'(x)| &lt; 1</code> en un intervalo [a, b] que contenga la semilla y el punto fijo. Completa los campos <em>a</em> y <em>b</em> \u2014 la app calcula <code>max |g'(x)|</code> numericamente y te dice si el metodo va a converger.",
+      "Elegi semilla <code>x\u2080</code> cerca del punto fijo (lo mas cerca posible para acelerar la convergencia).",
+      "Tolerancia: <code>1e-6</code> si el parcial pide 6 cifras.",
+      "Pulsa <b>Resolver</b>. Cada fila es simplemente <code>x_{n+1} = g(x_n)</code>. La convergencia es <em>lineal</em>: el error se multiplica por <code>|g'(x*)|</code> en cada paso.",
+      "Si converge pero lento, usa <b>Aitken</b> (acelera la sucesion completa) o <b>Steffensen</b> (acelera dentro de cada paso \u2192 cuadratico).",
+      "Si diverge u oscila, tu <code>g(x)</code> no es contractiva cerca de la raiz. Probar otra forma de despeje."
     ],
     solve(params) {
       const g = parseExpression(params.gx);
@@ -46449,7 +46599,18 @@
         }
         x = xNew;
       }
-      return { root: x, iterations, converged, error };
+      const theoremPanels = [];
+      const aRaw = (params.a ?? "").trim();
+      const bRaw = (params.b ?? "").trim();
+      if (aRaw !== "" && bRaw !== "") {
+        const a = parseFloat(aRaw);
+        const b = parseFloat(bRaw);
+        if (!isNaN(a) && !isNaN(b) && a < b) {
+          const lip = checkLipschitz(params.gx, a, b);
+          theoremPanels.push(renderLipschitzPanel(lip));
+        }
+      }
+      return { root: x, iterations, converged, error, theoremPanels };
     },
     getCharts(params, result) {
       const g = parseExpression(params.gx);
@@ -46540,14 +46701,26 @@
       { id: "dfx", label: "f'(x) (dejar vacio para derivada numerica)", placeholder: "3*x^2 - 1", hint: "Derivada analitica. Si se deja vacio se usa derivada numerica central.", defaultValue: "3*x^2 - 1" },
       { id: "x0", label: "x\u2080 (valor inicial)", placeholder: "2", type: "number", defaultValue: "2" },
       { id: "tol", label: "Tolerancia", placeholder: "1e-6", defaultValue: "1e-6" },
-      { id: "maxIter", label: "Max iteraciones", placeholder: "100", type: "number", defaultValue: "100" }
+      { id: "maxIter", label: "Max iteraciones", placeholder: "100", type: "number", defaultValue: "100" },
+      { id: "exact", label: "Valor exacto (opcional)", placeholder: "p.ej. 1.52138", type: "number", hint: "Si se provee, agrega columna de error relativo %." }
     ],
     tableColumns: [
       { key: "iter", label: "n" },
       { key: "xn", label: "x_n" },
       { key: "fxn", label: "f(x_n)" },
       { key: "dfxn", label: "f'(x_n)" },
-      { key: "error", label: "Error" }
+      { key: "error", label: "|x_{n+1}-x_n|" },
+      { key: "relErrPct", label: "Err. rel. %" }
+    ],
+    steps: [
+      "Escribi la funcion <code>f(x)</code> en el primer campo. Ej: <code>x^3 - 3x - 4</code>.",
+      "Calcula <b>f'(x)</b> analiticamente (derivada simbolica) y escribila en el segundo campo. Para <code>x^3 - 3x - 4</code> la derivada es <code>3*x^2 - 3</code>. Si dejas el campo vacio, el metodo usa derivada numerica central como respaldo \u2014 no recomendado para el parcial porque pierde precision.",
+      "Ubica la <b>raiz aproximada</b>: mira la grafica de <code>f(x)</code> o aplica <em>Bolzano</em>: si <code>f(a)\xB7f(b) &lt; 0</code> en el intervalo pedido, hay al menos una raiz adentro. Elegi <code>x\u2080</code> cerca de la raiz (tipicamente el extremo donde el signo cambia o el punto medio).",
+      'Configura la <b>tolerancia</b>: en el parcial suele pedirse <code>1e-8</code> (8 cifras) o "error menor al 1 %". Si piden 6 cifras significativas, usa <code>1e-6</code>.',
+      'Opcional pero recomendado para el parcial: en "Valor exacto" pega la raiz conocida (si viene en el enunciado) o una corrida previa con alta precision. Asi la tabla muestra el <em>error relativo %</em> por iteracion para demostrar que cae por debajo del 1 %.',
+      "Pulsa <b>Resolver</b>. La tabla genera las columnas <code>n, x_n, f(x_n), f'(x_n), |x_{n+1}-x_n|, Err. rel. %</code>. Cada fila aplica <code>x_{n+1} = x_n - f(x_n)/f'(x_n)</code>.",
+      "Analiza convergencia: Newton-Raphson tiene <em>convergencia cuadratica</em> cerca de la raiz. El error deberia mas o menos duplicar sus cifras por iteracion (3 \u2192 6 \u2192 12 decimales correctos). Si se estanca o diverge, la semilla esta lejos o <code>f'(x\u2080) \u2248 0</code>.",
+      "Para el informe: captura la tabla, la grafica con la raiz marcada, exporta con <b>Exportar reporte</b>, y agrega un breve analisis de velocidad de convergencia comparando con Aitken/Steffensen si el parcial lo pide."
     ],
     solve(params) {
       const f = parseExpression(params.fx);
@@ -46556,22 +46729,29 @@
       let x = parseFloat(params.x0);
       const tol = parseFloat(params.tol) || 1e-6;
       const maxIter = parseInt(params.maxIter) || 100;
+      const exactRaw = (params.exact ?? "").trim();
+      const exact = exactRaw === "" ? void 0 : parseFloat(exactRaw);
       if (isNaN(x)) throw new Error("x\u2080 debe ser un numero valido");
       const iterations = [];
       let converged = false;
       let error = Infinity;
+      const relErrOf = (val) => {
+        if (exact === void 0 || isNaN(exact)) return null;
+        const denom = Math.abs(exact) > 1e-14 ? Math.abs(exact) : 1;
+        return Math.abs(val - exact) / denom * 100;
+      };
       for (let i2 = 1; i2 <= maxIter; i2++) {
         const fxn = f(x);
         const dfxn = df(x);
         if (Math.abs(dfxn) < 1e-14) {
-          iterations.push({ iter: i2, xn: x, fxn, dfxn, error });
-          return { root: x, iterations, converged: false, error, message: "f'(x) \u2248 0, division por cero" };
+          iterations.push({ iter: i2, xn: x, fxn, dfxn, error, relErrPct: relErrOf(x) });
+          return { root: x, iterations, converged: false, error, exact, message: "f'(x) \u2248 0, division por cero" };
         }
         const xNew = x - fxn / dfxn;
         error = Math.abs(xNew - x);
-        iterations.push({ iter: i2, xn: x, fxn, dfxn, error });
+        iterations.push({ iter: i2, xn: x, fxn, dfxn, error, relErrPct: relErrOf(xNew) });
         if (isNaN(xNew) || !isFinite(xNew)) {
-          return { root: x, iterations, converged: false, error, message: "Divergencia detectada" };
+          return { root: x, iterations, converged: false, error, exact, message: "Divergencia detectada" };
         }
         if (error < tol || Math.abs(fxn) < 1e-15) {
           converged = true;
@@ -46580,7 +46760,15 @@
         }
         x = xNew;
       }
-      return { root: x, iterations, converged, error };
+      const relFinal = relErrOf(x);
+      return {
+        root: x,
+        iterations,
+        converged,
+        error,
+        exact,
+        relativeErrorPercent: relFinal ?? void 0
+      };
     },
     getCharts(params, result) {
       const f = parseExpression(params.fx);
@@ -46674,6 +46862,14 @@
       { key: "fxn", label: "f(x_n)" },
       { key: "xn1", label: "x_{n+1}" },
       { key: "error", label: "Error" }
+    ],
+    steps: [
+      "Escribe <code>f(x)</code>. No hace falta derivada \u2014 ese es el punto.",
+      "Elegi <b>dos semillas</b> <code>x\u2080</code> y <code>x\u2081</code> cerca de la raiz. Si podes, que <code>f(x\u2080)\xB7f(x\u2081) &lt; 0</code> (signos opuestos).",
+      "Configura tolerancia y maximo de iteraciones.",
+      "Pulsa <b>Resolver</b>. La formula aproxima <code>f'(x_n)</code> por la pendiente de la secante entre <code>(x_{n-1}, f(x_{n-1}))</code> y <code>(x_n, f(x_n))</code>: <code>x_{n+1} = x_n - f(x_n)(x_n - x_{n-1}) / (f(x_n) - f(x_{n-1}))</code>.",
+      "Convergencia <em>superlineal</em> (orden \u2248 1.618, el numero aureo) \u2014 mas rapido que punto fijo crudo y casi tan rapido como Newton, sin necesitar <code>f'(x)</code>.",
+      "Puede divergir si <code>f(x_n) \u2248 f(x_{n-1})</code> (denominador chico) o si las semillas estan muy lejos de la raiz."
     ],
     solve(params) {
       const f = parseExpression(params.fx);
@@ -46793,6 +46989,13 @@
       { key: "fc", label: "f(c)" },
       { key: "error", label: "Error" }
     ],
+    steps: [
+      "Escribe <code>f(x)</code> y el intervalo <code>[a, b]</code>.",
+      "<b>Verifica Bolzano</b>: <code>f(a)\xB7f(b) &lt; 0</code>. Si no se cumple, no garantiza raiz.",
+      "Pulsa <b>Resolver</b>. En cada paso: <code>c = a - f(a)(b-a) / (f(b) - f(a))</code> \u2014 es la interseccion de la <em>secante</em> entre (a, f(a)) y (b, f(b)) con el eje x.",
+      "Se reduce el intervalo conservando el subintervalo donde persiste el cambio de signo, igual que biseccion.",
+      "Convergencia generalmente <em>mas rapida</em> que biseccion porque usa la forma de la funcion, no solo el signo. Pero puede estancarse si la funcion es muy asimetrica (uno de los extremos casi no se mueve)."
+    ],
     solve(params) {
       const f = parseExpression(params.fx);
       let a = parseFloat(params.a);
@@ -46831,7 +47034,14 @@
         }
         cPrev = c;
       }
-      return { root: c, iterations, converged, error };
+      const bolzano = checkBolzano(params.fx, parseFloat(params.a), parseFloat(params.b));
+      return {
+        root: c,
+        iterations,
+        converged,
+        error,
+        theoremPanels: [renderBolzanoPanel(bolzano)]
+      };
     },
     getCharts(params, result) {
       const f = parseExpression(params.fx);
@@ -46897,21 +47107,42 @@
       { id: "gx", label: "g(x)", placeholder: "(x + 2/x) / 2", hint: "Funcion de iteracion x = g(x)", defaultValue: "(x + 2/x) / 2" },
       { id: "x0", label: "x\u2080 (valor inicial)", placeholder: "1", type: "number", defaultValue: "1" },
       { id: "tol", label: "Tolerancia", placeholder: "1e-6", defaultValue: "1e-6" },
-      { id: "maxIter", label: "Max iteraciones", placeholder: "100", type: "number", defaultValue: "100" }
+      { id: "maxIter", label: "Max iteraciones", placeholder: "100", type: "number", defaultValue: "100" },
+      { id: "exact", label: "Valor exacto (opcional)", placeholder: "p.ej. 1.41421356", type: "number", hint: "Si se provee, agrega columna de error relativo %." },
+      { id: "a", label: "a (para Lipschitz, opcional)", placeholder: "0.5", type: "number", hint: "Extremo inferior para verificar |g'(x)| < 1." },
+      { id: "b", label: "b (para Lipschitz, opcional)", placeholder: "2", type: "number", hint: "Extremo superior para verificar |g'(x)| < 1." }
     ],
     tableColumns: [
       { key: "iter", label: "n" },
       { key: "xn", label: "x_n (plain)" },
       { key: "xn_aitken", label: "x\u0302_n (Aitken)" },
       { key: "error_plain", label: "Error plain" },
-      { key: "error_aitken", label: "Error Aitken" }
+      { key: "error_aitken", label: "Error Aitken" },
+      { key: "relErrPct", label: "Err. rel. %" }
+    ],
+    steps: [
+      "Parti de <code>f(x) = 0</code> y <b>despeja una funcion auxiliar</b> <code>g(x)</code> tal que <code>x = g(x)</code>. Para <code>f(x) = cos(x) - x</code>, la auxiliar directa es <code>g(x) = cos(x)</code>. Para <code>f(x) = e\u02E3 - 3x\xB2</code>, podes usar <code>g(x) = sqrt(exp(x)/3)</code> u otra que converja.",
+      "Verifica <b>condicion de Lipschitz</b> en un compacto [a, b] alrededor de la raiz: <code>|g'(x)| &lt; 1</code> para todo x en [a, b]. Si no se cumple, el punto fijo no converge \u2014 proba otra <code>g(x)</code> equivalente. Completa los campos <em>a</em> y <em>b</em>; la app te muestra un panel con el chequeo y el grafico de <code>|g'(x)|</code>.",
+      "Escribe <code>g(x)</code> en el primer campo. Semilla <code>x\u2080</code>: el parcial la especifica (ej. <code>0.5</code> para cos(x) - x en [0, 1]).",
+      "Configura tolerancia: el parcial pide <em>6 cifras de precision</em>, usa <code>1e-6</code>.",
+      'Opcional para el analisis: pega el valor exacto (calculalo con Newton-Raphson primero si no lo sabes) en "Valor exacto".',
+      "Pulsa <b>Resolver</b>. La tabla compara dos columnas: <code>x_n (plain)</code> = iteracion cruda <code>g(g(...g(x\u2080)))</code>, y <code>x\u0302_n (Aitken)</code> = iteracion acelerada por formula \u0394\xB2: <code>x\u0302_n = x_n - (x_{n+1}-x_n)\xB2 / (x_{n+2} - 2x_{n+1} + x_n)</code>.",
+      "Analisis para el informe: <em>Aitken reduce drasticamente el numero de iteraciones</em> respecto a punto fijo crudo. Mostra ambos errores en la misma tabla para justificar la aceleracion. Si punto fijo crudo tarda ~30 iter y Aitken converge en ~5, es el numero que hay que reportar.",
+      "Comparacion de metodos para el parcial: <b>Aitken</b> necesita solo <code>g(x)</code> (no derivada), pero la convergencia depende de cuan chico es <code>|g'(x*)|</code>. <b>Newton</b> necesita <code>f'(x)</code> pero siempre es cuadratico cerca de la raiz. <b>Steffensen</b> es Aitken aplicado <em>dentro</em> de cada paso \u2192 convergencia cuadratica sin derivada."
     ],
     solve(params) {
       const g = parseExpression(params.gx);
       const x0 = parseFloat(params.x0);
       const tol = parseFloat(params.tol) || 1e-6;
       const maxIter = parseInt(params.maxIter) || 100;
+      const exactRaw = (params.exact ?? "").trim();
+      const exact = exactRaw === "" ? void 0 : parseFloat(exactRaw);
       if (isNaN(x0)) throw new Error("x\u2080 debe ser un numero valido");
+      const relErrOf = (val) => {
+        if (exact === void 0 || isNaN(exact)) return null;
+        const denom = Math.abs(exact) > 1e-14 ? Math.abs(exact) : 1;
+        return Math.abs(val - exact) / denom * 100;
+      };
       const iterations = [];
       let converged = false;
       let error = Infinity;
@@ -46942,7 +47173,8 @@
           xn: plain[n + 1],
           xn_aitken: aitkenVal,
           error_plain: errorPlain,
-          error_aitken: errorAitken
+          error_aitken: errorAitken,
+          relErrPct: relErrOf(aitkenVal)
         });
         if (errorAitken < tol) {
           converged = true;
@@ -46951,7 +47183,27 @@
         }
         lastAitken = aitkenVal;
       }
-      return { root: lastAitken, iterations, converged, error };
+      const theoremPanels = [];
+      const aRaw = (params.a ?? "").trim();
+      const bRaw = (params.b ?? "").trim();
+      if (aRaw !== "" && bRaw !== "") {
+        const a = parseFloat(aRaw);
+        const b = parseFloat(bRaw);
+        if (!isNaN(a) && !isNaN(b) && a < b) {
+          const lip = checkLipschitz(params.gx, a, b);
+          theoremPanels.push(renderLipschitzPanel(lip));
+        }
+      }
+      const relFinal = relErrOf(lastAitken);
+      return {
+        root: lastAitken,
+        iterations,
+        converged,
+        error,
+        exact,
+        relativeErrorPercent: relFinal ?? void 0,
+        theoremPanels
+      };
     },
     getCharts(params, result) {
       const g = parseExpression(params.gx);
@@ -47011,7 +47263,249 @@
     }
   };
 
+  // src/methods/rootFinding/steffensen.ts
+  var steffensen = {
+    id: "steffensen",
+    name: "Steffensen (aceleracion \u0394\xB2 en cada iteracion)",
+    category: "rootFinding",
+    formula: "p_{n+1} = p_n - (g(p_n) - p_n)\xB2 / (g(g(p_n)) - 2g(p_n) + p_n)",
+    description: "Aplica la extrapolacion delta-cuadrado de Aitken dentro de cada iteracion de punto fijo, alcanzando convergencia cuadratica cuando g es C\xB2 cerca del punto fijo.",
+    inputs: [
+      { id: "gx", label: "g(x)", placeholder: "(x + 2/x) / 2", hint: "Funcion de iteracion x = g(x)", defaultValue: "(x + 2/x) / 2" },
+      { id: "x0", label: "p\u2080 (valor inicial)", placeholder: "1", type: "number", defaultValue: "1" },
+      { id: "tol", label: "Tolerancia", placeholder: "1e-8", defaultValue: "1e-8" },
+      { id: "maxIter", label: "Max iteraciones", placeholder: "50", type: "number", defaultValue: "50" },
+      { id: "exact", label: "Valor exacto (opcional)", placeholder: "p.ej. 1.41421356", type: "number", hint: "Si se provee, agrega columna de error relativo %." },
+      { id: "a", label: "a (para Lipschitz, opcional)", placeholder: "0.5", type: "number", hint: "Extremo inferior para verificar |g'(x)| < 1." },
+      { id: "b", label: "b (para Lipschitz, opcional)", placeholder: "2", type: "number", hint: "Extremo superior para verificar |g'(x)| < 1." }
+    ],
+    tableColumns: [
+      { key: "iter", label: "n" },
+      { key: "p", label: "p_n" },
+      { key: "gp", label: "g(p_n)" },
+      { key: "ggp", label: "g(g(p_n))" },
+      { key: "pNext", label: "p_{n+1}" },
+      { key: "error", label: "|p_{n+1} \u2212 p_n|" },
+      { key: "relErrPct", label: "Err. rel. %" }
+    ],
+    steps: [
+      'Primero verifica <b>Bolzano</b>: el parcial suele pedir "demostrar que existe al menos una raiz en [a, b]". Evalua <code>f(a)</code> y <code>f(b)</code> \u2014 si tienen signos opuestos (<code>f(a)\xB7f(b) &lt; 0</code>) y <code>f</code> es continua, hay raiz. Para <code>f(x) = x\xB3 - sin(x) - 5</code> en [0, 2]: <code>f(0) = -5</code>, <code>f(2) = 8 - sin(2) - 5 \u2248 2.09</code>. Signos opuestos \u2192 Bolzano OK.',
+      "<b>Despeja g(x)</b> a partir de <code>f(x) = 0</code>. Para <code>x\xB3 - sin(x) - 5 = 0</code> podes usar <code>g(x) = (sin(x) + 5)^(1/3)</code>. La idea es que <code>x = g(x)</code> sea equivalente a <code>f(x) = 0</code>.",
+      "Verifica <b>Lipschitz</b> en un compacto alrededor de la semilla: <code>|g'(x)| &lt; 1</code> para todo x en [a, b]. Completa los campos <em>a</em> y <em>b</em> con el intervalo del parcial (ej. [0, 2]) y la app calcula <code>max |g'(x)|</code> y muestra un panel con el chequeo.",
+      "Escribe <code>g(x)</code> en el primer campo y la semilla <code>p\u2080</code> del parcial (ej. <code>2</code>). Tolerancia tipica: <code>1e-8</code> para 8 decimales o <code>1e-6</code> para 6 cifras significativas.",
+      'Opcional pero recomendado: corre Newton-Raphson primero para obtener una raiz de referencia y pegala en "Valor exacto". Asi podes mostrar el error relativo % que decae cuadraticamente.',
+      "Pulsa <b>Resolver</b>. En cada iteracion la app calcula <code>g(p_n)</code>, luego <code>g(g(p_n))</code>, y aplica la formula \u0394\xB2 de Steffensen: <code>p_{n+1} = p_n - (g(p_n) - p_n)\xB2 / (g(g(p_n)) - 2\xB7g(p_n) + p_n)</code>. El resultado se <em>reinyecta</em> como nuevo <code>p_n</code>.",
+      "Analiza: Steffensen alcanza <b>convergencia cuadratica</b> (error decae como el cuadrado del anterior) con solo 2 evaluaciones de g por paso \u2014 sin necesitar <code>f'(x)</code>. En el parcial se compara contra Newton: Steffensen llega a la misma precision con parecido numero de iteraciones pero sin derivada.",
+      "Si la columna <code>g(g(p_n)) - 2g(p_n) + p_n</code> se acerca a cero, es buena se\xF1al (convergencia casi exacta) pero puede causar inestabilidad numerica \u2014 la app detecta este caso y muestra un mensaje.",
+      "Para el informe: tabla con <code>p_n, g(p_n), g(g(p_n)), p_{n+1}, error</code>, grafica <code>g(x)</code> vs <code>y = x</code> con el punto fijo marcado, y comparativa Newton vs Aitken vs Steffensen (iteraciones, precision, complejidad)."
+    ],
+    solve(params) {
+      const g = parseExpression(params.gx);
+      let p = parseFloat(params.x0);
+      const tol = parseFloat(params.tol) || 1e-8;
+      const maxIter = parseInt(params.maxIter) || 50;
+      const exactRaw = (params.exact ?? "").trim();
+      const exact = exactRaw === "" ? void 0 : parseFloat(exactRaw);
+      if (isNaN(p)) throw new Error("p\u2080 debe ser un numero valido");
+      const iterations = [];
+      let converged = false;
+      let error = Infinity;
+      let message;
+      for (let i2 = 1; i2 <= maxIter; i2++) {
+        const gp = g(p);
+        const ggp = g(gp);
+        const denom = ggp - 2 * gp + p;
+        let pNext;
+        if (Math.abs(denom) < 1e-15) {
+          pNext = ggp;
+          message = "Denominador \u0394\xB2 \u2248 0 \u2014 convergencia exacta o estancamiento";
+        } else {
+          pNext = p - Math.pow(gp - p, 2) / denom;
+        }
+        error = Math.abs(pNext - p);
+        const relErrPct = exact !== void 0 && !isNaN(exact) && exact !== 0 ? Math.abs(pNext - exact) / Math.abs(exact) * 100 : null;
+        iterations.push({ iter: i2, p, gp, ggp, pNext, error, relErrPct });
+        if (!isFinite(pNext)) {
+          return { root: p, iterations, converged: false, error, message: "Divergencia detectada" };
+        }
+        p = pNext;
+        if (error < tol) {
+          converged = true;
+          break;
+        }
+      }
+      const theoremPanels = [];
+      const aRaw = (params.a ?? "").trim();
+      const bRaw = (params.b ?? "").trim();
+      if (aRaw !== "" && bRaw !== "") {
+        const a = parseFloat(aRaw);
+        const b = parseFloat(bRaw);
+        if (!isNaN(a) && !isNaN(b) && a < b) {
+          const lip = checkLipschitz(params.gx, a, b);
+          theoremPanels.push(renderLipschitzPanel(lip));
+        }
+      }
+      return {
+        root: p,
+        iterations,
+        converged,
+        error,
+        exact,
+        relativeErrorPercent: exact !== void 0 && !isNaN(exact) ? exact !== 0 ? Math.abs(p - exact) / Math.abs(exact) * 100 : Math.abs(p - exact) * 100 : void 0,
+        theoremPanels,
+        message
+      };
+    },
+    getCharts(params, result) {
+      const g = parseExpression(params.gx);
+      const x0 = parseFloat(params.x0);
+      const root = result.root ?? x0;
+      const ps = result.iterations.map((r) => r.p);
+      const minX = Math.min(...ps, root) - 1;
+      const maxX = Math.max(...ps, root) + 1;
+      const xs = linspace(minX, maxX, 500);
+      const gys = xs.map((x) => g(x));
+      const chart1 = {
+        title: "g(x) y y = x",
+        type: "line",
+        datasets: [
+          { label: "g(x)", x: xs, y: gys, color: "#89b4fa" },
+          { label: "y = x", x: xs, y: [...xs], color: "#585b70", dashed: true },
+          { label: "p*", x: [root], y: [root], color: "#a6e3a1", pointRadius: 6, showLine: false }
+        ],
+        xLabel: "x",
+        yLabel: "y"
+      };
+      const iters = result.iterations.map((r) => r.iter);
+      const pVals = result.iterations.map((r) => r.p);
+      const pNextVals = result.iterations.map((r) => r.pNext);
+      const chart2 = {
+        title: "Convergencia p_n y p_{n+1}",
+        type: "line",
+        datasets: [
+          { label: "p_n", x: iters, y: pVals, color: "#f38ba8", pointRadius: 3 },
+          { label: "p_{n+1}", x: iters, y: pNextVals, color: "#a6e3a1", pointRadius: 3 }
+        ],
+        xLabel: "Iteracion",
+        yLabel: "Valor"
+      };
+      const errs = result.iterations.map((r) => r.error).filter((e3) => e3 > 0);
+      const chart3 = {
+        title: "Error por iteracion",
+        type: "line",
+        datasets: [{ label: "|p_{n+1} - p_n|", x: iters.slice(0, errs.length), y: errs, color: "#fab387", pointRadius: 2 }],
+        xLabel: "Iteracion",
+        yLabel: "Error",
+        yLog: true
+      };
+      const relErrs = result.iterations.map((r) => r.relErrPct).filter((v) => v !== null && v !== void 0);
+      const chart4 = relErrs.length > 0 ? {
+        title: "Error relativo % (vs valor exacto)",
+        type: "line",
+        datasets: [{ label: "% error", x: iters.slice(0, relErrs.length), y: relErrs, color: "#cba6f7", pointRadius: 3 }],
+        xLabel: "Iteracion",
+        yLabel: "% error",
+        yLog: true
+      } : {
+        title: "g(g(x)) y g(x)",
+        type: "line",
+        datasets: [
+          { label: "g(x)", x: xs, y: gys, color: "#89b4fa" },
+          { label: "g(g(x))", x: xs, y: xs.map((x) => g(g(x))), color: "#cba6f7" },
+          { label: "y = x", x: xs, y: [...xs], color: "#585b70", dashed: true }
+        ],
+        xLabel: "x",
+        yLabel: "y"
+      };
+      return [chart1, chart2, chart3, chart4];
+    }
+  };
+
+  // src/integrationHelpers.ts
+  var math3 = create(all);
+  function maxAbsDerivative(expr, order, a, b, samples = 400) {
+    let derivedFn = null;
+    let derivedStr = null;
+    try {
+      let node = math3.parse(expr);
+      for (let k = 0; k < order; k++) {
+        node = math3.derivative(node, "x");
+      }
+      derivedStr = math3.simplify(node).toString();
+      const compiled = math3.compile(derivedStr);
+      derivedFn = (x) => {
+        const v = compiled.evaluate({ x, e: Math.E, pi: Math.PI });
+        return typeof v === "number" ? v : NaN;
+      };
+    } catch {
+      const f = parseExpression(expr);
+      derivedFn = (x) => numericalHighOrderDerivative(f, x, order);
+    }
+    const xs = linspace(a, b, samples);
+    let maxAbs = 0;
+    let xAtMax = a;
+    for (const x of xs) {
+      const v = derivedFn(x);
+      if (isFinite(v) && Math.abs(v) > maxAbs) {
+        maxAbs = Math.abs(v);
+        xAtMax = x;
+      }
+    }
+    return { max: maxAbs, xAtMax, derivativeExpr: derivedStr };
+  }
+  function numericalHighOrderDerivative(f, x, order, h = 1e-3) {
+    if (order === 0) return f(x);
+    if (order === 1) return (f(x + h) - f(x - h)) / (2 * h);
+    if (order === 2) return (f(x + h) - 2 * f(x) + f(x - h)) / (h * h);
+    if (order === 3) {
+      return (f(x + 2 * h) - 2 * f(x + h) + 2 * f(x - h) - f(x - 2 * h)) / (2 * h * h * h);
+    }
+    if (order === 4) {
+      return (f(x + 2 * h) - 4 * f(x + h) + 6 * f(x) - 4 * f(x - h) + f(x - 2 * h)) / (h * h * h * h);
+    }
+    const g = (t) => numericalHighOrderDerivative(f, t, order - 1, h);
+    return (g(x + h) - g(x - h)) / (2 * h);
+  }
+  function relativeErrorPercent(approx, exact) {
+    const denom = Math.abs(exact) > 1e-14 ? Math.abs(exact) : Math.abs(approx);
+    if (denom === 0) return 0;
+    return Math.abs(approx - exact) / denom * 100;
+  }
+  function trapecioError(fxExpr, a, b, h) {
+    const d = maxAbsDerivative(fxExpr, 2, a, b);
+    const bound = (b - a) * h * h / 12 * d.max;
+    return { bound, max: d.max, xAtMax: d.xAtMax, derivativeExpr: d.derivativeExpr, order: 2 };
+  }
+  function midpointError(fxExpr, a, b, h) {
+    const d = maxAbsDerivative(fxExpr, 2, a, b);
+    const bound = (b - a) * h * h / 24 * d.max;
+    return { bound, max: d.max, xAtMax: d.xAtMax, derivativeExpr: d.derivativeExpr, order: 2 };
+  }
+  function simpson13Error(fxExpr, a, b, h) {
+    const d = maxAbsDerivative(fxExpr, 4, a, b);
+    const bound = (b - a) * Math.pow(h, 4) / 180 * d.max;
+    return { bound, max: d.max, xAtMax: d.xAtMax, derivativeExpr: d.derivativeExpr, order: 4 };
+  }
+  function simpson38Error(fxExpr, a, b, h) {
+    const d = maxAbsDerivative(fxExpr, 4, a, b);
+    const bound = (b - a) * Math.pow(h, 4) / 80 * d.max;
+    return { bound, max: d.max, xAtMax: d.xAtMax, derivativeExpr: d.derivativeExpr, order: 4 };
+  }
+
   // src/methods/integration/midpoint.ts
+  function computeMidpoint(f, a, b, n) {
+    const h = (b - a) / n;
+    const iterations = [];
+    let sum3 = 0;
+    for (let i2 = 0; i2 < n; i2++) {
+      const xMid = a + (i2 + 0.5) * h;
+      const fxMid = f(xMid);
+      const area = h * fxMid;
+      sum3 += fxMid;
+      iterations.push({ i: i2 + 1, xi_mid: xMid, fxi: fxMid, area });
+    }
+    return { integral: h * sum3, iterations, h };
+  }
   var midpoint = {
     id: "midpoint",
     name: "Regla del Rectangulo (Punto Medio)",
@@ -47022,7 +47516,8 @@
       { id: "fx", label: "f(x)", placeholder: "x^2", defaultValue: "x^2" },
       { id: "a", label: "a (limite inferior)", placeholder: "0", type: "number", defaultValue: "0" },
       { id: "b", label: "b (limite superior)", placeholder: "1", type: "number", defaultValue: "1" },
-      { id: "n", label: "n (subintervalos)", placeholder: "10", type: "number", defaultValue: "10" }
+      { id: "n", label: "n (subintervalos)", placeholder: "10", type: "number", defaultValue: "10" },
+      { id: "exact", label: "Valor exacto (opcional)", placeholder: "p.ej. 0.333333", type: "number", hint: "Si se provee, se calcula error relativo y se reintenta con n=20 si supera 1%." }
     ],
     tableColumns: [
       { key: "i", label: "i" },
@@ -47030,32 +47525,63 @@
       { key: "fxi", label: "f(x_i)" },
       { key: "area", label: "Area parcial" }
     ],
+    steps: [
+      "Escribe <code>f(x)</code> \u2014 ej. <code>exp(x^2)</code> para el ejercicio del parcial \u222B\u2080\xB2 e^(x\xB2) dx.",
+      "Completa limites <code>a</code> y <code>b</code>. Para el parcial 02/07/2025: <code>a=0</code>, <code>b=2</code>.",
+      'Pone <code>n = 10</code> como arranca el parcial. <b>Auto-retry</b>: si el "error relativo" supera 1 %, la app reintenta sola con <code>n = 20</code> y te lo marca en el resumen.',
+      "Para poder medir error: calcula o pone <b>valor exacto</b>. Para \u222B\u2080\xB2 e^(x\xB2) dx el exacto es <code>\u2248 16.45262776</code> (usa Wolfram, Python <code>scipy.integrate.quad</code>, o una corrida con Simpson y n grande como referencia).",
+      "Pulsa <b>Resolver</b>. En cada subintervalo <code>[x_i, x_{i+1}]</code> la app evalua <code>f</code> en el <em>punto medio</em> <code>x_mid = (x_i + x_{i+1})/2</code> y suma <code>h \xB7 f(x_mid)</code> con <code>h = (b-a)/n</code>.",
+      "Revisa la <b>cota de truncamiento</b>: <code>|E| \u2264 (b-a)\xB7h\xB2/24 \xB7 M\u2082</code> donde <code>M\u2082 = max |f''(\u03BE)|</code> en [a, b]. La app calcula f'' simbolicamente y encuentra M\u2082 numericamente; te muestra \u03BE aproximado.",
+      "Para comparacion con Simpson (parte b del parcial): toma nota de <em>iteraciones</em>, <em>error relativo %</em>, y la cota de E. Simpson con el mismo n da error mucho menor porque converge mas rapido (O(h\u2074) vs O(h\xB2))."
+    ],
     solve(params) {
       const f = parseExpression(params.fx);
       const a = parseFloat(params.a);
       const b = parseFloat(params.b);
-      const n = parseInt(params.n) || 10;
+      let n = parseInt(params.n) || 10;
+      const exactRaw = (params.exact ?? "").trim();
+      const exact = exactRaw === "" ? void 0 : parseFloat(exactRaw);
       if (isNaN(a) || isNaN(b)) throw new Error("a y b deben ser numeros validos");
       if (a >= b) throw new Error("a debe ser menor que b");
       if (n < 1) throw new Error("n debe ser >= 1");
-      const h = (b - a) / n;
-      const iterations = [];
-      let sum3 = 0;
-      for (let i2 = 0; i2 < n; i2++) {
-        const xMid = a + (i2 + 0.5) * h;
-        const fxMid = f(xMid);
-        const area = h * fxMid;
-        sum3 += fxMid;
-        iterations.push({ i: i2 + 1, xi_mid: xMid, fxi: fxMid, area });
+      let run = computeMidpoint(f, a, b, n);
+      let retried = false;
+      let relErr;
+      if (exact !== void 0 && !isNaN(exact)) {
+        relErr = relativeErrorPercent(run.integral, exact);
+        if (relErr > 1 && n < 20) {
+          n = 20;
+          run = computeMidpoint(f, a, b, n);
+          relErr = relativeErrorPercent(run.integral, exact);
+          retried = true;
+        }
       }
-      const integral = h * sum3;
-      return { integral, iterations, converged: true, error: 0, message: `h = ${h}` };
+      const errInfo = midpointError(params.fx, a, b, run.h);
+      const msgParts = [`h = ${run.h.toPrecision(6)}, n = ${n}`];
+      if (errInfo.derivativeExpr) msgParts.push(`f''(x) = ${errInfo.derivativeExpr}`);
+      if (retried) msgParts.push("reintento automatico con n=20 tras error > 1%");
+      return {
+        integral: run.integral,
+        iterations: run.iterations,
+        converged: true,
+        error: errInfo.bound,
+        exact,
+        relativeErrorPercent: relErr,
+        truncationBound: errInfo.bound,
+        truncationOrder: 2,
+        maxDerivative: errInfo.max,
+        xiApprox: errInfo.xAtMax,
+        derivativeExpr: errInfo.derivativeExpr ?? void 0,
+        retried,
+        message: msgParts.join(" \xB7 ")
+      };
     },
     getCharts(params, result) {
       const f = parseExpression(params.fx);
       const a = parseFloat(params.a);
       const b = parseFloat(params.b);
-      const n = parseInt(params.n) || 10;
+      let n = parseInt(params.n) || 10;
+      if (result.retried) n = 20;
       const h = (b - a) / n;
       const pad2 = (b - a) * 0.1;
       const xs = linspace(a - pad2, b + pad2, 500);
@@ -47142,6 +47668,12 @@
       { key: "x", label: "x" },
       { key: "fx", label: "f(x)" }
     ],
+    steps: [
+      "Version simple con un solo trapecio entre a y b. Util para <em>didactico</em> o verificar una formula \u2014 pero en el parcial siempre piden version compuesta (<code>trapezoidalComp</code>).",
+      "Formula: <code>I \u2248 (b-a)/2 \xB7 [f(a) + f(b)]</code>.",
+      "Si el parcial da <code>n = 4</code> o <code>n = 10</code>, usa <b>Trapecio compuesto</b>, no este.",
+      "La cota de error: <code>|E| = -(b-a)\xB3/12 \xB7 f''(\u03BE)</code> para algun \u03BE \u2208 (a, b)."
+    ],
     solve(params) {
       const f = parseExpression(params.fx);
       const a = parseFloat(params.a);
@@ -47217,6 +47749,20 @@
   };
 
   // src/methods/integration/trapezoidalComp.ts
+  function computeTrapecio(f, a, b, n) {
+    const h = (b - a) / n;
+    const iterations = [];
+    let sum3 = 0;
+    for (let i2 = 0; i2 <= n; i2++) {
+      const xi = a + i2 * h;
+      const fxi = f(xi);
+      const coeff = i2 === 0 || i2 === n ? 1 : 2;
+      const contrib = coeff * fxi;
+      sum3 += contrib;
+      iterations.push({ i: i2, xi, fxi, coeff, contrib });
+    }
+    return { integral: h / 2 * sum3, iterations, h };
+  }
   var trapezoidalComp = {
     id: "trapezoidalComp",
     name: "Regla del Trapecio Compuesta",
@@ -47227,7 +47773,8 @@
       { id: "fx", label: "f(x)", placeholder: "x^2", defaultValue: "x^2" },
       { id: "a", label: "a (limite inferior)", placeholder: "0", type: "number", defaultValue: "0" },
       { id: "b", label: "b (limite superior)", placeholder: "1", type: "number", defaultValue: "1" },
-      { id: "n", label: "n (subintervalos)", placeholder: "10", type: "number", defaultValue: "10" }
+      { id: "n", label: "n (subintervalos)", placeholder: "10", type: "number", defaultValue: "10" },
+      { id: "exact", label: "Valor exacto (opcional)", placeholder: "p.ej. 0.333333", type: "number", hint: "Si se provee, se calcula error relativo y se reintenta con n=20 si supera 1%." }
     ],
     tableColumns: [
       { key: "i", label: "i" },
@@ -47236,33 +47783,64 @@
       { key: "coeff", label: "Coeficiente" },
       { key: "contrib", label: "Contribucion" }
     ],
+    steps: [
+      "Escribe <code>f(x)</code>. Para el <b>parcial 2025-I</b>: <code>ln(x+1)/x</code> sobre <code>[0, 1]</code>. Ojo, en <code>x=0</code> la funcion tiene singularidad removible \u2014 el parser lanzaria <code>NaN</code>; usa <code>a = 1e-10</code> (\u2248 0) o redefine como <code>ln(x+1)/x</code> y prueba primero n=4. Para <b>parcial 30/04/2025</b>: <code>sqrt(2)\xB7exp(x^2)</code> sobre <code>[0, 1]</code>.",
+      "Completa <code>a</code>, <code>b</code>, y <code>n</code>. El parcial te pide <code>n = 4</code> (y luego <code>n = 10</code> en el de 30/04 para comparar). El paso es <code>h = (b - a)/n</code>.",
+      "Formula compuesta: <code>I \u2248 h/2 \xB7 [f(a) + 2\xB7\u03A3 f(x_i) + f(b)]</code> con pesos <b>1, 2, 2, ..., 2, 1</b>. La tabla te muestra en la columna <em>Coeficiente</em> exactamente esto: 1 en los extremos y 2 en los puntos interiores.",
+      "Pulsa <b>Resolver</b>. La columna <em>Contribucion = coef \xB7 f(x_i)</em> y la suma total multiplicada por <code>h/2</code> da la integral aproximada.",
+      "<b>Error de truncamiento</b>: <code>|E| = -(b-a)\xB7h\xB2/12 \xB7 f''(\u03BE)</code> para algun <code>\u03BE \u2208 (a, b)</code>. La app calcula <code>f''(x)</code> simbolicamente y halla el <code>\u03BE</code> que maximiza <code>|f''|</code> en [a,b] (peor caso \u2014 cota superior).",
+      "Si el parcial te fija <code>\u03BE = 0.5</code> (como en 30/04/2025), evalua a mano <code>f''(0.5)</code> y calcula la cota con ese valor concreto: <code>|E| = (b-a)h\xB2/12 \xB7 |f''(0.5)|</code>. La app siempre reporta el peor caso; puedes usarlo de referencia.",
+      "Si das <b>valor exacto</b>: la app calcula <em>error relativo %</em> y si supera 1% reintenta con <code>n = 20</code> (te lo indica en el resumen).",
+      "Para la <b>comparacion con Simpson 1/3</b> (ultima parte del parcial): anota el <em>valor integral</em>, <em>error relativo</em> y la <em>cota</em>. Simpson con mismo n baja el error porque converge <code>O(h\u2074)</code> vs <code>O(h\xB2)</code> del trapecio \u2014 se ve claramente en la grafica de convergencia."
+    ],
     solve(params) {
       const f = parseExpression(params.fx);
       const a = parseFloat(params.a);
       const b = parseFloat(params.b);
-      const n = parseInt(params.n) || 10;
+      let n = parseInt(params.n) || 10;
+      const exactRaw = (params.exact ?? "").trim();
+      const exact = exactRaw === "" ? void 0 : parseFloat(exactRaw);
       if (isNaN(a) || isNaN(b)) throw new Error("a y b deben ser numeros validos");
       if (a >= b) throw new Error("a debe ser menor que b");
       if (n < 1) throw new Error("n debe ser >= 1");
-      const h = (b - a) / n;
-      const iterations = [];
-      let sum3 = 0;
-      for (let i2 = 0; i2 <= n; i2++) {
-        const xi = a + i2 * h;
-        const fxi = f(xi);
-        const coeff = i2 === 0 || i2 === n ? 1 : 2;
-        const contrib = coeff * fxi;
-        sum3 += contrib;
-        iterations.push({ i: i2, xi, fxi, coeff, contrib });
+      let run = computeTrapecio(f, a, b, n);
+      let retried = false;
+      let relErr;
+      if (exact !== void 0 && !isNaN(exact)) {
+        relErr = relativeErrorPercent(run.integral, exact);
+        if (relErr > 1 && n < 20) {
+          n = 20;
+          run = computeTrapecio(f, a, b, n);
+          relErr = relativeErrorPercent(run.integral, exact);
+          retried = true;
+        }
       }
-      const integral = h / 2 * sum3;
-      return { integral, iterations, converged: true, error: 0, message: `h = ${h}, n = ${n}` };
+      const errInfo = trapecioError(params.fx, a, b, run.h);
+      const msgParts = [`h = ${run.h.toPrecision(6)}, n = ${n}`];
+      if (errInfo.derivativeExpr) msgParts.push(`f''(x) = ${errInfo.derivativeExpr}`);
+      if (retried) msgParts.push("reintento automatico con n=20 tras error > 1%");
+      return {
+        integral: run.integral,
+        iterations: run.iterations,
+        converged: true,
+        error: errInfo.bound,
+        exact,
+        relativeErrorPercent: relErr,
+        truncationBound: errInfo.bound,
+        truncationOrder: 2,
+        maxDerivative: errInfo.max,
+        xiApprox: errInfo.xAtMax,
+        derivativeExpr: errInfo.derivativeExpr ?? void 0,
+        retried,
+        message: msgParts.join(" \xB7 ")
+      };
     },
     getCharts(params, result) {
       const f = parseExpression(params.fx);
       const a = parseFloat(params.a);
       const b = parseFloat(params.b);
-      const n = parseInt(params.n) || 10;
+      let n = parseInt(params.n) || 10;
+      if (result.retried) n = 20;
       const h = (b - a) / n;
       const pad2 = (b - a) * 0.1;
       const xs = linspace(a - pad2, b + pad2, 500);
@@ -47348,6 +47926,14 @@
       { key: "x", label: "x" },
       { key: "fx", label: "f(x)" },
       { key: "coeff", label: "Coeficiente" }
+    ],
+    steps: [
+      "Version <em>simple</em> de Simpson 1/3: usa solo <b>tres puntos</b> \u2014 <code>a</code>, <code>m = (a+b)/2</code>, <code>b</code> \u2014 y ajusta una <b>parabola</b> que pasa por ellos. Util para didactica o verificar formula; en parcial casi siempre piden la <b>version compuesta</b> con n subintervalos.",
+      "Escribe <code>f(x)</code> y los limites <code>a</code>, <code>b</code>.",
+      "Formula: <code>I \u2248 (b-a)/6 \xB7 [f(a) + 4\xB7f(m) + f(b)]</code>. Observa los pesos: <b>1, 4, 1</b>. El factor 4 viene de integrar la parabola de Lagrange.",
+      "Pulsa <b>Resolver</b>. La tabla muestra los 3 puntos con sus coeficientes. La grafica muestra la <em>parabola ajustada</em> vs <code>f(x)</code> real.",
+      "Error: <code>|E| = -(b-a)\u2075/2880 \xB7 f\u207D\u2074\u207E(\u03BE)</code> \u2014 es de orden <code>O(h\u2075)</code>. Si la funcion es un polinomio de grado \u2264 3, Simpson es <em>exacto</em>.",
+      "Si el parcial pide <code>n = 4</code> o similar, salta a <b>Simpson 1/3 compuesto</b>."
     ],
     solve(params) {
       const f = parseExpression(params.fx);
@@ -47436,6 +48022,24 @@
   };
 
   // src/methods/integration/simpson13Comp.ts
+  function computeSimpson13(f, a, b, n) {
+    if (n % 2 !== 0) n = n + 1;
+    const h = (b - a) / n;
+    const iterations = [];
+    let sum3 = 0;
+    for (let i2 = 0; i2 <= n; i2++) {
+      const xi = a + i2 * h;
+      const fxi = f(xi);
+      let coeff;
+      if (i2 === 0 || i2 === n) coeff = 1;
+      else if (i2 % 2 === 1) coeff = 4;
+      else coeff = 2;
+      const contrib = coeff * fxi;
+      sum3 += contrib;
+      iterations.push({ i: i2, xi, fxi, coeff, contrib });
+    }
+    return { integral: h / 3 * sum3, iterations, h, n };
+  }
   var simpson13Comp = {
     id: "simpson13Comp",
     name: "Simpson 1/3 Compuesta",
@@ -47446,7 +48050,8 @@
       { id: "fx", label: "f(x)", placeholder: "x^2", defaultValue: "x^2" },
       { id: "a", label: "a (limite inferior)", placeholder: "0", type: "number", defaultValue: "0" },
       { id: "b", label: "b (limite superior)", placeholder: "1", type: "number", defaultValue: "1" },
-      { id: "n", label: "n (subintervalos, debe ser par)", placeholder: "10", type: "number", defaultValue: "10" }
+      { id: "n", label: "n (subintervalos, debe ser par)", placeholder: "10", type: "number", defaultValue: "10" },
+      { id: "exact", label: "Valor exacto (opcional)", placeholder: "p.ej. 0.333333", type: "number", hint: "Si se provee, se calcula error relativo y se reintenta con n=20 si supera 1%." }
     ],
     tableColumns: [
       { key: "i", label: "i" },
@@ -47455,42 +48060,56 @@
       { key: "coeff", label: "Coeficiente" },
       { key: "contrib", label: "Contribucion" }
     ],
+    steps: [
+      "Escribe <code>f(x)</code>. Para el <b>parcial 02/07/2025</b> (parte b): <code>exp(x^2)</code> sobre <code>[0, 2]</code> con <code>n = 10</code>. Para <b>parcial 2025-I</b>: <code>ln(x+1)/x</code> sobre <code>[0, 1]</code> con <code>n = 4</code>.",
+      "Llena <code>a</code>, <code>b</code>, y <code>n</code>. <b>Importante</b>: <code>n</code> debe ser <b>par</b> (la regla ajusta una parabola por cada par de subintervalos). Si pones impar, la app lo incrementa a <code>n+1</code> y lo avisa.",
+      "Paso <code>h = (b - a) / n</code>. Puntos: <code>x_i = a + i\xB7h</code> para <code>i = 0, 1, ..., n</code>.",
+      "Formula compuesta: <code>I \u2248 h/3 \xB7 [f(x_0) + 4\xB7f(x_1) + 2\xB7f(x_2) + 4\xB7f(x_3) + ... + 4\xB7f(x_{n-1}) + f(x_n)]</code>. Patron de pesos: <b>1, 4, 2, 4, 2, ..., 4, 1</b>. La columna <em>Coeficiente</em> en la tabla te lo confirma.",
+      "Pulsa <b>Resolver</b>. La columna <em>Contribucion = coef \xB7 f(x_i)</em>. Suma total \xD7 <code>h/3</code> = integral.",
+      "<b>Error de truncamiento</b>: <code>|E| = -(b-a)\xB7h\u2074/180 \xB7 f\u207D\u2074\u207E(\u03BE)</code> para algun <code>\u03BE \u2208 (a,b)</code>. Es <code>O(h\u2074)</code> \u2014 mucho mas preciso que trapecio <code>O(h\xB2)</code>. La app calcula <code>f\u207D\u2074\u207E</code> simbolicamente y su maximo en [a,b].",
+      "Si el parcial te fija <code>\u03BE</code> especifico, puedes comparar contra la cota reportada (peor caso). Para funciones suaves, Simpson da error <em>casi nulo</em> con n moderado.",
+      "Si diste <b>valor exacto</b>: app calcula error relativo y reintenta con <code>n = 20</code> si > 1%. Usa el exacto de Wolfram o <code>scipy.integrate.quad</code> \u2014 para \u222B\u2080\xB2 e^(x\xB2) dx: <code>\u2248 16.45262776</code>.",
+      '<b>Comparacion vs Trapecio</b> (cierre del parcial): anota (1) integral, (2) error relativo %, (3) cota teorica. Simpson debe ser varios ordenes de magnitud mejor. Menciona en el informe: "Simpson O(h\u2074) domina a Trapecio O(h\xB2)".'
+    ],
     solve(params) {
       const f = parseExpression(params.fx);
       const a = parseFloat(params.a);
       const b = parseFloat(params.b);
-      let n = parseInt(params.n) || 10;
+      let nReq = parseInt(params.n) || 10;
+      const exactRaw = (params.exact ?? "").trim();
+      const exact = exactRaw === "" ? void 0 : parseFloat(exactRaw);
       if (isNaN(a) || isNaN(b)) throw new Error("a y b deben ser numeros validos");
       if (a >= b) throw new Error("a debe ser menor que b");
-      if (n < 2) throw new Error("n debe ser >= 2");
-      if (n % 2 !== 0) {
-        n = n + 1;
-      }
-      const h = (b - a) / n;
-      const iterations = [];
-      let sum3 = 0;
-      for (let i2 = 0; i2 <= n; i2++) {
-        const xi = a + i2 * h;
-        const fxi = f(xi);
-        let coeff;
-        if (i2 === 0 || i2 === n) {
-          coeff = 1;
-        } else if (i2 % 2 === 1) {
-          coeff = 4;
-        } else {
-          coeff = 2;
+      if (nReq < 2) throw new Error("n debe ser >= 2");
+      let run = computeSimpson13(f, a, b, nReq);
+      let retried = false;
+      let relErr;
+      if (exact !== void 0 && !isNaN(exact)) {
+        relErr = relativeErrorPercent(run.integral, exact);
+        if (relErr > 1 && run.n < 20) {
+          run = computeSimpson13(f, a, b, 20);
+          relErr = relativeErrorPercent(run.integral, exact);
+          retried = true;
         }
-        const contrib = coeff * fxi;
-        sum3 += contrib;
-        iterations.push({ i: i2, xi, fxi, coeff, contrib });
       }
-      const integral = h / 3 * sum3;
+      const errInfo = simpson13Error(params.fx, a, b, run.h);
+      const msgParts = [`h = ${run.h.toPrecision(6)}, n = ${run.n} (par)`];
+      if (errInfo.derivativeExpr) msgParts.push(`f\u2074(x) = ${errInfo.derivativeExpr}`);
+      if (retried) msgParts.push("reintento automatico con n=20 tras error > 1%");
       return {
-        integral,
-        iterations,
+        integral: run.integral,
+        iterations: run.iterations,
         converged: true,
-        error: 0,
-        message: `h = ${h.toPrecision(6)}, n = ${n} (par)`
+        error: errInfo.bound,
+        exact,
+        relativeErrorPercent: relErr,
+        truncationBound: errInfo.bound,
+        truncationOrder: 4,
+        maxDerivative: errInfo.max,
+        xiApprox: errInfo.xAtMax,
+        derivativeExpr: errInfo.derivativeExpr ?? void 0,
+        retried,
+        message: msgParts.join(" \xB7 ")
       };
     },
     getCharts(params, result) {
@@ -47498,6 +48117,7 @@
       const a = parseFloat(params.a);
       const b = parseFloat(params.b);
       let n = parseInt(params.n) || 10;
+      if (result.retried) n = 20;
       if (n % 2 !== 0) n++;
       const h = (b - a) / n;
       const pad2 = (b - a) * 0.1;
@@ -47588,6 +48208,15 @@
       { key: "x", label: "x" },
       { key: "fx", label: "f(x)" },
       { key: "coeff", label: "Coeficiente" }
+    ],
+    steps: [
+      "Version <em>simple</em> de Simpson 3/8: usa <b>4 puntos</b> equiespaciados \u2014 <code>a</code>, <code>x_1</code>, <code>x_2</code>, <code>b</code> con <code>h = (b-a)/3</code> \u2014 y ajusta un <b>polinomio cubico</b>.",
+      "Escribe <code>f(x)</code> y los limites <code>a</code>, <code>b</code>.",
+      "Formula: <code>I \u2248 (b-a)/8 \xB7 [f(a) + 3\xB7f(x_1) + 3\xB7f(x_2) + f(b)]</code>. Pesos: <b>1, 3, 3, 1</b>. Viene de integrar el polinomio cubico de Lagrange en [a, b].",
+      "Pulsa <b>Resolver</b>. La grafica muestra la cubica ajustada contra <code>f(x)</code>.",
+      "Error: <code>|E| = -3(b-a)\u2075/6480 \xB7 f\u207D\u2074\u207E(\u03BE)</code> \u2014 tambien <code>O(h\u2075)</code> como Simpson 1/3, pero la constante es un poco peor. Exacto para polinomios de grado \u2264 3 (igual que 1/3).",
+      "Se usa principalmente cuando el <b>numero de subintervalos no es par</b> (requisito de Simpson 1/3). Si <code>n = 5</code>, podes aplicar 3/8 en los primeros 3 y 1/3 en los ultimos 2.",
+      "Para n multiple de 3, usa <b>Simpson 3/8 compuesto</b>."
     ],
     solve(params) {
       const f = parseExpression(params.fx);
@@ -47691,6 +48320,25 @@
   };
 
   // src/methods/integration/simpson38Comp.ts
+  function runSimpson38(f, a, b, nReq) {
+    let n = nReq;
+    if (n % 3 !== 0) n = n + (3 - n % 3);
+    const h = (b - a) / n;
+    const iterations = [];
+    let sum3 = 0;
+    for (let i2 = 0; i2 <= n; i2++) {
+      const xi = a + i2 * h;
+      const fxi = f(xi);
+      let coeff;
+      if (i2 === 0 || i2 === n) coeff = 1;
+      else if (i2 % 3 === 0) coeff = 2;
+      else coeff = 3;
+      const contrib = coeff * fxi;
+      sum3 += contrib;
+      iterations.push({ i: i2, xi, fxi, coeff, contrib });
+    }
+    return { integral: 3 * h / 8 * sum3, iterations, h, n };
+  }
   var simpson38Comp = {
     id: "simpson38Comp",
     name: "Simpson 3/8 Compuesta",
@@ -47701,7 +48349,8 @@
       { id: "fx", label: "f(x)", placeholder: "x^2", defaultValue: "x^2" },
       { id: "a", label: "a (limite inferior)", placeholder: "0", type: "number", defaultValue: "0" },
       { id: "b", label: "b (limite superior)", placeholder: "1", type: "number", defaultValue: "1" },
-      { id: "n", label: "n (subintervalos, multiplo de 3)", placeholder: "9", type: "number", defaultValue: "9" }
+      { id: "n", label: "n (subintervalos, multiplo de 3)", placeholder: "9", type: "number", defaultValue: "9" },
+      { id: "exact", label: "Valor exacto (opcional)", placeholder: "p.ej. 0.333333", type: "number", hint: "Si se provee, se calcula error relativo y se reintenta con n=21 si supera 1%." }
     ],
     tableColumns: [
       { key: "i", label: "i" },
@@ -47710,42 +48359,54 @@
       { key: "coeff", label: "Coeficiente" },
       { key: "contrib", label: "Contribucion" }
     ],
+    steps: [
+      "Escribe <code>f(x)</code>, limites <code>a</code>, <code>b</code>, y subintervalos <code>n</code>. <b>Importante</b>: <code>n</code> debe ser <b>multiplo de 3</b> (la regla agrupa los puntos de 3 en 3). Si no lo es, la app lo redondea al siguiente multiplo (y te avisa).",
+      "Paso <code>h = (b - a) / n</code>. Puntos <code>x_i = a + i\xB7h</code> para <code>i = 0, 1, ..., n</code>.",
+      "Formula: <code>I \u2248 3h/8 \xB7 [f(x_0) + 3f(x_1) + 3f(x_2) + 2f(x_3) + 3f(x_4) + 3f(x_5) + 2f(x_6) + ... + f(x_n)]</code>. Patron: <b>1, 3, 3, 2, 3, 3, 2, ..., 3, 3, 1</b>.",
+      "Pulsa <b>Resolver</b>. La tabla muestra cada punto con su coeficiente; verifica el patron visualmente en la grafica de coeficientes.",
+      "<b>Error de truncamiento</b>: <code>|E| \u2264 (b-a)\xB7h\u2074/80 \xB7 M\u2084</code> con <code>M\u2084 = max|f\u207D\u2074\u207E|</code>. Orden <code>O(h\u2074)</code> igual que Simpson 1/3, pero la constante (<code>1/80</code>) es peor que <code>1/180</code>.",
+      "En practica <em>Simpson 1/3 es preferible</em>. Usa 3/8 cuando <code>n</code> no sea par, o como complemento: por ejemplo, si <code>n = 7</code>, aplica 1/3 con <code>n = 4</code> y 3/8 con <code>n = 3</code>.",
+      "Si diste <b>valor exacto</b>: calcula error relativo y reintenta con <code>n = 21</code> si > 1%."
+    ],
     solve(params) {
       const f = parseExpression(params.fx);
       const a = parseFloat(params.a);
       const b = parseFloat(params.b);
-      let n = parseInt(params.n) || 9;
+      const nReq = parseInt(params.n) || 9;
+      const exactRaw = (params.exact ?? "").trim();
+      const exact = exactRaw === "" ? void 0 : parseFloat(exactRaw);
       if (isNaN(a) || isNaN(b)) throw new Error("a y b deben ser numeros validos");
       if (a >= b) throw new Error("a debe ser menor que b");
-      if (n < 3) throw new Error("n debe ser >= 3");
-      if (n % 3 !== 0) {
-        n = n + (3 - n % 3);
-      }
-      const h = (b - a) / n;
-      const iterations = [];
-      let sum3 = 0;
-      for (let i2 = 0; i2 <= n; i2++) {
-        const xi = a + i2 * h;
-        const fxi = f(xi);
-        let coeff;
-        if (i2 === 0 || i2 === n) {
-          coeff = 1;
-        } else if (i2 % 3 === 0) {
-          coeff = 2;
-        } else {
-          coeff = 3;
+      if (nReq < 3) throw new Error("n debe ser >= 3");
+      let run = runSimpson38(f, a, b, nReq);
+      let retried = false;
+      let relErr;
+      if (exact !== void 0 && !isNaN(exact)) {
+        relErr = relativeErrorPercent(run.integral, exact);
+        if (relErr > 1 && run.n < 21) {
+          run = runSimpson38(f, a, b, 21);
+          relErr = relativeErrorPercent(run.integral, exact);
+          retried = true;
         }
-        const contrib = coeff * fxi;
-        sum3 += contrib;
-        iterations.push({ i: i2, xi, fxi, coeff, contrib });
       }
-      const integral = 3 * h / 8 * sum3;
+      const errInfo = simpson38Error(params.fx, a, b, run.h);
+      const msgParts = [`h = ${run.h.toPrecision(6)}, n = ${run.n} (multiplo de 3)`];
+      if (errInfo.derivativeExpr) msgParts.push(`f\u2074(x) = ${errInfo.derivativeExpr}`);
+      if (retried) msgParts.push("reintento automatico con n=21 tras error > 1%");
       return {
-        integral,
-        iterations,
+        integral: run.integral,
+        iterations: run.iterations,
         converged: true,
-        error: 0,
-        message: `h = ${h.toPrecision(6)}, n = ${n} (multiplo de 3)`
+        error: errInfo.bound,
+        exact,
+        relativeErrorPercent: relErr,
+        truncationBound: errInfo.bound,
+        truncationOrder: 4,
+        maxDerivative: errInfo.max,
+        xiApprox: errInfo.xAtMax,
+        derivativeExpr: errInfo.derivativeExpr ?? void 0,
+        retried,
+        message: msgParts.join(" \xB7 ")
       };
     },
     getCharts(params, result) {
@@ -47753,6 +48414,7 @@
       const a = parseFloat(params.a);
       const b = parseFloat(params.b);
       let n = parseInt(params.n) || 9;
+      if (result.retried) n = 21;
       if (n % 3 !== 0) n = n + (3 - n % 3);
       const h = (b - a) / n;
       const pad2 = (b - a) * 0.1;
@@ -47869,6 +48531,16 @@
       { key: "stdErr", label: "Error Estandar" },
       { key: "ci95Lower", label: "IC 95% inf" },
       { key: "ci95Upper", label: "IC 95% sup" }
+    ],
+    steps: [
+      "Escribe <code>f(x)</code> y limites <code>[a, b]</code>. Para el <b>parcial 02/07/2025</b>: <code>exp(x^2)</code> sobre <code>[0, 2]</code>. Para <b>Prueba Evaluativa</b>: la funcion que te pidan.",
+      "Elige <code>N</code> = cantidad de puntos aleatorios. Parcial tipico: <code>N = 1000</code> o <code>N = 10000</code>. <em>Mas N \u2192 menor error</em> pero la convergencia es <b>O(1/\u221AN)</b> (lento vs Simpson <code>O(h\u2074)</code>).",
+      "Introduce una <b>semilla</b> (numero o texto). Misma semilla \u2192 mismos resultados, util para <em>reproducibilidad del informe</em>. Deja vacio para semilla aleatoria.",
+      "Pulsa <b>Resolver</b>. La formula es: <code>I \u2248 (b-a)/N \xB7 \u03A3\u1D62 f(x_i)</code>, donde cada <code>x_i</code> es uniforme en <code>[a, b]</code>.",
+      "La tabla muestra la estimacion en <b>lotes</b> (cada N/20 puntos) para visualizar como converge el promedio.",
+      "<b>Desviacion estandar</b> \u03C3(f): variabilidad de los valores muestreados <code>f(x_i)</code>. <b>Error estandar</b> SE = (b-a)\xB7\u03C3(f)/\u221AN \u2014 es la incertidumbre de la estimacion.",
+      "<b>Intervalo de confianza 95%</b>: <code>IC = estimacion \xB1 1.96\xB7SE</code>. El <em>valor verdadero</em> de la integral debe caer en este rango el 95% de las veces. Si te piden K repeticiones, el IC se aproxima mejor con <code>s/\u221AK</code> (usa el metodo <b>Monte Carlo 1D (K reps)</b>).",
+      "Para el informe: reporta (a) estimacion final, (b) \u03C3(f), (c) SE, (d) IC 95%, (e) semilla usada. Compara con Simpson del mismo ejercicio: Simpson sera <em>mucho mas preciso</em> pero Monte Carlo maneja bien dimensiones altas donde Simpson explota."
     ],
     solve(params) {
       const f = parseExpression(params.fx);
@@ -48068,6 +48740,17 @@
       { key: "ci95Lower", label: "IC 95% inf" },
       { key: "ci95Upper", label: "IC 95% sup" }
     ],
+    steps: [
+      "Este es el ejemplo clasico del <b>parcial Prueba Evaluativa</b>: aproximar <code>\u03C0</code> por muestreo por rechazo. <em>No necesita funcion</em> \u2014 solo N.",
+      "Elige <code>N</code> (puntos aleatorios). Recomendado: <code>N = 10000</code> como punto inicial. Para precision ~2 decimales, N \u2248 10\u2074; para 3 decimales, N \u2248 10\u2076.",
+      "<b>Semilla</b>: usa un valor fijo (ej. <code>42</code>) para reproducir la tabla exacta en tu informe.",
+      "Pulsa <b>Resolver</b>. El algoritmo:<br>&nbsp;&nbsp;1. Genera punto aleatorio <code>(x, y)</code> en el cuadrado <code>[-1, 1] \xD7 [-1, 1]</code> (lado 2).<br>&nbsp;&nbsp;2. Verifica si cae dentro del circulo unitario: <code>x\xB2 + y\xB2 \u2264 1</code>.<br>&nbsp;&nbsp;3. Cuenta <code>M</code> = puntos dentro, <code>N</code> = total.<br>&nbsp;&nbsp;4. Ratio <code>p\u0302 = M/N</code> aproxima <code>\u03C0/4</code>.",
+      "Por lo tanto: <code>\u03C0 \u2248 4 \xB7 M/N</code>. La grafica 1 visualiza el cuadrado con circulo y los puntos coloreados (verde = dentro, rojo = fuera).",
+      "<b>Probabilidad</b>: cada punto es Bernoulli con <code>p = \u03C0/4 \u2248 0.7854</code>. Varianza <code>p(1-p) \u2248 0.1686</code>. Error estandar de \u03C0\u0302: <code>SE = 4\xB7\u221A(p\u0302(1-p\u0302)/N)</code>.",
+      "<b>Intervalo de confianza 95%</b>: <code>\u03C0\u0302 \xB1 1.96\xB7SE</code>. Deberia contener a <code>\u03C0 = 3.14159...</code>.",
+      "La convergencia es <code>O(1/\u221AN)</code>: duplicar precision requiere 4\xD7 mas puntos. En la grafica 4 veras que <code>|error real|</code> sigue la curva teorica <code>1/\u221AN</code>.",
+      "Para el informe: reporta (a) N, (b) M, (c) p\u0302, (d) \u03C0\u0302, (e) |error|, (f) SE, (g) IC 95%, (h) semilla. Contrasta el IC con el valor verdadero \u03C0."
+    ],
     solve(params) {
       const N = parseInt(params.n) || 1e4;
       if (N < 1) throw new Error("N debe ser >= 1");
@@ -48211,1143 +48894,461 @@
     }
   };
 
-  // src/methods/ode/euler.ts
-  var euler = {
-    id: "euler",
-    name: "Metodo de Euler",
-    category: "ode",
-    formula: "y_{n+1} = y_n + h \xB7 f(x_n, y_n)",
-    description: "Resuelve EDOs de primer orden dy/dx = f(x,y) con condicion inicial. Metodo explicito de orden 1.",
-    inputs: [
-      { id: "fxy", label: "f(x, y) = dy/dx", placeholder: "x + y", defaultValue: "x + y" },
-      { id: "x0", label: "x\u2080", placeholder: "0", type: "number", defaultValue: "0" },
-      { id: "y0", label: "y\u2080", placeholder: "1", type: "number", defaultValue: "1" },
-      { id: "xEnd", label: "x final", placeholder: "2", type: "number", defaultValue: "2" },
-      { id: "h", label: "h (paso)", placeholder: "0.1", type: "number", defaultValue: "0.1" },
-      { id: "exact", label: "Solucion exacta y(x) (opcional)", placeholder: "2*exp(x) - x - 1", hint: "Para calcular error" }
-    ],
-    tableColumns: [
-      { key: "step", label: "Paso n" },
-      { key: "xn", label: "x\u2099" },
-      { key: "yn", label: "y\u2099" },
-      { key: "fxy", label: "f(x\u2099, y\u2099)" },
-      { key: "yNext", label: "y\u2099\u208A\u2081" },
-      { key: "exact", label: "y exacta" },
-      { key: "error", label: "|Error|" }
-    ],
-    solve(params) {
-      const f = parseExpression2(params.fxy);
-      const x0 = parseFloat(params.x0);
-      const y0 = parseFloat(params.y0);
-      const xEnd = parseFloat(params.xEnd);
-      const h = parseFloat(params.h);
-      if (isNaN(x0) || isNaN(y0) || isNaN(xEnd) || isNaN(h)) {
-        throw new Error("Todos los parametros numericos deben ser validos");
-      }
-      if (h <= 0) throw new Error("h debe ser > 0");
-      if (xEnd <= x0) throw new Error("x final debe ser > x\u2080");
-      let exactFn = null;
-      if (params.exact && params.exact.trim() !== "") {
-        exactFn = parseExpression(params.exact);
-      }
-      const iterations = [];
-      const N = Math.ceil((xEnd - x0) / h);
-      let x = x0;
-      let y = y0;
-      let maxError = 0;
-      for (let n = 0; n <= N; n++) {
-        x = x0 + n * h;
-        if (x > xEnd) x = xEnd;
-        const fVal = f(x, y);
-        const yNext = y + h * fVal;
-        const exactVal = exactFn ? exactFn(x) : null;
-        const error = exactVal !== null ? Math.abs(y - exactVal) : null;
-        if (error !== null && error > maxError) maxError = error;
-        iterations.push({
-          step: n,
-          xn: x,
-          yn: y,
-          fxy: fVal,
-          yNext: n < N ? yNext : null,
-          exact: exactVal,
-          error
-        });
-        if (n < N) y = yNext;
-      }
-      return {
-        root: y,
-        iterations,
-        converged: true,
-        error: maxError,
-        message: `y(${xEnd}) \u2248 ${y.toFixed(8)} | ${N} pasos, h=${h}${maxError > 0 ? ` | Error max = ${maxError.toExponential(4)}` : ""}`
-      };
-    },
-    getCharts(params, result) {
-      const xs = result.iterations.map((r) => r.xn);
-      const ys = result.iterations.map((r) => r.yn);
-      const fxys = result.iterations.map((r) => r.fxy);
-      const hasExact = result.iterations[0]?.exact !== null;
-      const datasets1 = [
-        { label: "Euler y\u2099", x: xs, y: ys, color: "#89b4fa", pointRadius: 3 }
-      ];
-      if (hasExact) {
-        let exactFn = null;
-        if (params.exact && params.exact.trim() !== "") {
-          try {
-            exactFn = parseExpression(params.exact);
-          } catch {
-          }
-        }
-        if (exactFn) {
-          const xSmooth = linspace(xs[0], xs[xs.length - 1], 200);
-          const ySmooth = xSmooth.map((x) => exactFn(x));
-          datasets1.unshift({ label: "Exacta y(x)", x: xSmooth, y: ySmooth, color: "#a6e3a1", pointRadius: 0 });
-        }
-      }
-      const chart1 = {
-        title: "Solucion y(x)",
-        type: "line",
-        datasets: datasets1,
-        xLabel: "x",
-        yLabel: "y"
-      };
-      const chart2 = {
-        title: "f(x, y) = dy/dx a lo largo de la trayectoria",
-        type: "line",
-        datasets: [
-          { label: "f(x\u2099, y\u2099)", x: xs, y: fxys, color: "#f9e2af", pointRadius: 3 }
-        ],
-        xLabel: "x",
-        yLabel: "f(x, y)"
-      };
-      let chart3;
-      if (hasExact) {
-        const errors = result.iterations.map((r) => r.error).filter((e3) => e3 > 0);
-        const xsErr = result.iterations.filter((r) => r.error > 0).map((r) => r.xn);
-        chart3 = {
-          title: "|Error| vs x",
-          type: "line",
-          datasets: [
-            { label: "|y\u2099 - y(x\u2099)|", x: xsErr, y: errors, color: "#f38ba8", pointRadius: 2 }
-          ],
-          xLabel: "x",
-          yLabel: "|Error|",
-          yLog: errors.length > 2 && errors[errors.length - 1] / errors[0] > 100
-        };
-      } else {
-        const steps2 = xs.slice(0, -1);
-        const deltas = steps2.map((_, i2) => Math.abs(ys[i2 + 1] - ys[i2]));
-        chart3 = {
-          title: "|\u0394y| por paso",
-          type: "line",
-          datasets: [
-            { label: "|y\u2099\u208A\u2081 - y\u2099|", x: steps2, y: deltas, color: "#fab387", pointRadius: 2 }
-          ],
-          xLabel: "x",
-          yLabel: "|\u0394y|"
-        };
-      }
-      const f = parseExpression2(params.fxy);
-      const x0 = parseFloat(params.x0);
-      const xEnd = parseFloat(params.xEnd);
-      const yMin = Math.min(...ys);
-      const yMax = Math.max(...ys);
-      const yPad = (yMax - yMin) * 0.3 || 1;
-      const nFieldX = 15;
-      const nFieldY = 12;
-      const fieldXs = linspace(x0, xEnd, nFieldX);
-      const fieldYs = linspace(yMin - yPad, yMax + yPad, nFieldY);
-      const dx = (xEnd - x0) / nFieldX * 0.35;
-      const segX = [];
-      const segY = [];
-      for (const gx of fieldXs) {
-        for (const gy of fieldYs) {
-          const slope = f(gx, gy);
-          if (!isFinite(slope)) continue;
-          const dy = slope * dx;
-          segX.push(gx - dx / 2, gx + dx / 2, NaN);
-          segY.push(gy - dy / 2, gy + dy / 2, NaN);
-        }
-      }
-      const chart4 = {
-        title: "Campo de pendientes con trayectoria",
-        type: "scatter",
-        datasets: [
-          { label: "Pendientes", x: segX, y: segY, color: "#585b70", pointRadius: 0 },
-          { label: "Euler", x: xs, y: ys, color: "#89b4fa", pointRadius: 2 }
-        ],
-        xLabel: "x",
-        yLabel: "y"
-      };
-      return [chart1, chart2, chart3, chart4];
-    }
-  };
-
-  // src/methods/ode/heun.ts
-  var heun = {
-    id: "heun",
-    name: "Metodo de Heun (RK2)",
-    category: "ode",
-    formula: "y_{n+1} = y_n + (h/2)[f(x_n, y_n) + f(x_{n+1}, \u1EF9_{n+1})]",
-    description: "Metodo predictor-corrector de orden 2. Predice con Euler, corrige promediando pendientes en ambos extremos.",
-    inputs: [
-      { id: "fxy", label: "f(x, y) = dy/dx", placeholder: "x + y", defaultValue: "x + y" },
-      { id: "x0", label: "x\u2080", placeholder: "0", type: "number", defaultValue: "0" },
-      { id: "y0", label: "y\u2080", placeholder: "1", type: "number", defaultValue: "1" },
-      { id: "xEnd", label: "x final", placeholder: "2", type: "number", defaultValue: "2" },
-      { id: "h", label: "h (paso)", placeholder: "0.1", type: "number", defaultValue: "0.1" },
-      { id: "exact", label: "Solucion exacta y(x) (opcional)", placeholder: "2*exp(x) - x - 1", hint: "Para calcular error" }
-    ],
-    tableColumns: [
-      { key: "step", label: "Paso n" },
-      { key: "xn", label: "x\u2099" },
-      { key: "yn", label: "y\u2099" },
-      { key: "fxy", label: "f(x\u2099, y\u2099)" },
-      { key: "yPredict", label: "\u1EF9 (predictor)" },
-      { key: "fPredict", label: "f(x\u2099\u208A\u2081, \u1EF9)" },
-      { key: "yNext", label: "y\u2099\u208A\u2081" },
-      { key: "exact", label: "y exacta" },
-      { key: "error", label: "|Error|" }
-    ],
-    solve(params) {
-      const f = parseExpression2(params.fxy);
-      const x0 = parseFloat(params.x0);
-      const y0 = parseFloat(params.y0);
-      const xEnd = parseFloat(params.xEnd);
-      const h = parseFloat(params.h);
-      if (isNaN(x0) || isNaN(y0) || isNaN(xEnd) || isNaN(h)) {
-        throw new Error("Todos los parametros numericos deben ser validos");
-      }
-      if (h <= 0) throw new Error("h debe ser > 0");
-      if (xEnd <= x0) throw new Error("x final debe ser > x\u2080");
-      let exactFn = null;
-      if (params.exact && params.exact.trim() !== "") {
-        exactFn = parseExpression(params.exact);
-      }
-      const iterations = [];
-      const N = Math.ceil((xEnd - x0) / h);
-      let x = x0;
-      let y = y0;
-      let maxError = 0;
-      for (let n = 0; n <= N; n++) {
-        x = x0 + n * h;
-        if (x > xEnd) x = xEnd;
-        const fVal = f(x, y);
-        const yPred = y + h * fVal;
-        const xNext = x + h;
-        const fPred = f(xNext, yPred);
-        const yNext = y + h / 2 * (fVal + fPred);
-        const exactVal = exactFn ? exactFn(x) : null;
-        const error = exactVal !== null ? Math.abs(y - exactVal) : null;
-        if (error !== null && error > maxError) maxError = error;
-        iterations.push({
-          step: n,
-          xn: x,
-          yn: y,
-          fxy: fVal,
-          yPredict: n < N ? yPred : null,
-          fPredict: n < N ? fPred : null,
-          yNext: n < N ? yNext : null,
-          exact: exactVal,
-          error
-        });
-        if (n < N) y = yNext;
-      }
-      return {
-        root: y,
-        iterations,
-        converged: true,
-        error: maxError,
-        message: `y(${xEnd}) \u2248 ${y.toFixed(8)} | ${N} pasos, h=${h}${maxError > 0 ? ` | Error max = ${maxError.toExponential(4)}` : ""}`
-      };
-    },
-    getCharts(params, result) {
-      const xs = result.iterations.map((r) => r.xn);
-      const ys = result.iterations.map((r) => r.yn);
-      const fxys = result.iterations.map((r) => r.fxy);
-      const hasExact = result.iterations[0]?.exact !== null;
-      const datasets1 = [
-        { label: "Heun y\u2099", x: xs, y: ys, color: "#94e2d5", pointRadius: 3 }
-      ];
-      if (hasExact) {
-        let exactFn = null;
-        if (params.exact && params.exact.trim() !== "") {
-          try {
-            exactFn = parseExpression(params.exact);
-          } catch {
-          }
-        }
-        if (exactFn) {
-          const xSmooth = linspace(xs[0], xs[xs.length - 1], 200);
-          const ySmooth = xSmooth.map((x) => exactFn(x));
-          datasets1.unshift({ label: "Exacta y(x)", x: xSmooth, y: ySmooth, color: "#a6e3a1", pointRadius: 0 });
-        }
-      }
-      const chart1 = {
-        title: "Solucion y(x)",
-        type: "line",
-        datasets: datasets1,
-        xLabel: "x",
-        yLabel: "y"
-      };
-      const yPreds = result.iterations.filter((r) => r.yPredict !== null).map((r) => r.yPredict);
-      const yNexts = result.iterations.filter((r) => r.yNext !== null).map((r) => r.yNext);
-      const xsStep = xs.slice(0, -1);
-      const chart2 = {
-        title: "Predictor (Euler) vs Corrector (Heun)",
-        type: "line",
-        datasets: [
-          { label: "\u1EF9 predictor", x: xsStep, y: yPreds, color: "#f9e2af", pointRadius: 3 },
-          { label: "y\u2099\u208A\u2081 corrector", x: xsStep, y: yNexts, color: "#94e2d5", pointRadius: 3 }
-        ],
-        xLabel: "x",
-        yLabel: "y"
-      };
-      let chart3;
-      if (hasExact) {
-        const errors = result.iterations.map((r) => r.error).filter((e3) => e3 > 0);
-        const xsErr = result.iterations.filter((r) => r.error > 0).map((r) => r.xn);
-        chart3 = {
-          title: "|Error| vs x",
-          type: "line",
-          datasets: [
-            { label: "|y\u2099 - y(x\u2099)|", x: xsErr, y: errors, color: "#f38ba8", pointRadius: 2 }
-          ],
-          xLabel: "x",
-          yLabel: "|Error|",
-          yLog: errors.length > 2 && errors[errors.length - 1] / errors[0] > 100
-        };
-      } else {
-        const deltas = xsStep.map((_, i2) => Math.abs(ys[i2 + 1] - ys[i2]));
-        chart3 = {
-          title: "|\u0394y| por paso",
-          type: "line",
-          datasets: [
-            { label: "|y\u2099\u208A\u2081 - y\u2099|", x: xsStep, y: deltas, color: "#fab387", pointRadius: 2 }
-          ],
-          xLabel: "x",
-          yLabel: "|\u0394y|"
-        };
-      }
-      const f = parseExpression2(params.fxy);
-      const x0 = parseFloat(params.x0);
-      const xEnd = parseFloat(params.xEnd);
-      const yMin = Math.min(...ys);
-      const yMax = Math.max(...ys);
-      const yPad = (yMax - yMin) * 0.3 || 1;
-      const fieldXs = linspace(x0, xEnd, 15);
-      const fieldYs = linspace(yMin - yPad, yMax + yPad, 12);
-      const dx = (xEnd - x0) / 15 * 0.35;
-      const segX = [];
-      const segY = [];
-      for (const gx of fieldXs) {
-        for (const gy of fieldYs) {
-          const slope = f(gx, gy);
-          if (!isFinite(slope)) continue;
-          const dy = slope * dx;
-          segX.push(gx - dx / 2, gx + dx / 2, NaN);
-          segY.push(gy - dy / 2, gy + dy / 2, NaN);
-        }
-      }
-      const chart4 = {
-        title: "Campo de pendientes con trayectoria",
-        type: "scatter",
-        datasets: [
-          { label: "Pendientes", x: segX, y: segY, color: "#585b70", pointRadius: 0 },
-          { label: "Heun", x: xs, y: ys, color: "#94e2d5", pointRadius: 2 }
-        ],
-        xLabel: "x",
-        yLabel: "y"
-      };
-      return [chart1, chart2, chart3, chart4];
-    }
-  };
-
-  // src/methods/ode/rungeKutta.ts
-  var rungeKutta = {
-    id: "rungeKutta",
-    name: "Runge-Kutta (RK4)",
-    category: "ode",
-    formula: "y_{n+1} = y_n + (h/6)(k\u2081 + 2k\u2082 + 2k\u2083 + k\u2084)",
-    description: "Metodo clasico de Runge-Kutta de orden 4. Resuelve dy/dx = f(x,y) con alta precision usando 4 evaluaciones por paso.",
-    inputs: [
-      { id: "fxy", label: "f(x, y) = dy/dx", placeholder: "x + y", defaultValue: "x + y" },
-      { id: "x0", label: "x\u2080", placeholder: "0", type: "number", defaultValue: "0" },
-      { id: "y0", label: "y\u2080", placeholder: "1", type: "number", defaultValue: "1" },
-      { id: "xEnd", label: "x final", placeholder: "2", type: "number", defaultValue: "2" },
-      { id: "h", label: "h (paso)", placeholder: "0.1", type: "number", defaultValue: "0.1" },
-      { id: "exact", label: "Solucion exacta y(x) (opcional)", placeholder: "2*exp(x) - x - 1", hint: "Para calcular error" }
-    ],
-    tableColumns: [
-      { key: "step", label: "Paso n" },
-      { key: "xn", label: "x\u2099" },
-      { key: "yn", label: "y\u2099" },
-      { key: "k1", label: "k\u2081" },
-      { key: "k2", label: "k\u2082" },
-      { key: "k3", label: "k\u2083" },
-      { key: "k4", label: "k\u2084" },
-      { key: "yNext", label: "y\u2099\u208A\u2081" },
-      { key: "exact", label: "y exacta" },
-      { key: "error", label: "|Error|" }
-    ],
-    solve(params) {
-      const f = parseExpression2(params.fxy);
-      const x0 = parseFloat(params.x0);
-      const y0 = parseFloat(params.y0);
-      const xEnd = parseFloat(params.xEnd);
-      const h = parseFloat(params.h);
-      if (isNaN(x0) || isNaN(y0) || isNaN(xEnd) || isNaN(h)) {
-        throw new Error("Todos los parametros numericos deben ser validos");
-      }
-      if (h <= 0) throw new Error("h debe ser > 0");
-      if (xEnd <= x0) throw new Error("x final debe ser > x\u2080");
-      let exactFn = null;
-      if (params.exact && params.exact.trim() !== "") {
-        exactFn = parseExpression(params.exact);
-      }
-      const iterations = [];
-      const N = Math.ceil((xEnd - x0) / h);
-      let x = x0;
-      let y = y0;
-      let maxError = 0;
-      for (let n = 0; n <= N; n++) {
-        x = x0 + n * h;
-        if (x > xEnd) x = xEnd;
-        const k1 = f(x, y);
-        const k2 = f(x + h / 2, y + h / 2 * k1);
-        const k3 = f(x + h / 2, y + h / 2 * k2);
-        const k4 = f(x + h, y + h * k3);
-        const yNext = y + h / 6 * (k1 + 2 * k2 + 2 * k3 + k4);
-        const exactVal = exactFn ? exactFn(x) : null;
-        const error = exactVal !== null ? Math.abs(y - exactVal) : null;
-        if (error !== null && error > maxError) maxError = error;
-        iterations.push({
-          step: n,
-          xn: x,
-          yn: y,
-          k1,
-          k2,
-          k3,
-          k4,
-          yNext: n < N ? yNext : null,
-          exact: exactVal,
-          error
-        });
-        if (n < N) y = yNext;
-      }
-      return {
-        root: y,
-        iterations,
-        converged: true,
-        error: maxError,
-        message: `y(${xEnd}) \u2248 ${y.toFixed(8)} | ${N} pasos, h=${h}${maxError > 0 ? ` | Error max = ${maxError.toExponential(4)}` : ""}`
-      };
-    },
-    getCharts(params, result) {
-      const xs = result.iterations.map((r) => r.xn);
-      const ys = result.iterations.map((r) => r.yn);
-      const k1s = result.iterations.map((r) => r.k1);
-      const k2s = result.iterations.map((r) => r.k2);
-      const k3s = result.iterations.map((r) => r.k3);
-      const k4s = result.iterations.map((r) => r.k4);
-      const hasExact = result.iterations[0]?.exact !== null;
-      const datasets1 = [
-        { label: "RK4 y\u2099", x: xs, y: ys, color: "#cba6f7", pointRadius: 3 }
-      ];
-      if (hasExact) {
-        let exactFn = null;
-        if (params.exact && params.exact.trim() !== "") {
-          try {
-            exactFn = parseExpression(params.exact);
-          } catch {
-          }
-        }
-        if (exactFn) {
-          const xSmooth = linspace(xs[0], xs[xs.length - 1], 200);
-          const ySmooth = xSmooth.map((x) => exactFn(x));
-          datasets1.unshift({ label: "Exacta y(x)", x: xSmooth, y: ySmooth, color: "#a6e3a1", pointRadius: 0 });
-        }
-      }
-      const chart1 = {
-        title: "Solucion y(x)",
-        type: "line",
-        datasets: datasets1,
-        xLabel: "x",
-        yLabel: "y"
-      };
-      const chart2 = {
-        title: "Coeficientes k\u2081, k\u2082, k\u2083, k\u2084 vs x",
-        type: "line",
-        datasets: [
-          { label: "k\u2081", x: xs, y: k1s, color: "#89b4fa", pointRadius: 2 },
-          { label: "k\u2082", x: xs, y: k2s, color: "#a6e3a1", pointRadius: 2 },
-          { label: "k\u2083", x: xs, y: k3s, color: "#f9e2af", pointRadius: 2 },
-          { label: "k\u2084", x: xs, y: k4s, color: "#f38ba8", pointRadius: 2 }
-        ],
-        xLabel: "x",
-        yLabel: "k"
-      };
-      let chart3;
-      if (hasExact) {
-        const errors = result.iterations.map((r) => r.error).filter((e3) => e3 > 0);
-        const xsErr = result.iterations.filter((r) => r.error > 0).map((r) => r.xn);
-        chart3 = {
-          title: "|Error| vs x",
-          type: "line",
-          datasets: [
-            { label: "|y\u2099 - y(x\u2099)|", x: xsErr, y: errors, color: "#f38ba8", pointRadius: 2 }
-          ],
-          xLabel: "x",
-          yLabel: "|Error|",
-          yLog: errors.length > 2 && errors[errors.length - 1] / errors[0] > 100
-        };
-      } else {
-        const steps2 = xs.slice(0, -1);
-        const deltas = steps2.map((_, i2) => Math.abs(ys[i2 + 1] - ys[i2]));
-        chart3 = {
-          title: "|\u0394y| por paso",
-          type: "line",
-          datasets: [
-            { label: "|y\u2099\u208A\u2081 - y\u2099|", x: steps2, y: deltas, color: "#fab387", pointRadius: 2 }
-          ],
-          xLabel: "x",
-          yLabel: "|\u0394y|"
-        };
-      }
-      const f = parseExpression2(params.fxy);
-      const x0 = parseFloat(params.x0);
-      const xEnd = parseFloat(params.xEnd);
-      const yMin = Math.min(...ys);
-      const yMax = Math.max(...ys);
-      const yPad = (yMax - yMin) * 0.3 || 1;
-      const nFieldX = 15;
-      const nFieldY = 12;
-      const fieldXs = linspace(x0, xEnd, nFieldX);
-      const fieldYs = linspace(yMin - yPad, yMax + yPad, nFieldY);
-      const dx = (xEnd - x0) / nFieldX * 0.35;
-      const segX = [];
-      const segY = [];
-      for (const gx of fieldXs) {
-        for (const gy of fieldYs) {
-          const slope = f(gx, gy);
-          if (!isFinite(slope)) continue;
-          const dy = slope * dx;
-          segX.push(gx - dx / 2, gx + dx / 2, NaN);
-          segY.push(gy - dy / 2, gy + dy / 2, NaN);
-        }
-      }
-      const chart4 = {
-        title: "Campo de pendientes con trayectoria",
-        type: "scatter",
-        datasets: [
-          { label: "Pendientes", x: segX, y: segY, color: "#585b70", pointRadius: 0 },
-          { label: "RK4", x: xs, y: ys, color: "#cba6f7", pointRadius: 2 }
-        ],
-        xLabel: "x",
-        yLabel: "y"
-      };
-      return [chart1, chart2, chart3, chart4];
-    }
-  };
-
-  // src/methods/differentiation/forward.ts
-  var forward = {
-    id: "forward",
-    name: "Diferencia Hacia Adelante",
-    category: "differentiation",
-    formula: "f'(x) \u2248 (f(x+h) - f(x)) / h",
-    description: "Aproximacion de primer orden O(h) de la derivada usando diferencia hacia adelante.",
-    inputs: [
-      { id: "fx", label: "f(x)", placeholder: "sin(x)", defaultValue: "sin(x)" },
-      { id: "x0", label: "x\u2080 (punto de evaluacion)", placeholder: "1", type: "number", defaultValue: "1" },
-      { id: "h", label: "h (paso)", placeholder: "0.1", defaultValue: "0.1" },
-      { id: "dfx", label: "f'(x) exacta (opcional, para error)", placeholder: "cos(x)", hint: "Para calcular error real", defaultValue: "cos(x)" }
-    ],
-    tableColumns: [
-      { key: "step", label: "Paso" },
-      { key: "h", label: "h" },
-      { key: "approx", label: "f'(x) aprox" },
-      { key: "exact", label: "f'(x) exacta" },
-      { key: "error", label: "Error absoluto" }
-    ],
-    solve(params) {
-      const f = parseExpression(params.fx);
-      const x0 = parseFloat(params.x0);
-      const hStart = parseFloat(params.h) || 0.1;
-      const dfExpr = params.dfx?.trim();
-      const df = dfExpr ? parseExpression(dfExpr) : null;
-      if (isNaN(x0)) throw new Error("x\u2080 debe ser un numero valido");
-      const iterations = [];
-      let h = hStart;
-      let lastApprox = 0;
-      for (let step = 1; step <= 12; step++) {
-        const approx = (f(x0 + h) - f(x0)) / h;
-        const exact = df ? df(x0) : NaN;
-        const error = df ? Math.abs(approx - exact) : step > 1 ? Math.abs(approx - lastApprox) : NaN;
-        iterations.push({ step, h, approx, exact, error: isNaN(error) ? 0 : error });
-        lastApprox = approx;
-        h /= 2;
-      }
-      const finalApprox = iterations[0].approx;
-      const finalError = df ? Math.abs(finalApprox - df(x0)) : 0;
-      return {
-        derivative: finalApprox,
-        iterations,
-        converged: true,
-        error: finalError,
-        message: `f'(${x0}) \u2248 ${finalApprox.toPrecision(10)}`
-      };
-    },
-    getCharts(params, result) {
-      const f = parseExpression(params.fx);
-      const x0 = parseFloat(params.x0);
-      const h = parseFloat(params.h) || 0.1;
-      const dfExpr = params.dfx?.trim();
-      const df = dfExpr ? parseExpression(dfExpr) : null;
-      const pad2 = 2;
-      const xs = linspace(x0 - pad2, x0 + pad2, 500);
-      const ys = xs.map((x) => f(x));
-      const slope = (f(x0 + h) - f(x0)) / h;
-      const tanXs = linspace(x0 - 1, x0 + 1, 100);
-      const tanYs = tanXs.map((x) => f(x0) + slope * (x - x0));
-      const chart1 = {
-        title: "f(x) con recta tangente aproximada",
-        type: "line",
-        datasets: [
-          { label: "f(x)", x: xs, y: ys, color: "#89b4fa" },
-          { label: `Tangente (h=${h})`, x: tanXs, y: tanYs, color: "#a6e3a1", dashed: true },
-          { label: "x\u2080", x: [x0], y: [f(x0)], color: "#fab387", pointRadius: 6, showLine: false }
-        ],
-        xLabel: "x",
-        yLabel: "y"
-      };
-      const hValues = result.iterations.map((r) => r.h);
-      const errors = result.iterations.map((r) => r.error).filter((e3) => e3 > 0);
-      const chart2 = {
-        title: "Error vs h",
-        type: "line",
-        datasets: [{ label: "Error", x: hValues.slice(0, errors.length), y: errors, color: "#f38ba8", pointRadius: 3 }],
-        xLabel: "h",
-        yLabel: "|Error|",
-        yLog: true
-      };
-      const approxVals = result.iterations.map((r) => r.approx);
-      const steps2 = result.iterations.map((r) => r.step);
-      const chart3 = {
-        title: "Convergencia de f'(x) con h decreciente",
-        type: "line",
-        datasets: [
-          { label: "f' aprox", x: steps2, y: approxVals, color: "#cba6f7", pointRadius: 3 },
-          ...df ? [{ label: "f' exacta", x: [steps2[0], steps2[steps2.length - 1]], y: [df(x0), df(x0)], color: "#a6e3a1", dashed: true, pointRadius: 0 }] : []
-        ],
-        xLabel: "Paso (h se reduce)",
-        yLabel: "f'(x)"
-      };
-      const chart4 = {
-        title: "Puntos usados en la formula",
-        type: "scatter",
-        datasets: [
-          { label: "f(x)", x: xs, y: ys, color: "#89b4fa", pointRadius: 0 },
-          { label: "f(x\u2080)", x: [x0], y: [f(x0)], color: "#fab387", pointRadius: 6, showLine: false },
-          { label: "f(x\u2080+h)", x: [x0 + h], y: [f(x0 + h)], color: "#f38ba8", pointRadius: 6, showLine: false },
-          { label: "Secante", x: [x0, x0 + h], y: [f(x0), f(x0 + h)], color: "#a6e3a1", dashed: true, pointRadius: 0 }
-        ],
-        xLabel: "x",
-        yLabel: "f(x)"
-      };
-      return [chart1, chart2, chart3, chart4];
-    }
-  };
-
-  // src/methods/differentiation/backward.ts
-  var backward = {
-    id: "backward",
-    name: "Diferencia Hacia Atras",
-    category: "differentiation",
-    formula: "f'(x) \u2248 (f(x) - f(x-h)) / h",
-    description: "Aproximacion de primer orden O(h) de la derivada usando diferencia hacia atras.",
-    inputs: [
-      { id: "fx", label: "f(x)", placeholder: "sin(x)", defaultValue: "sin(x)" },
-      { id: "x0", label: "x\u2080 (punto de evaluacion)", placeholder: "1", type: "number", defaultValue: "1" },
-      { id: "h", label: "h (paso)", placeholder: "0.1", defaultValue: "0.1" },
-      { id: "dfx", label: "f'(x) exacta (opcional, para error)", placeholder: "cos(x)", defaultValue: "cos(x)" }
-    ],
-    tableColumns: [
-      { key: "step", label: "Paso" },
-      { key: "h", label: "h" },
-      { key: "approx", label: "f'(x) aprox" },
-      { key: "exact", label: "f'(x) exacta" },
-      { key: "error", label: "Error absoluto" }
-    ],
-    solve(params) {
-      const f = parseExpression(params.fx);
-      const x0 = parseFloat(params.x0);
-      const hStart = parseFloat(params.h) || 0.1;
-      const dfExpr = params.dfx?.trim();
-      const df = dfExpr ? parseExpression(dfExpr) : null;
-      if (isNaN(x0)) throw new Error("x\u2080 debe ser un numero valido");
-      const iterations = [];
-      let h = hStart;
-      let lastApprox = 0;
-      for (let step = 1; step <= 12; step++) {
-        const approx = (f(x0) - f(x0 - h)) / h;
-        const exact = df ? df(x0) : NaN;
-        const error = df ? Math.abs(approx - exact) : step > 1 ? Math.abs(approx - lastApprox) : NaN;
-        iterations.push({ step, h, approx, exact, error: isNaN(error) ? 0 : error });
-        lastApprox = approx;
-        h /= 2;
-      }
-      const finalApprox = iterations[0].approx;
-      const finalError = df ? Math.abs(finalApprox - df(x0)) : 0;
-      return {
-        derivative: finalApprox,
-        iterations,
-        converged: true,
-        error: finalError,
-        message: `f'(${x0}) \u2248 ${finalApprox.toPrecision(10)}`
-      };
-    },
-    getCharts(params, result) {
-      const f = parseExpression(params.fx);
-      const x0 = parseFloat(params.x0);
-      const h = parseFloat(params.h) || 0.1;
-      const dfExpr = params.dfx?.trim();
-      const df = dfExpr ? parseExpression(dfExpr) : null;
-      const pad2 = 2;
-      const xs = linspace(x0 - pad2, x0 + pad2, 500);
-      const ys = xs.map((x) => f(x));
-      const slope = (f(x0) - f(x0 - h)) / h;
-      const tanXs = linspace(x0 - 1, x0 + 1, 100);
-      const tanYs = tanXs.map((x) => f(x0) + slope * (x - x0));
-      const chart1 = {
-        title: "f(x) con recta tangente aproximada",
-        type: "line",
-        datasets: [
-          { label: "f(x)", x: xs, y: ys, color: "#89b4fa" },
-          { label: `Tangente (h=${h})`, x: tanXs, y: tanYs, color: "#a6e3a1", dashed: true },
-          { label: "x\u2080", x: [x0], y: [f(x0)], color: "#fab387", pointRadius: 6, showLine: false }
-        ],
-        xLabel: "x",
-        yLabel: "y"
-      };
-      const hValues = result.iterations.map((r) => r.h);
-      const errors = result.iterations.map((r) => r.error).filter((e3) => e3 > 0);
-      const chart2 = {
-        title: "Error vs h",
-        type: "line",
-        datasets: [{ label: "Error", x: hValues.slice(0, errors.length), y: errors, color: "#f38ba8", pointRadius: 3 }],
-        xLabel: "h",
-        yLabel: "|Error|",
-        yLog: true
-      };
-      const approxVals = result.iterations.map((r) => r.approx);
-      const steps2 = result.iterations.map((r) => r.step);
-      const chart3 = {
-        title: "Convergencia de f'(x)",
-        type: "line",
-        datasets: [
-          { label: "f' aprox", x: steps2, y: approxVals, color: "#cba6f7", pointRadius: 3 },
-          ...df ? [{ label: "f' exacta", x: [steps2[0], steps2[steps2.length - 1]], y: [df(x0), df(x0)], color: "#a6e3a1", dashed: true, pointRadius: 0 }] : []
-        ],
-        xLabel: "Paso",
-        yLabel: "f'(x)"
-      };
-      const chart4 = {
-        title: "Puntos usados: f(x\u2080-h), f(x\u2080)",
-        type: "scatter",
-        datasets: [
-          { label: "f(x)", x: xs, y: ys, color: "#89b4fa", pointRadius: 0 },
-          { label: "f(x\u2080-h)", x: [x0 - h], y: [f(x0 - h)], color: "#f38ba8", pointRadius: 6, showLine: false },
-          { label: "f(x\u2080)", x: [x0], y: [f(x0)], color: "#fab387", pointRadius: 6, showLine: false },
-          { label: "Secante", x: [x0 - h, x0], y: [f(x0 - h), f(x0)], color: "#a6e3a1", dashed: true, pointRadius: 0 }
-        ],
-        xLabel: "x",
-        yLabel: "f(x)"
-      };
-      return [chart1, chart2, chart3, chart4];
-    }
-  };
-
-  // src/methods/differentiation/central.ts
-  var central = {
-    id: "central",
-    name: "Diferencia Central",
-    category: "differentiation",
-    formula: "f'(x) \u2248 (f(x+h) - f(x-h)) / 2h",
-    description: "Aproximacion de segundo orden O(h\xB2) de la derivada. Mas precisa que forward/backward.",
-    inputs: [
-      { id: "fx", label: "f(x)", placeholder: "sin(x)", defaultValue: "sin(x)" },
-      { id: "x0", label: "x\u2080 (punto de evaluacion)", placeholder: "1", type: "number", defaultValue: "1" },
-      { id: "h", label: "h (paso)", placeholder: "0.1", defaultValue: "0.1" },
-      { id: "dfx", label: "f'(x) exacta (opcional)", placeholder: "cos(x)", defaultValue: "cos(x)" }
-    ],
-    tableColumns: [
-      { key: "step", label: "Paso" },
-      { key: "h", label: "h" },
-      { key: "approx", label: "f'(x) aprox" },
-      { key: "exact", label: "f'(x) exacta" },
-      { key: "error", label: "Error absoluto" }
-    ],
-    solve(params) {
-      const f = parseExpression(params.fx);
-      const x0 = parseFloat(params.x0);
-      const hStart = parseFloat(params.h) || 0.1;
-      const dfExpr = params.dfx?.trim();
-      const df = dfExpr ? parseExpression(dfExpr) : null;
-      if (isNaN(x0)) throw new Error("x\u2080 debe ser un numero valido");
-      const iterations = [];
-      let h = hStart;
-      let lastApprox = 0;
-      for (let step = 1; step <= 12; step++) {
-        const approx = (f(x0 + h) - f(x0 - h)) / (2 * h);
-        const exact = df ? df(x0) : NaN;
-        const error = df ? Math.abs(approx - exact) : step > 1 ? Math.abs(approx - lastApprox) : NaN;
-        iterations.push({ step, h, approx, exact, error: isNaN(error) ? 0 : error });
-        lastApprox = approx;
-        h /= 2;
-      }
-      const finalApprox = iterations[0].approx;
-      const finalError = df ? Math.abs(finalApprox - df(x0)) : 0;
-      return {
-        derivative: finalApprox,
-        iterations,
-        converged: true,
-        error: finalError,
-        message: `f'(${x0}) \u2248 ${finalApprox.toPrecision(10)}, O(h\xB2)`
-      };
-    },
-    getCharts(params, result) {
-      const f = parseExpression(params.fx);
-      const x0 = parseFloat(params.x0);
-      const h = parseFloat(params.h) || 0.1;
-      const dfExpr = params.dfx?.trim();
-      const df = dfExpr ? parseExpression(dfExpr) : null;
-      const pad2 = 2;
-      const xs = linspace(x0 - pad2, x0 + pad2, 500);
-      const ys = xs.map((x) => f(x));
-      const slope = (f(x0 + h) - f(x0 - h)) / (2 * h);
-      const tanXs = linspace(x0 - 1, x0 + 1, 100);
-      const tanYs = tanXs.map((x) => f(x0) + slope * (x - x0));
-      const chart1 = {
-        title: "f(x) con tangente central",
-        type: "line",
-        datasets: [
-          { label: "f(x)", x: xs, y: ys, color: "#89b4fa" },
-          { label: `Tangente central (h=${h})`, x: tanXs, y: tanYs, color: "#a6e3a1", dashed: true },
-          { label: "x\u2080", x: [x0], y: [f(x0)], color: "#fab387", pointRadius: 6, showLine: false }
-        ],
-        xLabel: "x",
-        yLabel: "y"
-      };
-      const hValues = result.iterations.map((r) => r.h);
-      const errors = result.iterations.map((r) => r.error).filter((e3) => e3 > 0);
-      const chart2 = {
-        title: "Error vs h (O(h\xB2) - decrece mas rapido)",
-        type: "line",
-        datasets: [{ label: "Error", x: hValues.slice(0, errors.length), y: errors, color: "#f38ba8", pointRadius: 3 }],
-        xLabel: "h",
-        yLabel: "|Error|",
-        yLog: true
-      };
-      const approxVals = result.iterations.map((r) => r.approx);
-      const steps2 = result.iterations.map((r) => r.step);
-      const chart3 = {
-        title: "Convergencia de f'(x)",
-        type: "line",
-        datasets: [
-          { label: "f' aprox", x: steps2, y: approxVals, color: "#cba6f7", pointRadius: 3 },
-          ...df ? [{ label: "f' exacta", x: [steps2[0], steps2[steps2.length - 1]], y: [df(x0), df(x0)], color: "#a6e3a1", dashed: true, pointRadius: 0 }] : []
-        ],
-        xLabel: "Paso",
-        yLabel: "f'(x)"
-      };
-      const chart4 = {
-        title: "Puntos usados: f(x\u2080-h), f(x\u2080+h)",
-        type: "scatter",
-        datasets: [
-          { label: "f(x)", x: xs, y: ys, color: "#89b4fa", pointRadius: 0 },
-          { label: "f(x\u2080-h)", x: [x0 - h], y: [f(x0 - h)], color: "#f38ba8", pointRadius: 6, showLine: false },
-          { label: "f(x\u2080)", x: [x0], y: [f(x0)], color: "#fab387", pointRadius: 6, showLine: false },
-          { label: "f(x\u2080+h)", x: [x0 + h], y: [f(x0 + h)], color: "#94e2d5", pointRadius: 6, showLine: false },
-          { label: "Secante", x: [x0 - h, x0 + h], y: [f(x0 - h), f(x0 + h)], color: "#a6e3a1", dashed: true, pointRadius: 0 }
-        ],
-        xLabel: "x",
-        yLabel: "f(x)"
-      };
-      return [chart1, chart2, chart3, chart4];
-    }
-  };
-
-  // src/methods/differentiation/secondDerivative.ts
-  var secondDerivative = {
-    id: "secondDerivative",
-    name: "Segunda Derivada (Central)",
-    category: "differentiation",
-    formula: "f''(x) \u2248 (f(x+h) - 2f(x) + f(x-h)) / h\xB2",
-    description: "Aproximacion de segundo orden O(h\xB2) de la segunda derivada usando diferencia central.",
-    inputs: [
-      { id: "fx", label: "f(x)", placeholder: "sin(x)", defaultValue: "sin(x)" },
-      { id: "x0", label: "x\u2080 (punto de evaluacion)", placeholder: "1", type: "number", defaultValue: "1" },
-      { id: "h", label: "h (paso)", placeholder: "0.1", defaultValue: "0.1" },
-      { id: "ddfx", label: "f''(x) exacta (opcional)", placeholder: "-sin(x)", defaultValue: "-sin(x)" }
-    ],
-    tableColumns: [
-      { key: "step", label: "Paso" },
-      { key: "h", label: "h" },
-      { key: "approx", label: "f''(x) aprox" },
-      { key: "exact", label: "f''(x) exacta" },
-      { key: "error", label: "Error absoluto" }
-    ],
-    solve(params) {
-      const f = parseExpression(params.fx);
-      const x0 = parseFloat(params.x0);
-      const hStart = parseFloat(params.h) || 0.1;
-      const ddfExpr = params.ddfx?.trim();
-      const ddf = ddfExpr ? parseExpression(ddfExpr) : null;
-      if (isNaN(x0)) throw new Error("x\u2080 debe ser un numero valido");
-      const iterations = [];
-      let h = hStart;
-      let lastApprox = 0;
-      for (let step = 1; step <= 12; step++) {
-        const approx = (f(x0 + h) - 2 * f(x0) + f(x0 - h)) / (h * h);
-        const exact = ddf ? ddf(x0) : NaN;
-        const error = ddf ? Math.abs(approx - exact) : step > 1 ? Math.abs(approx - lastApprox) : NaN;
-        iterations.push({ step, h, approx, exact, error: isNaN(error) ? 0 : error });
-        lastApprox = approx;
-        h /= 2;
-      }
-      const finalApprox = iterations[0].approx;
-      const finalError = ddf ? Math.abs(finalApprox - ddf(x0)) : 0;
-      return {
-        derivative: finalApprox,
-        iterations,
-        converged: true,
-        error: finalError,
-        message: `f''(${x0}) \u2248 ${finalApprox.toPrecision(10)}`
-      };
-    },
-    getCharts(params, result) {
-      const f = parseExpression(params.fx);
-      const x0 = parseFloat(params.x0);
-      const h = parseFloat(params.h) || 0.1;
-      const pad2 = 2;
-      const xs = linspace(x0 - pad2, x0 + pad2, 500);
-      const ys = xs.map((x) => f(x));
-      const chart1 = {
-        title: "f(x) y puntos de evaluacion",
-        type: "scatter",
-        datasets: [
-          { label: "f(x)", x: xs, y: ys, color: "#89b4fa", pointRadius: 0 },
-          { label: "f(x\u2080-h)", x: [x0 - h], y: [f(x0 - h)], color: "#f38ba8", pointRadius: 6, showLine: false },
-          { label: "f(x\u2080)", x: [x0], y: [f(x0)], color: "#fab387", pointRadius: 6, showLine: false },
-          { label: "f(x\u2080+h)", x: [x0 + h], y: [f(x0 + h)], color: "#94e2d5", pointRadius: 6, showLine: false }
-        ],
-        xLabel: "x",
-        yLabel: "f(x)"
-      };
-      const hValues = result.iterations.map((r) => r.h);
-      const errors = result.iterations.map((r) => r.error).filter((e3) => e3 > 0);
-      const chart2 = {
-        title: "Error vs h",
-        type: "line",
-        datasets: [{ label: "Error", x: hValues.slice(0, errors.length), y: errors, color: "#f38ba8", pointRadius: 3 }],
-        xLabel: "h",
-        yLabel: "|Error|",
-        yLog: true
-      };
-      const approxVals = result.iterations.map((r) => r.approx);
-      const steps2 = result.iterations.map((r) => r.step);
-      const ddfExpr = params.ddfx?.trim();
-      const ddf = ddfExpr ? parseExpression(ddfExpr) : null;
-      const chart3 = {
-        title: "Convergencia de f''(x)",
-        type: "line",
-        datasets: [
-          { label: "f'' aprox", x: steps2, y: approxVals, color: "#cba6f7", pointRadius: 3 },
-          ...ddf ? [{ label: "f'' exacta", x: [steps2[0], steps2[steps2.length - 1]], y: [ddf(x0), ddf(x0)], color: "#a6e3a1", dashed: true, pointRadius: 0 }] : []
-        ],
-        xLabel: "Paso",
-        yLabel: "f''(x)"
-      };
-      const secondDeriv = (f(x0 + h) - 2 * f(x0) + f(x0 - h)) / (h * h);
-      const chart4 = {
-        title: `Concavidad en x\u2080 (f''\u2248${secondDeriv.toFixed(4)})`,
-        type: "line",
-        datasets: [
-          { label: "f(x)", x: xs, y: ys, color: "#89b4fa" },
-          { label: "x\u2080", x: [x0], y: [f(x0)], color: "#fab387", pointRadius: 6, showLine: false }
-        ],
-        xLabel: "x",
-        yLabel: "f(x)"
-      };
-      return [chart1, chart2, chart3, chart4];
-    }
-  };
-
-  // src/methods/differentiation/richardson.ts
-  var richardson = {
-    id: "richardson",
-    name: "Extrapolacion de Richardson",
-    category: "differentiation",
-    formula: "D = (4\xB7D(h/2) - D(h)) / 3, mejora O(h\xB2) a O(h\u2074)",
-    description: "Combina aproximaciones con diferentes h para obtener mayor precision. Usa diferencia central como base.",
-    inputs: [
-      { id: "fx", label: "f(x)", placeholder: "sin(x)", defaultValue: "sin(x)" },
-      { id: "x0", label: "x\u2080 (punto de evaluacion)", placeholder: "1", type: "number", defaultValue: "1" },
-      { id: "h", label: "h (paso inicial)", placeholder: "0.5", defaultValue: "0.5" },
-      { id: "levels", label: "Niveles de extrapolacion", placeholder: "4", type: "number", defaultValue: "4" },
-      { id: "dfx", label: "f'(x) exacta (opcional)", placeholder: "cos(x)", defaultValue: "cos(x)" }
-    ],
-    tableColumns: [
-      { key: "level", label: "Nivel" },
-      { key: "h", label: "h" },
-      { key: "D_base", label: "D base (central)" },
-      { key: "D_richardson", label: "D Richardson" },
-      { key: "error_base", label: "Error base" },
-      { key: "error_rich", label: "Error Richardson" }
-    ],
-    solve(params) {
-      const f = parseExpression(params.fx);
-      const x0 = parseFloat(params.x0);
-      const hStart = parseFloat(params.h) || 0.5;
-      const levels = parseInt(params.levels) || 4;
-      const dfExpr = params.dfx?.trim();
-      const df = dfExpr ? parseExpression(dfExpr) : null;
-      if (isNaN(x0)) throw new Error("x\u2080 debe ser un numero valido");
-      if (levels < 2) throw new Error("Se necesitan al menos 2 niveles");
-      const n = levels;
-      const D2 = [];
-      for (let i2 = 0; i2 < n; i2++) {
-        const h = hStart / Math.pow(2, i2);
-        D2.push([(f(x0 + h) - f(x0 - h)) / (2 * h)]);
-      }
-      for (let j = 1; j < n; j++) {
-        for (let i2 = j; i2 < n; i2++) {
-          const factor = Math.pow(4, j);
-          const val = (factor * D2[i2][j - 1] - D2[i2 - 1][j - 1]) / (factor - 1);
-          D2[i2].push(val);
-        }
-      }
-      const iterations = [];
-      const exact = df ? df(x0) : NaN;
-      for (let i2 = 0; i2 < n; i2++) {
-        const h = hStart / Math.pow(2, i2);
-        const dBase = D2[i2][0];
-        const dRich = D2[i2][D2[i2].length - 1];
-        const errorBase = df ? Math.abs(dBase - exact) : 0;
-        const errorRich = df ? Math.abs(dRich - exact) : 0;
-        iterations.push({
-          level: i2 + 1,
-          h,
-          D_base: dBase,
-          D_richardson: dRich,
-          error_base: errorBase,
-          error_rich: errorRich
-        });
-      }
-      const bestApprox = D2[n - 1][D2[n - 1].length - 1];
-      const finalError = df ? Math.abs(bestApprox - exact) : 0;
-      return {
-        derivative: bestApprox,
-        iterations,
-        converged: true,
-        error: finalError,
-        message: `f'(${x0}) \u2248 ${bestApprox.toPrecision(12)} (nivel ${n})`
-      };
-    },
-    getCharts(params, result) {
-      const f = parseExpression(params.fx);
-      const x0 = parseFloat(params.x0);
-      const dfExpr = params.dfx?.trim();
-      const df = dfExpr ? parseExpression(dfExpr) : null;
-      const pad2 = 2;
-      const xs = linspace(x0 - pad2, x0 + pad2, 500);
-      const ys = xs.map((x) => f(x));
-      const bestSlope = result.derivative ?? 0;
-      const tanXs = linspace(x0 - 1, x0 + 1, 100);
-      const tanYs = tanXs.map((x) => f(x0) + bestSlope * (x - x0));
-      const chart1 = {
-        title: "f(x) con tangente Richardson",
-        type: "line",
-        datasets: [
-          { label: "f(x)", x: xs, y: ys, color: "#89b4fa" },
-          { label: "Tangente Richardson", x: tanXs, y: tanYs, color: "#a6e3a1", dashed: true },
-          { label: "x\u2080", x: [x0], y: [f(x0)], color: "#fab387", pointRadius: 6, showLine: false }
-        ],
-        xLabel: "x",
-        yLabel: "y"
-      };
-      const levels = result.iterations.map((r) => r.level);
-      const errBase = result.iterations.map((r) => r.error_base).filter((e3) => e3 > 0);
-      const errRich = result.iterations.map((r) => r.error_rich).filter((e3) => e3 > 0);
-      const chart2 = {
-        title: "Error: Central vs Richardson",
-        type: "line",
-        datasets: [
-          { label: "Central O(h\xB2)", x: levels.slice(0, errBase.length), y: errBase, color: "#f38ba8", pointRadius: 3 },
-          { label: "Richardson O(h\u2074+)", x: levels.slice(0, errRich.length), y: errRich, color: "#a6e3a1", pointRadius: 3 }
-        ],
-        xLabel: "Nivel",
-        yLabel: "|Error|",
-        yLog: true
-      };
-      const dBase = result.iterations.map((r) => r.D_base);
-      const dRich = result.iterations.map((r) => r.D_richardson);
-      const chart3 = {
-        title: "Convergencia: Central vs Richardson",
-        type: "line",
-        datasets: [
-          { label: "Central", x: levels, y: dBase, color: "#f38ba8", pointRadius: 3 },
-          { label: "Richardson", x: levels, y: dRich, color: "#a6e3a1", pointRadius: 3 },
-          ...df ? [{ label: "f' exacta", x: [levels[0], levels[levels.length - 1]], y: [df(x0), df(x0)], color: "#f9e2af", dashed: true, pointRadius: 0 }] : []
-        ],
-        xLabel: "Nivel",
-        yLabel: "f'(x)"
-      };
-      const hValues = result.iterations.map((r) => r.h);
-      const chart4 = {
-        title: "Valores de h por nivel",
-        type: "line",
-        datasets: [{ label: "h", x: levels, y: hValues, color: "#cba6f7", pointRadius: 4 }],
-        xLabel: "Nivel",
-        yLabel: "h",
-        yLog: true
-      };
-      return [chart1, chart2, chart3, chart4];
-    }
-  };
-
-  // src/categories.ts
-  var categories = [
-    {
-      id: "rootFinding",
-      name: "Busqueda de Raices",
-      cssClass: "",
-      methods: [bisection, fixedPoint, newtonRaphson, secant, falsePosition, aitken]
-    },
-    {
-      id: "integration",
-      name: "Integracion Numerica (Newton-Cotes)",
-      cssClass: "integration",
-      methods: [midpoint, trapezoidal, trapezoidalComp, simpson13, simpson13Comp, simpson38, simpson38Comp, montecarlo, montecarloPi]
-    },
-    {
-      id: "ode",
-      name: "Ecuaciones Diferenciales Ordinarias",
-      cssClass: "ode",
-      methods: [euler, heun, rungeKutta]
-    },
-    {
-      id: "differentiation",
-      name: "Diferenciacion Numerica",
-      cssClass: "differentiation",
-      methods: [forward, backward, central, secondDerivative, richardson]
-    }
-  ];
-  var allMethods = categories.flatMap((c) => c.methods);
-  function getMethod(id) {
-    return allMethods.find((m) => m.id === id);
+  // src/methods/integration/montecarlo2D.ts
+  function mulberry323(seed) {
+    let s = seed | 0;
+    return () => {
+      s = s + 1831565813 | 0;
+      let t = Math.imul(s ^ s >>> 15, 1 | s);
+      t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+      return ((t ^ t >>> 14) >>> 0) / 4294967296;
+    };
   }
+  function hashString3(str) {
+    let hash = 0;
+    for (let i2 = 0; i2 < str.length; i2++) {
+      hash = (hash << 5) - hash + str.charCodeAt(i2) | 0;
+    }
+    return hash;
+  }
+  function parseSeed3(input) {
+    if (!input || input.trim() === "") return null;
+    const num = Number(input.trim());
+    if (!isNaN(num)) return num;
+    return hashString3(input.trim());
+  }
+  var montecarlo2D = {
+    id: "montecarlo2D",
+    name: "Monte Carlo 2D (Integral Doble)",
+    category: "integration",
+    formula: "\u222B\u222Bf(x,y)dA \u2248 (Area)/N \xB7 \u03A3 f(x_i,y_i) \u2014 promedio de K repeticiones",
+    description: "Aproxima \u222B\u222Bf(x,y)dA en un rectangulo [a,b]\xD7[c,d]. Ejecuta K repeticiones independientes y promedia para reducir varianza. Convergencia O(1/\u221AN).",
+    inputs: [
+      { id: "fxy", label: "f(x, y)", placeholder: "x^2 + y^2", defaultValue: "x^2 + y^2" },
+      { id: "a", label: "a (x min)", placeholder: "0", type: "number", defaultValue: "0" },
+      { id: "b", label: "b (x max)", placeholder: "1", type: "number", defaultValue: "1" },
+      { id: "c", label: "c (y min)", placeholder: "0", type: "number", defaultValue: "0" },
+      { id: "d", label: "d (y max)", placeholder: "1", type: "number", defaultValue: "1" },
+      { id: "n", label: "N (puntos por repeticion)", placeholder: "10000", type: "number", defaultValue: "10000" },
+      { id: "K", label: "K (repeticiones a promediar)", placeholder: "10", type: "number", defaultValue: "10" },
+      { id: "exact", label: "Valor exacto (opcional)", placeholder: "", hint: "Para comparar con el promedio." },
+      { id: "seed", label: "Semilla (opcional)", placeholder: "Vacio = aleatorio", hint: "Numero o texto. Misma semilla = mismos resultados." }
+    ],
+    tableColumns: [
+      { key: "k", label: "k (repeticion)" },
+      { key: "estimate", label: "I_k" },
+      { key: "runningMean", label: "Promedio 1..k" },
+      { key: "stdDevRun", label: "\u03C3 entre lotes" },
+      { key: "exactDiff", label: "|I_k - Exacto|" }
+    ],
+    steps: [
+      "Para el <b>parcial 2025-I (IMG_5755)</b> \u2014 integral doble Monte Carlo: introduce <code>f(x, y)</code>. Ejemplo: <code>x^2 + y^2</code> o la funcion que pida el parcial.",
+      "Define el dominio rectangular: <code>x \u2208 [a, b]</code> y <code>y \u2208 [c, d]</code>. Area = <code>(b-a)(d-c)</code>.",
+      "Configura <code>N</code> (puntos por repeticion) y <code>K</code> (numero de repeticiones independientes). Tipico del parcial: <code>N = 10000</code>, <code>K = 10</code>. Cada repeticion usa <b>semilla distinta</b> para ser estadisticamente independiente.",
+      "Formula: <code>I_k \u2248 (Area)/N \xB7 \u03A3\u1D62 f(x_i, y_i)</code> con <code>x_i</code>, <code>y_i</code> uniformes en [a,b] y [c,d]. El estimador final es <code>\xCE = (1/K) \u03A3\u2096 I_k</code>.",
+      "Si tienes <b>valor exacto</b>, ponlo para comparar cada <code>I_k</code> y el promedio. Exacto de <code>x\xB2 + y\xB2</code> en <code>[0,1]\xB2</code>: <code>2/3 \u2248 0.6667</code>.",
+      "Pulsa <b>Resolver</b>. La tabla muestra por cada repeticion <code>k</code>:<br>&nbsp;&nbsp;\u2022 <code>I_k</code>: estimacion individual.<br>&nbsp;&nbsp;\u2022 <em>Promedio acumulado</em>: media de <code>I_1, ..., I_k</code> (se estabiliza).<br>&nbsp;&nbsp;\u2022 <em>\u03C3 entre repeticiones</em>: variabilidad (deberia ser peque\xF1a si N es grande).",
+      "<b>Error estandar del promedio</b>: <code>SE = s / \u221AK</code> donde <code>s = \u03C3</code> entre repeticiones. <em>Este es el estimador correcto cuando repites K veces</em>.",
+      "Ventaja de K repeticiones: reduce la varianza global y permite <em>intervalo de confianza empirico</em>. Dobla K \u2192 SE se reduce \u221A2 \u2248 1.41\xD7 (mas realista que asumir distribucion normal).",
+      "Para el informe: (1) <code>N</code>, <code>K</code>, semilla base; (2) tabla de <code>I_k</code>; (3) promedio final <code>\xCE</code>; (4) \u03C3 entre repeticiones; (5) SE; (6) si hay exacto: |error| y error relativo %."
+    ],
+    solve(params) {
+      const f = parseExpression2(params.fxy);
+      const a = parseFloat(params.a);
+      const b = parseFloat(params.b);
+      const c = parseFloat(params.c);
+      const d = parseFloat(params.d);
+      const N = parseInt(params.n) || 1e4;
+      const K = Math.max(1, parseInt(params.K) || 10);
+      if ([a, b, c, d].some(isNaN)) throw new Error("a, b, c, d deben ser numeros validos");
+      if (a >= b) throw new Error("a debe ser menor que b");
+      if (c >= d) throw new Error("c debe ser menor que d");
+      if (N < 1) throw new Error("N debe ser >= 1");
+      const area = (b - a) * (d - c);
+      const widthX = b - a;
+      const heightY = d - c;
+      let exactVal;
+      if (params.exact && params.exact.trim() !== "") {
+        const parsed = parseFloat(params.exact);
+        if (!isNaN(parsed)) exactVal = parsed;
+      }
+      const seedVal = parseSeed3(params.seed);
+      const baseSeed = seedVal !== null ? seedVal : Date.now() ^ Math.random() * 4294967295;
+      const iterations = [];
+      const estimates = [];
+      let sumEst = 0;
+      let sumEstSq = 0;
+      for (let k = 1; k <= K; k++) {
+        const rand = mulberry323(baseSeed + k * 10007);
+        let sum3 = 0;
+        for (let i2 = 0; i2 < N; i2++) {
+          const xi = a + rand() * widthX;
+          const yi = c + rand() * heightY;
+          sum3 += f(xi, yi);
+        }
+        const I_k = area * (sum3 / N);
+        estimates.push(I_k);
+        sumEst += I_k;
+        sumEstSq += I_k * I_k;
+        const runningMean = sumEst / k;
+        const varRun = k > 1 ? Math.max(0, sumEstSq / k - runningMean * runningMean) : 0;
+        const stdDevRun = Math.sqrt(varRun);
+        const exactDiff = exactVal !== void 0 ? Math.abs(I_k - exactVal) : null;
+        iterations.push({
+          k,
+          estimate: I_k,
+          runningMean,
+          stdDevRun,
+          exactDiff
+        });
+      }
+      const avgEstimate = sumEst / K;
+      const varK = K > 1 ? Math.max(0, sumEstSq / K - avgEstimate * avgEstimate) : 0;
+      const stdDevK = Math.sqrt(varK);
+      const stdErrK = stdDevK / Math.sqrt(K);
+      let relativeErrorPercent2;
+      let message = `I \u2248 ${avgEstimate.toPrecision(8)} (promedio de K=${K}) | \u03C3 entre repeticiones = ${stdDevK.toPrecision(6)} | SE = ${stdErrK.toPrecision(6)}`;
+      if (exactVal !== void 0) {
+        const absErr = Math.abs(avgEstimate - exactVal);
+        relativeErrorPercent2 = Math.abs(exactVal) > 1e-14 ? absErr / Math.abs(exactVal) * 100 : absErr * 100;
+        message += ` | Exacto = ${exactVal.toPrecision(8)} | |error| = ${absErr.toPrecision(6)}`;
+      }
+      return {
+        integral: avgEstimate,
+        iterations,
+        converged: true,
+        error: stdErrK,
+        exact: exactVal,
+        relativeErrorPercent: relativeErrorPercent2,
+        message
+      };
+    },
+    getCharts(params, result) {
+      const a = parseFloat(params.a);
+      const b = parseFloat(params.b);
+      const c = parseFloat(params.c);
+      const d = parseFloat(params.d);
+      const N = parseInt(params.n) || 1e4;
+      const seedVal = parseSeed3(params.seed);
+      const baseSeed = seedVal !== null ? seedVal : Date.now() ^ 43981;
+      const ks = result.iterations.map((r) => r.k);
+      const estimates = result.iterations.map((r) => r.estimate);
+      const runningMeans = result.iterations.map((r) => r.runningMean);
+      const finalMean = runningMeans[runningMeans.length - 1];
+      const datasets1 = [
+        { label: "I_k (repeticion)", x: ks, y: estimates, color: "#f38ba8", pointRadius: 4, showLine: false },
+        { label: "Promedio acumulado", x: ks, y: runningMeans, color: "#cba6f7", pointRadius: 2 },
+        { label: "Promedio final", x: [ks[0], ks[ks.length - 1]], y: [finalMean, finalMean], color: "#a6e3a1", dashed: true, pointRadius: 0 }
+      ];
+      if (result.exact !== void 0) {
+        datasets1.push({ label: "Exacto", x: [ks[0], ks[ks.length - 1]], y: [result.exact, result.exact], color: "#89b4fa", dashed: true, pointRadius: 0 });
+      }
+      const chart1 = {
+        title: "K repeticiones y promedio acumulado",
+        type: "line",
+        datasets: datasets1,
+        xLabel: "k (repeticion)",
+        yLabel: "I"
+      };
+      const rand = mulberry323(baseSeed + 1);
+      const nShow = Math.min(N, 500);
+      const sampleX = [];
+      const sampleY = [];
+      for (let i2 = 0; i2 < nShow; i2++) {
+        sampleX.push(a + rand() * (b - a));
+        sampleY.push(c + rand() * (d - c));
+      }
+      const rectX = [a, b, b, a, a];
+      const rectY = [c, c, d, d, c];
+      const chart2 = {
+        title: `Muestras uniformes en [${a},${b}]\xD7[${c},${d}]`,
+        type: "scatter",
+        datasets: [
+          { label: "Dominio", x: rectX, y: rectY, color: "#89b4fa", pointRadius: 0 },
+          { label: "Muestras", x: sampleX, y: sampleY, color: "#a6e3a1", pointRadius: 2, showLine: false }
+        ],
+        xLabel: "x",
+        yLabel: "y"
+      };
+      const stdDevRuns = result.iterations.map((r) => r.stdDevRun);
+      const chart3 = {
+        title: "Desviacion estandar acumulada \u03C3(I_1..I_k)",
+        type: "line",
+        datasets: [
+          { label: "\u03C3 entre repeticiones", x: ks, y: stdDevRuns, color: "#fab387", pointRadius: 2 }
+        ],
+        xLabel: "k",
+        yLabel: "\u03C3"
+      };
+      let chart4;
+      if (result.exact !== void 0) {
+        const absErrs = result.iterations.map((r) => Math.abs(r.runningMean - result.exact));
+        chart4 = {
+          title: "|Promedio_k - Exacto|  vs  k",
+          type: "line",
+          datasets: [
+            { label: "|error|", x: ks, y: absErrs, color: "#f38ba8", pointRadius: 2 }
+          ],
+          xLabel: "k",
+          yLabel: "|error|",
+          yLog: absErrs.length > 2 && absErrs[0] / Math.max(absErrs[absErrs.length - 1], 1e-18) > 100
+        };
+      } else {
+        const diffs = ks.map((_, i2) => i2 > 0 ? Math.abs(estimates[i2] - estimates[i2 - 1]) : 0).slice(1);
+        chart4 = {
+          title: "|I_k - I_{k-1}|  vs  k",
+          type: "line",
+          datasets: [
+            { label: "|diff|", x: ks.slice(1), y: diffs, color: "#fab387", pointRadius: 2 }
+          ],
+          xLabel: "k",
+          yLabel: "|diff|"
+        };
+      }
+      return [chart1, chart2, chart3, chart4];
+    }
+  };
+
+  // src/methods/integration/montecarloArea.ts
+  function mulberry324(seed) {
+    let s = seed | 0;
+    return () => {
+      s = s + 1831565813 | 0;
+      let t = Math.imul(s ^ s >>> 15, 1 | s);
+      t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+      return ((t ^ t >>> 14) >>> 0) / 4294967296;
+    };
+  }
+  function hashString4(str) {
+    let hash = 0;
+    for (let i2 = 0; i2 < str.length; i2++) {
+      hash = (hash << 5) - hash + str.charCodeAt(i2) | 0;
+    }
+    return hash;
+  }
+  function parseSeed4(input) {
+    if (!input || input.trim() === "") return null;
+    const num = Number(input.trim());
+    if (!isNaN(num)) return num;
+    return hashString4(input.trim());
+  }
+  var montecarloArea = {
+    id: "montecarloArea",
+    name: "Monte Carlo \u2014 Area entre curvas",
+    category: "integration",
+    formula: "A = \u222B_a^b (f(x) - g(x)) dx \u2014 Hit-or-Miss sobre rectangulo circunscrito",
+    description: "Estima el area entre f(x) y g(x) sobre [a,b] lanzando puntos aleatorios y contando cuantos caen en la region. Promedia K repeticiones.",
+    inputs: [
+      { id: "fx", label: "f(x) (curva superior)", placeholder: "x^2", defaultValue: "x^2" },
+      { id: "gx", label: "g(x) (curva inferior)", placeholder: "x^3", defaultValue: "x^3" },
+      { id: "a", label: "a (limite inferior x)", placeholder: "0", type: "number", defaultValue: "0" },
+      { id: "b", label: "b (limite superior x)", placeholder: "1", type: "number", defaultValue: "1" },
+      { id: "n", label: "N (puntos por repeticion)", placeholder: "10000", type: "number", defaultValue: "10000" },
+      { id: "K", label: "K (repeticiones a promediar)", placeholder: "10", type: "number", defaultValue: "10" },
+      { id: "exact", label: "Valor exacto (opcional)", placeholder: "", hint: "Para comparar con el promedio." },
+      { id: "seed", label: "Semilla (opcional)", placeholder: "Vacio = aleatorio", hint: "Numero o texto." }
+    ],
+    tableColumns: [
+      { key: "k", label: "k (repeticion)" },
+      { key: "hits", label: "Aciertos" },
+      { key: "estimate", label: "A_k" },
+      { key: "runningMean", label: "Promedio 1..k" },
+      { key: "stdDevRun", label: "\u03C3 entre repeticiones" },
+      { key: "exactDiff", label: "|A_k - Exacto|" }
+    ],
+    steps: [
+      "Para el <b>parcial 30/04/2025</b> (area entre curvas por Monte Carlo): escribe <code>f(x)</code> (curva <em>superior</em>) y <code>g(x)</code> (curva <em>inferior</em>). Ejemplo parcial: <code>f(x) = x\xB2</code>, <code>g(x) = x\xB3</code> en <code>[0, 1]</code>.",
+      "Define <code>[a, b]</code>. <em>Consejo</em>: verifica graficamente que <code>f \u2265 g</code> en todo el intervalo antes de correr \u2014 si se cruzan, la app usa <code>|f - g|</code> automaticamente.",
+      "Configura <code>N</code> (puntos por repeticion) y <code>K</code> (cantidad de repeticiones). Tipico: <code>N = 10000</code>, <code>K = 10</code>.",
+      "<b>Estrategia Hit-or-Miss</b>: la app construye un rectangulo circunscrito <code>[a, b] \xD7 [y_min, y_max]</code> que contiene ambas curvas. Lanza puntos uniformes en ese rectangulo y cuenta los que caen <em>entre</em> las curvas. Area \u2248 <code>(Area rect) \xB7 (hits / N)</code>.",
+      "Pulsa <b>Resolver</b>. Se muestran K repeticiones independientes, cada una con distintas semillas. Promedio de las K da la estimacion final.",
+      "Si tienes <b>valor exacto</b>: pone el valor analitico <code>A = \u222B(f - g) dx</code>. Para <code>x\xB2 - x\xB3</code> en <code>[0, 1]</code>: <code>A = 1/3 - 1/4 = 1/12 \u2248 0.0833</code>.",
+      "<b>Error estandar</b>: <code>SE = \u03C3_K / \u221AK</code> donde <code>\u03C3_K</code> es la desviacion estandar entre las K estimaciones.",
+      "Para el informe: (1) tabla de <code>A_k</code>; (2) promedio final; (3) \u03C3 entre repeticiones; (4) IC 95%: <code>\xC2 \xB1 1.96\xB7SE</code>; (5) comparacion con exacto si se tiene. Discutir por que N=10000 suele dar precision ~3 decimales.",
+      "Interpretacion visual: la grafica Hit-or-Miss muestra <em>verde</em> = puntos entre las curvas (cuentan), <em>rojo</em> = puntos fuera (no cuentan). Mientras mas verdes aciertos proporcionales, mejor la estimacion."
+    ],
+    solve(params) {
+      const f = parseExpression(params.fx);
+      const g = parseExpression(params.gx);
+      const a = parseFloat(params.a);
+      const b = parseFloat(params.b);
+      const N = parseInt(params.n) || 1e4;
+      const K = Math.max(1, parseInt(params.K) || 10);
+      if (isNaN(a) || isNaN(b)) throw new Error("a y b deben ser numeros validos");
+      if (a >= b) throw new Error("a debe ser menor que b");
+      if (N < 1) throw new Error("N debe ser >= 1");
+      const sampleXs = linspace(a, b, 200);
+      const fVals = sampleXs.map((x) => f(x));
+      const gVals = sampleXs.map((x) => g(x));
+      let yMin = Math.min(...fVals, ...gVals);
+      let yMax = Math.max(...fVals, ...gVals);
+      const yPad = (yMax - yMin) * 0.05 || 1;
+      yMin -= yPad;
+      yMax += yPad;
+      const rectArea = (b - a) * (yMax - yMin);
+      let exactVal;
+      if (params.exact && params.exact.trim() !== "") {
+        const parsed = parseFloat(params.exact);
+        if (!isNaN(parsed)) exactVal = parsed;
+      }
+      const seedVal = parseSeed4(params.seed);
+      const baseSeed = seedVal !== null ? seedVal : Date.now() ^ Math.random() * 4294967295;
+      const iterations = [];
+      let sumEst = 0;
+      let sumEstSq = 0;
+      for (let k = 1; k <= K; k++) {
+        const rand = mulberry324(baseSeed + k * 10007);
+        let hits = 0;
+        for (let i2 = 0; i2 < N; i2++) {
+          const xi = a + rand() * (b - a);
+          const yi = yMin + rand() * (yMax - yMin);
+          const fv = f(xi);
+          const gv = g(xi);
+          const top = Math.max(fv, gv);
+          const bot = Math.min(fv, gv);
+          if (yi >= bot && yi <= top) hits++;
+        }
+        const A_k = rectArea * (hits / N);
+        sumEst += A_k;
+        sumEstSq += A_k * A_k;
+        const runningMean = sumEst / k;
+        const varRun = k > 1 ? Math.max(0, sumEstSq / k - runningMean * runningMean) : 0;
+        const stdDevRun = Math.sqrt(varRun);
+        const exactDiff = exactVal !== void 0 ? Math.abs(A_k - exactVal) : null;
+        iterations.push({
+          k,
+          hits,
+          estimate: A_k,
+          runningMean,
+          stdDevRun,
+          exactDiff
+        });
+      }
+      const avgEstimate = sumEst / K;
+      const varK = K > 1 ? Math.max(0, sumEstSq / K - avgEstimate * avgEstimate) : 0;
+      const stdDevK = Math.sqrt(varK);
+      const stdErrK = stdDevK / Math.sqrt(K);
+      let relativeErrorPercent2;
+      let message = `A \u2248 ${avgEstimate.toPrecision(8)} (promedio K=${K}, N=${N}) | \u03C3 repeticiones = ${stdDevK.toPrecision(6)} | rect area = ${rectArea.toPrecision(6)}`;
+      if (exactVal !== void 0) {
+        const absErr = Math.abs(avgEstimate - exactVal);
+        relativeErrorPercent2 = Math.abs(exactVal) > 1e-14 ? absErr / Math.abs(exactVal) * 100 : absErr * 100;
+        message += ` | Exacto = ${exactVal.toPrecision(8)} | |error| = ${absErr.toPrecision(6)}`;
+      }
+      return {
+        integral: avgEstimate,
+        iterations,
+        converged: true,
+        error: stdErrK,
+        exact: exactVal,
+        relativeErrorPercent: relativeErrorPercent2,
+        message
+      };
+    },
+    getCharts(params, result) {
+      const f = parseExpression(params.fx);
+      const g = parseExpression(params.gx);
+      const a = parseFloat(params.a);
+      const b = parseFloat(params.b);
+      const N = parseInt(params.n) || 1e4;
+      const seedVal = parseSeed4(params.seed);
+      const baseSeed = seedVal !== null ? seedVal : Date.now() ^ 43981;
+      const xsPlot = linspace(a, b, 400);
+      const fYs = xsPlot.map((x) => f(x));
+      const gYs = xsPlot.map((x) => g(x));
+      const yMin = Math.min(...fYs, ...gYs);
+      const yMax = Math.max(...fYs, ...gYs);
+      const yPad = (yMax - yMin) * 0.05 || 1;
+      const yLo = yMin - yPad;
+      const yHi = yMax + yPad;
+      const rand = mulberry324(baseSeed + 1);
+      const nShow = Math.min(N, 600);
+      const hitX = [];
+      const hitY = [];
+      const missX = [];
+      const missY = [];
+      for (let i2 = 0; i2 < nShow; i2++) {
+        const xi = a + rand() * (b - a);
+        const yi = yLo + rand() * (yHi - yLo);
+        const fv = f(xi);
+        const gv = g(xi);
+        const top = Math.max(fv, gv);
+        const bot = Math.min(fv, gv);
+        if (yi >= bot && yi <= top) {
+          hitX.push(xi);
+          hitY.push(yi);
+        } else {
+          missX.push(xi);
+          missY.push(yi);
+        }
+      }
+      const chart1 = {
+        title: "Hit-or-Miss entre f(x) y g(x)",
+        type: "scatter",
+        datasets: [
+          { label: "f(x)", x: xsPlot, y: fYs, color: "#89b4fa", pointRadius: 0 },
+          { label: "g(x)", x: xsPlot, y: gYs, color: "#fab387", pointRadius: 0 },
+          { label: "Dentro", x: hitX, y: hitY, color: "#a6e3a1", pointRadius: 2, showLine: false },
+          { label: "Fuera", x: missX, y: missY, color: "#f38ba8", pointRadius: 1.5, showLine: false }
+        ],
+        xLabel: "x",
+        yLabel: "y"
+      };
+      const ks = result.iterations.map((r) => r.k);
+      const estimates = result.iterations.map((r) => r.estimate);
+      const runningMeans = result.iterations.map((r) => r.runningMean);
+      const finalMean = runningMeans[runningMeans.length - 1];
+      const datasets2 = [
+        { label: "A_k", x: ks, y: estimates, color: "#f38ba8", pointRadius: 4, showLine: false },
+        { label: "Promedio acumulado", x: ks, y: runningMeans, color: "#cba6f7", pointRadius: 2 },
+        { label: "Promedio final", x: [ks[0], ks[ks.length - 1]], y: [finalMean, finalMean], color: "#a6e3a1", dashed: true, pointRadius: 0 }
+      ];
+      if (result.exact !== void 0) {
+        datasets2.push({ label: "Exacto", x: [ks[0], ks[ks.length - 1]], y: [result.exact, result.exact], color: "#89b4fa", dashed: true, pointRadius: 0 });
+      }
+      const chart2 = {
+        title: "K repeticiones y promedio acumulado",
+        type: "line",
+        datasets: datasets2,
+        xLabel: "k (repeticion)",
+        yLabel: "Area"
+      };
+      const stdDevRuns = result.iterations.map((r) => r.stdDevRun);
+      const chart3 = {
+        title: "\u03C3(A_1..A_k) \u2014 dispersion entre repeticiones",
+        type: "line",
+        datasets: [
+          { label: "\u03C3", x: ks, y: stdDevRuns, color: "#fab387", pointRadius: 2 }
+        ],
+        xLabel: "k",
+        yLabel: "\u03C3"
+      };
+      let chart4;
+      if (result.exact !== void 0) {
+        const absErrs = runningMeans.map((v) => Math.abs(v - result.exact));
+        chart4 = {
+          title: "|Promedio_k - Exacto| vs k",
+          type: "line",
+          datasets: [
+            { label: "|error|", x: ks, y: absErrs, color: "#f38ba8", pointRadius: 2 }
+          ],
+          xLabel: "k",
+          yLabel: "|error|"
+        };
+      } else {
+        chart4 = {
+          title: "Aciertos por repeticion",
+          type: "bar",
+          datasets: [
+            { label: "hits", x: ks, y: result.iterations.map((r) => r.hits), color: "#94e2d5" }
+          ],
+          xLabel: "k",
+          yLabel: "hits"
+        };
+      }
+      return [chart1, chart2, chart3, chart4];
+    }
+  };
 
   // node_modules/katex/dist/katex.mjs
   var ParseError = class _ParseError extends Error {
@@ -52695,7 +52696,7 @@
       symbols[mode2][replace] = symbols[mode2][name315];
     }
   }
-  var math3 = "math";
+  var math4 = "math";
   var text = "text";
   var main = "main";
   var ams = "ams";
@@ -52710,557 +52711,557 @@
   var rel = "rel";
   var spacing = "spacing";
   var textord = "textord";
-  defineSymbol(math3, main, rel, "\u2261", "\\equiv", true);
-  defineSymbol(math3, main, rel, "\u227A", "\\prec", true);
-  defineSymbol(math3, main, rel, "\u227B", "\\succ", true);
-  defineSymbol(math3, main, rel, "\u223C", "\\sim", true);
-  defineSymbol(math3, main, rel, "\u22A5", "\\perp");
-  defineSymbol(math3, main, rel, "\u2AAF", "\\preceq", true);
-  defineSymbol(math3, main, rel, "\u2AB0", "\\succeq", true);
-  defineSymbol(math3, main, rel, "\u2243", "\\simeq", true);
-  defineSymbol(math3, main, rel, "\u2223", "\\mid", true);
-  defineSymbol(math3, main, rel, "\u226A", "\\ll", true);
-  defineSymbol(math3, main, rel, "\u226B", "\\gg", true);
-  defineSymbol(math3, main, rel, "\u224D", "\\asymp", true);
-  defineSymbol(math3, main, rel, "\u2225", "\\parallel");
-  defineSymbol(math3, main, rel, "\u22C8", "\\bowtie", true);
-  defineSymbol(math3, main, rel, "\u2323", "\\smile", true);
-  defineSymbol(math3, main, rel, "\u2291", "\\sqsubseteq", true);
-  defineSymbol(math3, main, rel, "\u2292", "\\sqsupseteq", true);
-  defineSymbol(math3, main, rel, "\u2250", "\\doteq", true);
-  defineSymbol(math3, main, rel, "\u2322", "\\frown", true);
-  defineSymbol(math3, main, rel, "\u220B", "\\ni", true);
-  defineSymbol(math3, main, rel, "\u221D", "\\propto", true);
-  defineSymbol(math3, main, rel, "\u22A2", "\\vdash", true);
-  defineSymbol(math3, main, rel, "\u22A3", "\\dashv", true);
-  defineSymbol(math3, main, rel, "\u220B", "\\owns");
-  defineSymbol(math3, main, punct, ".", "\\ldotp");
-  defineSymbol(math3, main, punct, "\u22C5", "\\cdotp");
-  defineSymbol(math3, main, punct, "\u22C5", "\xB7");
+  defineSymbol(math4, main, rel, "\u2261", "\\equiv", true);
+  defineSymbol(math4, main, rel, "\u227A", "\\prec", true);
+  defineSymbol(math4, main, rel, "\u227B", "\\succ", true);
+  defineSymbol(math4, main, rel, "\u223C", "\\sim", true);
+  defineSymbol(math4, main, rel, "\u22A5", "\\perp");
+  defineSymbol(math4, main, rel, "\u2AAF", "\\preceq", true);
+  defineSymbol(math4, main, rel, "\u2AB0", "\\succeq", true);
+  defineSymbol(math4, main, rel, "\u2243", "\\simeq", true);
+  defineSymbol(math4, main, rel, "\u2223", "\\mid", true);
+  defineSymbol(math4, main, rel, "\u226A", "\\ll", true);
+  defineSymbol(math4, main, rel, "\u226B", "\\gg", true);
+  defineSymbol(math4, main, rel, "\u224D", "\\asymp", true);
+  defineSymbol(math4, main, rel, "\u2225", "\\parallel");
+  defineSymbol(math4, main, rel, "\u22C8", "\\bowtie", true);
+  defineSymbol(math4, main, rel, "\u2323", "\\smile", true);
+  defineSymbol(math4, main, rel, "\u2291", "\\sqsubseteq", true);
+  defineSymbol(math4, main, rel, "\u2292", "\\sqsupseteq", true);
+  defineSymbol(math4, main, rel, "\u2250", "\\doteq", true);
+  defineSymbol(math4, main, rel, "\u2322", "\\frown", true);
+  defineSymbol(math4, main, rel, "\u220B", "\\ni", true);
+  defineSymbol(math4, main, rel, "\u221D", "\\propto", true);
+  defineSymbol(math4, main, rel, "\u22A2", "\\vdash", true);
+  defineSymbol(math4, main, rel, "\u22A3", "\\dashv", true);
+  defineSymbol(math4, main, rel, "\u220B", "\\owns");
+  defineSymbol(math4, main, punct, ".", "\\ldotp");
+  defineSymbol(math4, main, punct, "\u22C5", "\\cdotp");
+  defineSymbol(math4, main, punct, "\u22C5", "\xB7");
   defineSymbol(text, main, textord, "\u22C5", "\xB7");
-  defineSymbol(math3, main, textord, "#", "\\#");
+  defineSymbol(math4, main, textord, "#", "\\#");
   defineSymbol(text, main, textord, "#", "\\#");
-  defineSymbol(math3, main, textord, "&", "\\&");
+  defineSymbol(math4, main, textord, "&", "\\&");
   defineSymbol(text, main, textord, "&", "\\&");
-  defineSymbol(math3, main, textord, "\u2135", "\\aleph", true);
-  defineSymbol(math3, main, textord, "\u2200", "\\forall", true);
-  defineSymbol(math3, main, textord, "\u210F", "\\hbar", true);
-  defineSymbol(math3, main, textord, "\u2203", "\\exists", true);
-  defineSymbol(math3, main, textord, "\u2207", "\\nabla", true);
-  defineSymbol(math3, main, textord, "\u266D", "\\flat", true);
-  defineSymbol(math3, main, textord, "\u2113", "\\ell", true);
-  defineSymbol(math3, main, textord, "\u266E", "\\natural", true);
-  defineSymbol(math3, main, textord, "\u2663", "\\clubsuit", true);
-  defineSymbol(math3, main, textord, "\u2118", "\\wp", true);
-  defineSymbol(math3, main, textord, "\u266F", "\\sharp", true);
-  defineSymbol(math3, main, textord, "\u2662", "\\diamondsuit", true);
-  defineSymbol(math3, main, textord, "\u211C", "\\Re", true);
-  defineSymbol(math3, main, textord, "\u2661", "\\heartsuit", true);
-  defineSymbol(math3, main, textord, "\u2111", "\\Im", true);
-  defineSymbol(math3, main, textord, "\u2660", "\\spadesuit", true);
-  defineSymbol(math3, main, textord, "\xA7", "\\S", true);
+  defineSymbol(math4, main, textord, "\u2135", "\\aleph", true);
+  defineSymbol(math4, main, textord, "\u2200", "\\forall", true);
+  defineSymbol(math4, main, textord, "\u210F", "\\hbar", true);
+  defineSymbol(math4, main, textord, "\u2203", "\\exists", true);
+  defineSymbol(math4, main, textord, "\u2207", "\\nabla", true);
+  defineSymbol(math4, main, textord, "\u266D", "\\flat", true);
+  defineSymbol(math4, main, textord, "\u2113", "\\ell", true);
+  defineSymbol(math4, main, textord, "\u266E", "\\natural", true);
+  defineSymbol(math4, main, textord, "\u2663", "\\clubsuit", true);
+  defineSymbol(math4, main, textord, "\u2118", "\\wp", true);
+  defineSymbol(math4, main, textord, "\u266F", "\\sharp", true);
+  defineSymbol(math4, main, textord, "\u2662", "\\diamondsuit", true);
+  defineSymbol(math4, main, textord, "\u211C", "\\Re", true);
+  defineSymbol(math4, main, textord, "\u2661", "\\heartsuit", true);
+  defineSymbol(math4, main, textord, "\u2111", "\\Im", true);
+  defineSymbol(math4, main, textord, "\u2660", "\\spadesuit", true);
+  defineSymbol(math4, main, textord, "\xA7", "\\S", true);
   defineSymbol(text, main, textord, "\xA7", "\\S");
-  defineSymbol(math3, main, textord, "\xB6", "\\P", true);
+  defineSymbol(math4, main, textord, "\xB6", "\\P", true);
   defineSymbol(text, main, textord, "\xB6", "\\P");
-  defineSymbol(math3, main, textord, "\u2020", "\\dag");
+  defineSymbol(math4, main, textord, "\u2020", "\\dag");
   defineSymbol(text, main, textord, "\u2020", "\\dag");
   defineSymbol(text, main, textord, "\u2020", "\\textdagger");
-  defineSymbol(math3, main, textord, "\u2021", "\\ddag");
+  defineSymbol(math4, main, textord, "\u2021", "\\ddag");
   defineSymbol(text, main, textord, "\u2021", "\\ddag");
   defineSymbol(text, main, textord, "\u2021", "\\textdaggerdbl");
-  defineSymbol(math3, main, close, "\u23B1", "\\rmoustache", true);
-  defineSymbol(math3, main, open, "\u23B0", "\\lmoustache", true);
-  defineSymbol(math3, main, close, "\u27EF", "\\rgroup", true);
-  defineSymbol(math3, main, open, "\u27EE", "\\lgroup", true);
-  defineSymbol(math3, main, bin2, "\u2213", "\\mp", true);
-  defineSymbol(math3, main, bin2, "\u2296", "\\ominus", true);
-  defineSymbol(math3, main, bin2, "\u228E", "\\uplus", true);
-  defineSymbol(math3, main, bin2, "\u2293", "\\sqcap", true);
-  defineSymbol(math3, main, bin2, "\u2217", "\\ast");
-  defineSymbol(math3, main, bin2, "\u2294", "\\sqcup", true);
-  defineSymbol(math3, main, bin2, "\u25EF", "\\bigcirc", true);
-  defineSymbol(math3, main, bin2, "\u2219", "\\bullet", true);
-  defineSymbol(math3, main, bin2, "\u2021", "\\ddagger");
-  defineSymbol(math3, main, bin2, "\u2240", "\\wr", true);
-  defineSymbol(math3, main, bin2, "\u2A3F", "\\amalg");
-  defineSymbol(math3, main, bin2, "&", "\\And");
-  defineSymbol(math3, main, rel, "\u27F5", "\\longleftarrow", true);
-  defineSymbol(math3, main, rel, "\u21D0", "\\Leftarrow", true);
-  defineSymbol(math3, main, rel, "\u27F8", "\\Longleftarrow", true);
-  defineSymbol(math3, main, rel, "\u27F6", "\\longrightarrow", true);
-  defineSymbol(math3, main, rel, "\u21D2", "\\Rightarrow", true);
-  defineSymbol(math3, main, rel, "\u27F9", "\\Longrightarrow", true);
-  defineSymbol(math3, main, rel, "\u2194", "\\leftrightarrow", true);
-  defineSymbol(math3, main, rel, "\u27F7", "\\longleftrightarrow", true);
-  defineSymbol(math3, main, rel, "\u21D4", "\\Leftrightarrow", true);
-  defineSymbol(math3, main, rel, "\u27FA", "\\Longleftrightarrow", true);
-  defineSymbol(math3, main, rel, "\u21A6", "\\mapsto", true);
-  defineSymbol(math3, main, rel, "\u27FC", "\\longmapsto", true);
-  defineSymbol(math3, main, rel, "\u2197", "\\nearrow", true);
-  defineSymbol(math3, main, rel, "\u21A9", "\\hookleftarrow", true);
-  defineSymbol(math3, main, rel, "\u21AA", "\\hookrightarrow", true);
-  defineSymbol(math3, main, rel, "\u2198", "\\searrow", true);
-  defineSymbol(math3, main, rel, "\u21BC", "\\leftharpoonup", true);
-  defineSymbol(math3, main, rel, "\u21C0", "\\rightharpoonup", true);
-  defineSymbol(math3, main, rel, "\u2199", "\\swarrow", true);
-  defineSymbol(math3, main, rel, "\u21BD", "\\leftharpoondown", true);
-  defineSymbol(math3, main, rel, "\u21C1", "\\rightharpoondown", true);
-  defineSymbol(math3, main, rel, "\u2196", "\\nwarrow", true);
-  defineSymbol(math3, main, rel, "\u21CC", "\\rightleftharpoons", true);
-  defineSymbol(math3, ams, rel, "\u226E", "\\nless", true);
-  defineSymbol(math3, ams, rel, "\uE010", "\\@nleqslant");
-  defineSymbol(math3, ams, rel, "\uE011", "\\@nleqq");
-  defineSymbol(math3, ams, rel, "\u2A87", "\\lneq", true);
-  defineSymbol(math3, ams, rel, "\u2268", "\\lneqq", true);
-  defineSymbol(math3, ams, rel, "\uE00C", "\\@lvertneqq");
-  defineSymbol(math3, ams, rel, "\u22E6", "\\lnsim", true);
-  defineSymbol(math3, ams, rel, "\u2A89", "\\lnapprox", true);
-  defineSymbol(math3, ams, rel, "\u2280", "\\nprec", true);
-  defineSymbol(math3, ams, rel, "\u22E0", "\\npreceq", true);
-  defineSymbol(math3, ams, rel, "\u22E8", "\\precnsim", true);
-  defineSymbol(math3, ams, rel, "\u2AB9", "\\precnapprox", true);
-  defineSymbol(math3, ams, rel, "\u2241", "\\nsim", true);
-  defineSymbol(math3, ams, rel, "\uE006", "\\@nshortmid");
-  defineSymbol(math3, ams, rel, "\u2224", "\\nmid", true);
-  defineSymbol(math3, ams, rel, "\u22AC", "\\nvdash", true);
-  defineSymbol(math3, ams, rel, "\u22AD", "\\nvDash", true);
-  defineSymbol(math3, ams, rel, "\u22EA", "\\ntriangleleft");
-  defineSymbol(math3, ams, rel, "\u22EC", "\\ntrianglelefteq", true);
-  defineSymbol(math3, ams, rel, "\u228A", "\\subsetneq", true);
-  defineSymbol(math3, ams, rel, "\uE01A", "\\@varsubsetneq");
-  defineSymbol(math3, ams, rel, "\u2ACB", "\\subsetneqq", true);
-  defineSymbol(math3, ams, rel, "\uE017", "\\@varsubsetneqq");
-  defineSymbol(math3, ams, rel, "\u226F", "\\ngtr", true);
-  defineSymbol(math3, ams, rel, "\uE00F", "\\@ngeqslant");
-  defineSymbol(math3, ams, rel, "\uE00E", "\\@ngeqq");
-  defineSymbol(math3, ams, rel, "\u2A88", "\\gneq", true);
-  defineSymbol(math3, ams, rel, "\u2269", "\\gneqq", true);
-  defineSymbol(math3, ams, rel, "\uE00D", "\\@gvertneqq");
-  defineSymbol(math3, ams, rel, "\u22E7", "\\gnsim", true);
-  defineSymbol(math3, ams, rel, "\u2A8A", "\\gnapprox", true);
-  defineSymbol(math3, ams, rel, "\u2281", "\\nsucc", true);
-  defineSymbol(math3, ams, rel, "\u22E1", "\\nsucceq", true);
-  defineSymbol(math3, ams, rel, "\u22E9", "\\succnsim", true);
-  defineSymbol(math3, ams, rel, "\u2ABA", "\\succnapprox", true);
-  defineSymbol(math3, ams, rel, "\u2246", "\\ncong", true);
-  defineSymbol(math3, ams, rel, "\uE007", "\\@nshortparallel");
-  defineSymbol(math3, ams, rel, "\u2226", "\\nparallel", true);
-  defineSymbol(math3, ams, rel, "\u22AF", "\\nVDash", true);
-  defineSymbol(math3, ams, rel, "\u22EB", "\\ntriangleright");
-  defineSymbol(math3, ams, rel, "\u22ED", "\\ntrianglerighteq", true);
-  defineSymbol(math3, ams, rel, "\uE018", "\\@nsupseteqq");
-  defineSymbol(math3, ams, rel, "\u228B", "\\supsetneq", true);
-  defineSymbol(math3, ams, rel, "\uE01B", "\\@varsupsetneq");
-  defineSymbol(math3, ams, rel, "\u2ACC", "\\supsetneqq", true);
-  defineSymbol(math3, ams, rel, "\uE019", "\\@varsupsetneqq");
-  defineSymbol(math3, ams, rel, "\u22AE", "\\nVdash", true);
-  defineSymbol(math3, ams, rel, "\u2AB5", "\\precneqq", true);
-  defineSymbol(math3, ams, rel, "\u2AB6", "\\succneqq", true);
-  defineSymbol(math3, ams, rel, "\uE016", "\\@nsubseteqq");
-  defineSymbol(math3, ams, bin2, "\u22B4", "\\unlhd");
-  defineSymbol(math3, ams, bin2, "\u22B5", "\\unrhd");
-  defineSymbol(math3, ams, rel, "\u219A", "\\nleftarrow", true);
-  defineSymbol(math3, ams, rel, "\u219B", "\\nrightarrow", true);
-  defineSymbol(math3, ams, rel, "\u21CD", "\\nLeftarrow", true);
-  defineSymbol(math3, ams, rel, "\u21CF", "\\nRightarrow", true);
-  defineSymbol(math3, ams, rel, "\u21AE", "\\nleftrightarrow", true);
-  defineSymbol(math3, ams, rel, "\u21CE", "\\nLeftrightarrow", true);
-  defineSymbol(math3, ams, rel, "\u25B3", "\\vartriangle");
-  defineSymbol(math3, ams, textord, "\u210F", "\\hslash");
-  defineSymbol(math3, ams, textord, "\u25BD", "\\triangledown");
-  defineSymbol(math3, ams, textord, "\u25CA", "\\lozenge");
-  defineSymbol(math3, ams, textord, "\u24C8", "\\circledS");
-  defineSymbol(math3, ams, textord, "\xAE", "\\circledR");
+  defineSymbol(math4, main, close, "\u23B1", "\\rmoustache", true);
+  defineSymbol(math4, main, open, "\u23B0", "\\lmoustache", true);
+  defineSymbol(math4, main, close, "\u27EF", "\\rgroup", true);
+  defineSymbol(math4, main, open, "\u27EE", "\\lgroup", true);
+  defineSymbol(math4, main, bin2, "\u2213", "\\mp", true);
+  defineSymbol(math4, main, bin2, "\u2296", "\\ominus", true);
+  defineSymbol(math4, main, bin2, "\u228E", "\\uplus", true);
+  defineSymbol(math4, main, bin2, "\u2293", "\\sqcap", true);
+  defineSymbol(math4, main, bin2, "\u2217", "\\ast");
+  defineSymbol(math4, main, bin2, "\u2294", "\\sqcup", true);
+  defineSymbol(math4, main, bin2, "\u25EF", "\\bigcirc", true);
+  defineSymbol(math4, main, bin2, "\u2219", "\\bullet", true);
+  defineSymbol(math4, main, bin2, "\u2021", "\\ddagger");
+  defineSymbol(math4, main, bin2, "\u2240", "\\wr", true);
+  defineSymbol(math4, main, bin2, "\u2A3F", "\\amalg");
+  defineSymbol(math4, main, bin2, "&", "\\And");
+  defineSymbol(math4, main, rel, "\u27F5", "\\longleftarrow", true);
+  defineSymbol(math4, main, rel, "\u21D0", "\\Leftarrow", true);
+  defineSymbol(math4, main, rel, "\u27F8", "\\Longleftarrow", true);
+  defineSymbol(math4, main, rel, "\u27F6", "\\longrightarrow", true);
+  defineSymbol(math4, main, rel, "\u21D2", "\\Rightarrow", true);
+  defineSymbol(math4, main, rel, "\u27F9", "\\Longrightarrow", true);
+  defineSymbol(math4, main, rel, "\u2194", "\\leftrightarrow", true);
+  defineSymbol(math4, main, rel, "\u27F7", "\\longleftrightarrow", true);
+  defineSymbol(math4, main, rel, "\u21D4", "\\Leftrightarrow", true);
+  defineSymbol(math4, main, rel, "\u27FA", "\\Longleftrightarrow", true);
+  defineSymbol(math4, main, rel, "\u21A6", "\\mapsto", true);
+  defineSymbol(math4, main, rel, "\u27FC", "\\longmapsto", true);
+  defineSymbol(math4, main, rel, "\u2197", "\\nearrow", true);
+  defineSymbol(math4, main, rel, "\u21A9", "\\hookleftarrow", true);
+  defineSymbol(math4, main, rel, "\u21AA", "\\hookrightarrow", true);
+  defineSymbol(math4, main, rel, "\u2198", "\\searrow", true);
+  defineSymbol(math4, main, rel, "\u21BC", "\\leftharpoonup", true);
+  defineSymbol(math4, main, rel, "\u21C0", "\\rightharpoonup", true);
+  defineSymbol(math4, main, rel, "\u2199", "\\swarrow", true);
+  defineSymbol(math4, main, rel, "\u21BD", "\\leftharpoondown", true);
+  defineSymbol(math4, main, rel, "\u21C1", "\\rightharpoondown", true);
+  defineSymbol(math4, main, rel, "\u2196", "\\nwarrow", true);
+  defineSymbol(math4, main, rel, "\u21CC", "\\rightleftharpoons", true);
+  defineSymbol(math4, ams, rel, "\u226E", "\\nless", true);
+  defineSymbol(math4, ams, rel, "\uE010", "\\@nleqslant");
+  defineSymbol(math4, ams, rel, "\uE011", "\\@nleqq");
+  defineSymbol(math4, ams, rel, "\u2A87", "\\lneq", true);
+  defineSymbol(math4, ams, rel, "\u2268", "\\lneqq", true);
+  defineSymbol(math4, ams, rel, "\uE00C", "\\@lvertneqq");
+  defineSymbol(math4, ams, rel, "\u22E6", "\\lnsim", true);
+  defineSymbol(math4, ams, rel, "\u2A89", "\\lnapprox", true);
+  defineSymbol(math4, ams, rel, "\u2280", "\\nprec", true);
+  defineSymbol(math4, ams, rel, "\u22E0", "\\npreceq", true);
+  defineSymbol(math4, ams, rel, "\u22E8", "\\precnsim", true);
+  defineSymbol(math4, ams, rel, "\u2AB9", "\\precnapprox", true);
+  defineSymbol(math4, ams, rel, "\u2241", "\\nsim", true);
+  defineSymbol(math4, ams, rel, "\uE006", "\\@nshortmid");
+  defineSymbol(math4, ams, rel, "\u2224", "\\nmid", true);
+  defineSymbol(math4, ams, rel, "\u22AC", "\\nvdash", true);
+  defineSymbol(math4, ams, rel, "\u22AD", "\\nvDash", true);
+  defineSymbol(math4, ams, rel, "\u22EA", "\\ntriangleleft");
+  defineSymbol(math4, ams, rel, "\u22EC", "\\ntrianglelefteq", true);
+  defineSymbol(math4, ams, rel, "\u228A", "\\subsetneq", true);
+  defineSymbol(math4, ams, rel, "\uE01A", "\\@varsubsetneq");
+  defineSymbol(math4, ams, rel, "\u2ACB", "\\subsetneqq", true);
+  defineSymbol(math4, ams, rel, "\uE017", "\\@varsubsetneqq");
+  defineSymbol(math4, ams, rel, "\u226F", "\\ngtr", true);
+  defineSymbol(math4, ams, rel, "\uE00F", "\\@ngeqslant");
+  defineSymbol(math4, ams, rel, "\uE00E", "\\@ngeqq");
+  defineSymbol(math4, ams, rel, "\u2A88", "\\gneq", true);
+  defineSymbol(math4, ams, rel, "\u2269", "\\gneqq", true);
+  defineSymbol(math4, ams, rel, "\uE00D", "\\@gvertneqq");
+  defineSymbol(math4, ams, rel, "\u22E7", "\\gnsim", true);
+  defineSymbol(math4, ams, rel, "\u2A8A", "\\gnapprox", true);
+  defineSymbol(math4, ams, rel, "\u2281", "\\nsucc", true);
+  defineSymbol(math4, ams, rel, "\u22E1", "\\nsucceq", true);
+  defineSymbol(math4, ams, rel, "\u22E9", "\\succnsim", true);
+  defineSymbol(math4, ams, rel, "\u2ABA", "\\succnapprox", true);
+  defineSymbol(math4, ams, rel, "\u2246", "\\ncong", true);
+  defineSymbol(math4, ams, rel, "\uE007", "\\@nshortparallel");
+  defineSymbol(math4, ams, rel, "\u2226", "\\nparallel", true);
+  defineSymbol(math4, ams, rel, "\u22AF", "\\nVDash", true);
+  defineSymbol(math4, ams, rel, "\u22EB", "\\ntriangleright");
+  defineSymbol(math4, ams, rel, "\u22ED", "\\ntrianglerighteq", true);
+  defineSymbol(math4, ams, rel, "\uE018", "\\@nsupseteqq");
+  defineSymbol(math4, ams, rel, "\u228B", "\\supsetneq", true);
+  defineSymbol(math4, ams, rel, "\uE01B", "\\@varsupsetneq");
+  defineSymbol(math4, ams, rel, "\u2ACC", "\\supsetneqq", true);
+  defineSymbol(math4, ams, rel, "\uE019", "\\@varsupsetneqq");
+  defineSymbol(math4, ams, rel, "\u22AE", "\\nVdash", true);
+  defineSymbol(math4, ams, rel, "\u2AB5", "\\precneqq", true);
+  defineSymbol(math4, ams, rel, "\u2AB6", "\\succneqq", true);
+  defineSymbol(math4, ams, rel, "\uE016", "\\@nsubseteqq");
+  defineSymbol(math4, ams, bin2, "\u22B4", "\\unlhd");
+  defineSymbol(math4, ams, bin2, "\u22B5", "\\unrhd");
+  defineSymbol(math4, ams, rel, "\u219A", "\\nleftarrow", true);
+  defineSymbol(math4, ams, rel, "\u219B", "\\nrightarrow", true);
+  defineSymbol(math4, ams, rel, "\u21CD", "\\nLeftarrow", true);
+  defineSymbol(math4, ams, rel, "\u21CF", "\\nRightarrow", true);
+  defineSymbol(math4, ams, rel, "\u21AE", "\\nleftrightarrow", true);
+  defineSymbol(math4, ams, rel, "\u21CE", "\\nLeftrightarrow", true);
+  defineSymbol(math4, ams, rel, "\u25B3", "\\vartriangle");
+  defineSymbol(math4, ams, textord, "\u210F", "\\hslash");
+  defineSymbol(math4, ams, textord, "\u25BD", "\\triangledown");
+  defineSymbol(math4, ams, textord, "\u25CA", "\\lozenge");
+  defineSymbol(math4, ams, textord, "\u24C8", "\\circledS");
+  defineSymbol(math4, ams, textord, "\xAE", "\\circledR");
   defineSymbol(text, ams, textord, "\xAE", "\\circledR");
-  defineSymbol(math3, ams, textord, "\u2221", "\\measuredangle", true);
-  defineSymbol(math3, ams, textord, "\u2204", "\\nexists");
-  defineSymbol(math3, ams, textord, "\u2127", "\\mho");
-  defineSymbol(math3, ams, textord, "\u2132", "\\Finv", true);
-  defineSymbol(math3, ams, textord, "\u2141", "\\Game", true);
-  defineSymbol(math3, ams, textord, "\u2035", "\\backprime");
-  defineSymbol(math3, ams, textord, "\u25B2", "\\blacktriangle");
-  defineSymbol(math3, ams, textord, "\u25BC", "\\blacktriangledown");
-  defineSymbol(math3, ams, textord, "\u25A0", "\\blacksquare");
-  defineSymbol(math3, ams, textord, "\u29EB", "\\blacklozenge");
-  defineSymbol(math3, ams, textord, "\u2605", "\\bigstar");
-  defineSymbol(math3, ams, textord, "\u2222", "\\sphericalangle", true);
-  defineSymbol(math3, ams, textord, "\u2201", "\\complement", true);
-  defineSymbol(math3, ams, textord, "\xF0", "\\eth", true);
+  defineSymbol(math4, ams, textord, "\u2221", "\\measuredangle", true);
+  defineSymbol(math4, ams, textord, "\u2204", "\\nexists");
+  defineSymbol(math4, ams, textord, "\u2127", "\\mho");
+  defineSymbol(math4, ams, textord, "\u2132", "\\Finv", true);
+  defineSymbol(math4, ams, textord, "\u2141", "\\Game", true);
+  defineSymbol(math4, ams, textord, "\u2035", "\\backprime");
+  defineSymbol(math4, ams, textord, "\u25B2", "\\blacktriangle");
+  defineSymbol(math4, ams, textord, "\u25BC", "\\blacktriangledown");
+  defineSymbol(math4, ams, textord, "\u25A0", "\\blacksquare");
+  defineSymbol(math4, ams, textord, "\u29EB", "\\blacklozenge");
+  defineSymbol(math4, ams, textord, "\u2605", "\\bigstar");
+  defineSymbol(math4, ams, textord, "\u2222", "\\sphericalangle", true);
+  defineSymbol(math4, ams, textord, "\u2201", "\\complement", true);
+  defineSymbol(math4, ams, textord, "\xF0", "\\eth", true);
   defineSymbol(text, main, textord, "\xF0", "\xF0");
-  defineSymbol(math3, ams, textord, "\u2571", "\\diagup");
-  defineSymbol(math3, ams, textord, "\u2572", "\\diagdown");
-  defineSymbol(math3, ams, textord, "\u25A1", "\\square");
-  defineSymbol(math3, ams, textord, "\u25A1", "\\Box");
-  defineSymbol(math3, ams, textord, "\u25CA", "\\Diamond");
-  defineSymbol(math3, ams, textord, "\xA5", "\\yen", true);
+  defineSymbol(math4, ams, textord, "\u2571", "\\diagup");
+  defineSymbol(math4, ams, textord, "\u2572", "\\diagdown");
+  defineSymbol(math4, ams, textord, "\u25A1", "\\square");
+  defineSymbol(math4, ams, textord, "\u25A1", "\\Box");
+  defineSymbol(math4, ams, textord, "\u25CA", "\\Diamond");
+  defineSymbol(math4, ams, textord, "\xA5", "\\yen", true);
   defineSymbol(text, ams, textord, "\xA5", "\\yen", true);
-  defineSymbol(math3, ams, textord, "\u2713", "\\checkmark", true);
+  defineSymbol(math4, ams, textord, "\u2713", "\\checkmark", true);
   defineSymbol(text, ams, textord, "\u2713", "\\checkmark");
-  defineSymbol(math3, ams, textord, "\u2136", "\\beth", true);
-  defineSymbol(math3, ams, textord, "\u2138", "\\daleth", true);
-  defineSymbol(math3, ams, textord, "\u2137", "\\gimel", true);
-  defineSymbol(math3, ams, textord, "\u03DD", "\\digamma", true);
-  defineSymbol(math3, ams, textord, "\u03F0", "\\varkappa");
-  defineSymbol(math3, ams, open, "\u250C", "\\@ulcorner", true);
-  defineSymbol(math3, ams, close, "\u2510", "\\@urcorner", true);
-  defineSymbol(math3, ams, open, "\u2514", "\\@llcorner", true);
-  defineSymbol(math3, ams, close, "\u2518", "\\@lrcorner", true);
-  defineSymbol(math3, ams, rel, "\u2266", "\\leqq", true);
-  defineSymbol(math3, ams, rel, "\u2A7D", "\\leqslant", true);
-  defineSymbol(math3, ams, rel, "\u2A95", "\\eqslantless", true);
-  defineSymbol(math3, ams, rel, "\u2272", "\\lesssim", true);
-  defineSymbol(math3, ams, rel, "\u2A85", "\\lessapprox", true);
-  defineSymbol(math3, ams, rel, "\u224A", "\\approxeq", true);
-  defineSymbol(math3, ams, bin2, "\u22D6", "\\lessdot");
-  defineSymbol(math3, ams, rel, "\u22D8", "\\lll", true);
-  defineSymbol(math3, ams, rel, "\u2276", "\\lessgtr", true);
-  defineSymbol(math3, ams, rel, "\u22DA", "\\lesseqgtr", true);
-  defineSymbol(math3, ams, rel, "\u2A8B", "\\lesseqqgtr", true);
-  defineSymbol(math3, ams, rel, "\u2251", "\\doteqdot");
-  defineSymbol(math3, ams, rel, "\u2253", "\\risingdotseq", true);
-  defineSymbol(math3, ams, rel, "\u2252", "\\fallingdotseq", true);
-  defineSymbol(math3, ams, rel, "\u223D", "\\backsim", true);
-  defineSymbol(math3, ams, rel, "\u22CD", "\\backsimeq", true);
-  defineSymbol(math3, ams, rel, "\u2AC5", "\\subseteqq", true);
-  defineSymbol(math3, ams, rel, "\u22D0", "\\Subset", true);
-  defineSymbol(math3, ams, rel, "\u228F", "\\sqsubset", true);
-  defineSymbol(math3, ams, rel, "\u227C", "\\preccurlyeq", true);
-  defineSymbol(math3, ams, rel, "\u22DE", "\\curlyeqprec", true);
-  defineSymbol(math3, ams, rel, "\u227E", "\\precsim", true);
-  defineSymbol(math3, ams, rel, "\u2AB7", "\\precapprox", true);
-  defineSymbol(math3, ams, rel, "\u22B2", "\\vartriangleleft");
-  defineSymbol(math3, ams, rel, "\u22B4", "\\trianglelefteq");
-  defineSymbol(math3, ams, rel, "\u22A8", "\\vDash", true);
-  defineSymbol(math3, ams, rel, "\u22AA", "\\Vvdash", true);
-  defineSymbol(math3, ams, rel, "\u2323", "\\smallsmile");
-  defineSymbol(math3, ams, rel, "\u2322", "\\smallfrown");
-  defineSymbol(math3, ams, rel, "\u224F", "\\bumpeq", true);
-  defineSymbol(math3, ams, rel, "\u224E", "\\Bumpeq", true);
-  defineSymbol(math3, ams, rel, "\u2267", "\\geqq", true);
-  defineSymbol(math3, ams, rel, "\u2A7E", "\\geqslant", true);
-  defineSymbol(math3, ams, rel, "\u2A96", "\\eqslantgtr", true);
-  defineSymbol(math3, ams, rel, "\u2273", "\\gtrsim", true);
-  defineSymbol(math3, ams, rel, "\u2A86", "\\gtrapprox", true);
-  defineSymbol(math3, ams, bin2, "\u22D7", "\\gtrdot");
-  defineSymbol(math3, ams, rel, "\u22D9", "\\ggg", true);
-  defineSymbol(math3, ams, rel, "\u2277", "\\gtrless", true);
-  defineSymbol(math3, ams, rel, "\u22DB", "\\gtreqless", true);
-  defineSymbol(math3, ams, rel, "\u2A8C", "\\gtreqqless", true);
-  defineSymbol(math3, ams, rel, "\u2256", "\\eqcirc", true);
-  defineSymbol(math3, ams, rel, "\u2257", "\\circeq", true);
-  defineSymbol(math3, ams, rel, "\u225C", "\\triangleq", true);
-  defineSymbol(math3, ams, rel, "\u223C", "\\thicksim");
-  defineSymbol(math3, ams, rel, "\u2248", "\\thickapprox");
-  defineSymbol(math3, ams, rel, "\u2AC6", "\\supseteqq", true);
-  defineSymbol(math3, ams, rel, "\u22D1", "\\Supset", true);
-  defineSymbol(math3, ams, rel, "\u2290", "\\sqsupset", true);
-  defineSymbol(math3, ams, rel, "\u227D", "\\succcurlyeq", true);
-  defineSymbol(math3, ams, rel, "\u22DF", "\\curlyeqsucc", true);
-  defineSymbol(math3, ams, rel, "\u227F", "\\succsim", true);
-  defineSymbol(math3, ams, rel, "\u2AB8", "\\succapprox", true);
-  defineSymbol(math3, ams, rel, "\u22B3", "\\vartriangleright");
-  defineSymbol(math3, ams, rel, "\u22B5", "\\trianglerighteq");
-  defineSymbol(math3, ams, rel, "\u22A9", "\\Vdash", true);
-  defineSymbol(math3, ams, rel, "\u2223", "\\shortmid");
-  defineSymbol(math3, ams, rel, "\u2225", "\\shortparallel");
-  defineSymbol(math3, ams, rel, "\u226C", "\\between", true);
-  defineSymbol(math3, ams, rel, "\u22D4", "\\pitchfork", true);
-  defineSymbol(math3, ams, rel, "\u221D", "\\varpropto");
-  defineSymbol(math3, ams, rel, "\u25C0", "\\blacktriangleleft");
-  defineSymbol(math3, ams, rel, "\u2234", "\\therefore", true);
-  defineSymbol(math3, ams, rel, "\u220D", "\\backepsilon");
-  defineSymbol(math3, ams, rel, "\u25B6", "\\blacktriangleright");
-  defineSymbol(math3, ams, rel, "\u2235", "\\because", true);
-  defineSymbol(math3, ams, rel, "\u22D8", "\\llless");
-  defineSymbol(math3, ams, rel, "\u22D9", "\\gggtr");
-  defineSymbol(math3, ams, bin2, "\u22B2", "\\lhd");
-  defineSymbol(math3, ams, bin2, "\u22B3", "\\rhd");
-  defineSymbol(math3, ams, rel, "\u2242", "\\eqsim", true);
-  defineSymbol(math3, main, rel, "\u22C8", "\\Join");
-  defineSymbol(math3, ams, rel, "\u2251", "\\Doteq", true);
-  defineSymbol(math3, ams, bin2, "\u2214", "\\dotplus", true);
-  defineSymbol(math3, ams, bin2, "\u2216", "\\smallsetminus");
-  defineSymbol(math3, ams, bin2, "\u22D2", "\\Cap", true);
-  defineSymbol(math3, ams, bin2, "\u22D3", "\\Cup", true);
-  defineSymbol(math3, ams, bin2, "\u2A5E", "\\doublebarwedge", true);
-  defineSymbol(math3, ams, bin2, "\u229F", "\\boxminus", true);
-  defineSymbol(math3, ams, bin2, "\u229E", "\\boxplus", true);
-  defineSymbol(math3, ams, bin2, "\u22C7", "\\divideontimes", true);
-  defineSymbol(math3, ams, bin2, "\u22C9", "\\ltimes", true);
-  defineSymbol(math3, ams, bin2, "\u22CA", "\\rtimes", true);
-  defineSymbol(math3, ams, bin2, "\u22CB", "\\leftthreetimes", true);
-  defineSymbol(math3, ams, bin2, "\u22CC", "\\rightthreetimes", true);
-  defineSymbol(math3, ams, bin2, "\u22CF", "\\curlywedge", true);
-  defineSymbol(math3, ams, bin2, "\u22CE", "\\curlyvee", true);
-  defineSymbol(math3, ams, bin2, "\u229D", "\\circleddash", true);
-  defineSymbol(math3, ams, bin2, "\u229B", "\\circledast", true);
-  defineSymbol(math3, ams, bin2, "\u22C5", "\\centerdot");
-  defineSymbol(math3, ams, bin2, "\u22BA", "\\intercal", true);
-  defineSymbol(math3, ams, bin2, "\u22D2", "\\doublecap");
-  defineSymbol(math3, ams, bin2, "\u22D3", "\\doublecup");
-  defineSymbol(math3, ams, bin2, "\u22A0", "\\boxtimes", true);
-  defineSymbol(math3, ams, rel, "\u21E2", "\\dashrightarrow", true);
-  defineSymbol(math3, ams, rel, "\u21E0", "\\dashleftarrow", true);
-  defineSymbol(math3, ams, rel, "\u21C7", "\\leftleftarrows", true);
-  defineSymbol(math3, ams, rel, "\u21C6", "\\leftrightarrows", true);
-  defineSymbol(math3, ams, rel, "\u21DA", "\\Lleftarrow", true);
-  defineSymbol(math3, ams, rel, "\u219E", "\\twoheadleftarrow", true);
-  defineSymbol(math3, ams, rel, "\u21A2", "\\leftarrowtail", true);
-  defineSymbol(math3, ams, rel, "\u21AB", "\\looparrowleft", true);
-  defineSymbol(math3, ams, rel, "\u21CB", "\\leftrightharpoons", true);
-  defineSymbol(math3, ams, rel, "\u21B6", "\\curvearrowleft", true);
-  defineSymbol(math3, ams, rel, "\u21BA", "\\circlearrowleft", true);
-  defineSymbol(math3, ams, rel, "\u21B0", "\\Lsh", true);
-  defineSymbol(math3, ams, rel, "\u21C8", "\\upuparrows", true);
-  defineSymbol(math3, ams, rel, "\u21BF", "\\upharpoonleft", true);
-  defineSymbol(math3, ams, rel, "\u21C3", "\\downharpoonleft", true);
-  defineSymbol(math3, main, rel, "\u22B6", "\\origof", true);
-  defineSymbol(math3, main, rel, "\u22B7", "\\imageof", true);
-  defineSymbol(math3, ams, rel, "\u22B8", "\\multimap", true);
-  defineSymbol(math3, ams, rel, "\u21AD", "\\leftrightsquigarrow", true);
-  defineSymbol(math3, ams, rel, "\u21C9", "\\rightrightarrows", true);
-  defineSymbol(math3, ams, rel, "\u21C4", "\\rightleftarrows", true);
-  defineSymbol(math3, ams, rel, "\u21A0", "\\twoheadrightarrow", true);
-  defineSymbol(math3, ams, rel, "\u21A3", "\\rightarrowtail", true);
-  defineSymbol(math3, ams, rel, "\u21AC", "\\looparrowright", true);
-  defineSymbol(math3, ams, rel, "\u21B7", "\\curvearrowright", true);
-  defineSymbol(math3, ams, rel, "\u21BB", "\\circlearrowright", true);
-  defineSymbol(math3, ams, rel, "\u21B1", "\\Rsh", true);
-  defineSymbol(math3, ams, rel, "\u21CA", "\\downdownarrows", true);
-  defineSymbol(math3, ams, rel, "\u21BE", "\\upharpoonright", true);
-  defineSymbol(math3, ams, rel, "\u21C2", "\\downharpoonright", true);
-  defineSymbol(math3, ams, rel, "\u21DD", "\\rightsquigarrow", true);
-  defineSymbol(math3, ams, rel, "\u21DD", "\\leadsto");
-  defineSymbol(math3, ams, rel, "\u21DB", "\\Rrightarrow", true);
-  defineSymbol(math3, ams, rel, "\u21BE", "\\restriction");
-  defineSymbol(math3, main, textord, "\u2018", "`");
-  defineSymbol(math3, main, textord, "$", "\\$");
+  defineSymbol(math4, ams, textord, "\u2136", "\\beth", true);
+  defineSymbol(math4, ams, textord, "\u2138", "\\daleth", true);
+  defineSymbol(math4, ams, textord, "\u2137", "\\gimel", true);
+  defineSymbol(math4, ams, textord, "\u03DD", "\\digamma", true);
+  defineSymbol(math4, ams, textord, "\u03F0", "\\varkappa");
+  defineSymbol(math4, ams, open, "\u250C", "\\@ulcorner", true);
+  defineSymbol(math4, ams, close, "\u2510", "\\@urcorner", true);
+  defineSymbol(math4, ams, open, "\u2514", "\\@llcorner", true);
+  defineSymbol(math4, ams, close, "\u2518", "\\@lrcorner", true);
+  defineSymbol(math4, ams, rel, "\u2266", "\\leqq", true);
+  defineSymbol(math4, ams, rel, "\u2A7D", "\\leqslant", true);
+  defineSymbol(math4, ams, rel, "\u2A95", "\\eqslantless", true);
+  defineSymbol(math4, ams, rel, "\u2272", "\\lesssim", true);
+  defineSymbol(math4, ams, rel, "\u2A85", "\\lessapprox", true);
+  defineSymbol(math4, ams, rel, "\u224A", "\\approxeq", true);
+  defineSymbol(math4, ams, bin2, "\u22D6", "\\lessdot");
+  defineSymbol(math4, ams, rel, "\u22D8", "\\lll", true);
+  defineSymbol(math4, ams, rel, "\u2276", "\\lessgtr", true);
+  defineSymbol(math4, ams, rel, "\u22DA", "\\lesseqgtr", true);
+  defineSymbol(math4, ams, rel, "\u2A8B", "\\lesseqqgtr", true);
+  defineSymbol(math4, ams, rel, "\u2251", "\\doteqdot");
+  defineSymbol(math4, ams, rel, "\u2253", "\\risingdotseq", true);
+  defineSymbol(math4, ams, rel, "\u2252", "\\fallingdotseq", true);
+  defineSymbol(math4, ams, rel, "\u223D", "\\backsim", true);
+  defineSymbol(math4, ams, rel, "\u22CD", "\\backsimeq", true);
+  defineSymbol(math4, ams, rel, "\u2AC5", "\\subseteqq", true);
+  defineSymbol(math4, ams, rel, "\u22D0", "\\Subset", true);
+  defineSymbol(math4, ams, rel, "\u228F", "\\sqsubset", true);
+  defineSymbol(math4, ams, rel, "\u227C", "\\preccurlyeq", true);
+  defineSymbol(math4, ams, rel, "\u22DE", "\\curlyeqprec", true);
+  defineSymbol(math4, ams, rel, "\u227E", "\\precsim", true);
+  defineSymbol(math4, ams, rel, "\u2AB7", "\\precapprox", true);
+  defineSymbol(math4, ams, rel, "\u22B2", "\\vartriangleleft");
+  defineSymbol(math4, ams, rel, "\u22B4", "\\trianglelefteq");
+  defineSymbol(math4, ams, rel, "\u22A8", "\\vDash", true);
+  defineSymbol(math4, ams, rel, "\u22AA", "\\Vvdash", true);
+  defineSymbol(math4, ams, rel, "\u2323", "\\smallsmile");
+  defineSymbol(math4, ams, rel, "\u2322", "\\smallfrown");
+  defineSymbol(math4, ams, rel, "\u224F", "\\bumpeq", true);
+  defineSymbol(math4, ams, rel, "\u224E", "\\Bumpeq", true);
+  defineSymbol(math4, ams, rel, "\u2267", "\\geqq", true);
+  defineSymbol(math4, ams, rel, "\u2A7E", "\\geqslant", true);
+  defineSymbol(math4, ams, rel, "\u2A96", "\\eqslantgtr", true);
+  defineSymbol(math4, ams, rel, "\u2273", "\\gtrsim", true);
+  defineSymbol(math4, ams, rel, "\u2A86", "\\gtrapprox", true);
+  defineSymbol(math4, ams, bin2, "\u22D7", "\\gtrdot");
+  defineSymbol(math4, ams, rel, "\u22D9", "\\ggg", true);
+  defineSymbol(math4, ams, rel, "\u2277", "\\gtrless", true);
+  defineSymbol(math4, ams, rel, "\u22DB", "\\gtreqless", true);
+  defineSymbol(math4, ams, rel, "\u2A8C", "\\gtreqqless", true);
+  defineSymbol(math4, ams, rel, "\u2256", "\\eqcirc", true);
+  defineSymbol(math4, ams, rel, "\u2257", "\\circeq", true);
+  defineSymbol(math4, ams, rel, "\u225C", "\\triangleq", true);
+  defineSymbol(math4, ams, rel, "\u223C", "\\thicksim");
+  defineSymbol(math4, ams, rel, "\u2248", "\\thickapprox");
+  defineSymbol(math4, ams, rel, "\u2AC6", "\\supseteqq", true);
+  defineSymbol(math4, ams, rel, "\u22D1", "\\Supset", true);
+  defineSymbol(math4, ams, rel, "\u2290", "\\sqsupset", true);
+  defineSymbol(math4, ams, rel, "\u227D", "\\succcurlyeq", true);
+  defineSymbol(math4, ams, rel, "\u22DF", "\\curlyeqsucc", true);
+  defineSymbol(math4, ams, rel, "\u227F", "\\succsim", true);
+  defineSymbol(math4, ams, rel, "\u2AB8", "\\succapprox", true);
+  defineSymbol(math4, ams, rel, "\u22B3", "\\vartriangleright");
+  defineSymbol(math4, ams, rel, "\u22B5", "\\trianglerighteq");
+  defineSymbol(math4, ams, rel, "\u22A9", "\\Vdash", true);
+  defineSymbol(math4, ams, rel, "\u2223", "\\shortmid");
+  defineSymbol(math4, ams, rel, "\u2225", "\\shortparallel");
+  defineSymbol(math4, ams, rel, "\u226C", "\\between", true);
+  defineSymbol(math4, ams, rel, "\u22D4", "\\pitchfork", true);
+  defineSymbol(math4, ams, rel, "\u221D", "\\varpropto");
+  defineSymbol(math4, ams, rel, "\u25C0", "\\blacktriangleleft");
+  defineSymbol(math4, ams, rel, "\u2234", "\\therefore", true);
+  defineSymbol(math4, ams, rel, "\u220D", "\\backepsilon");
+  defineSymbol(math4, ams, rel, "\u25B6", "\\blacktriangleright");
+  defineSymbol(math4, ams, rel, "\u2235", "\\because", true);
+  defineSymbol(math4, ams, rel, "\u22D8", "\\llless");
+  defineSymbol(math4, ams, rel, "\u22D9", "\\gggtr");
+  defineSymbol(math4, ams, bin2, "\u22B2", "\\lhd");
+  defineSymbol(math4, ams, bin2, "\u22B3", "\\rhd");
+  defineSymbol(math4, ams, rel, "\u2242", "\\eqsim", true);
+  defineSymbol(math4, main, rel, "\u22C8", "\\Join");
+  defineSymbol(math4, ams, rel, "\u2251", "\\Doteq", true);
+  defineSymbol(math4, ams, bin2, "\u2214", "\\dotplus", true);
+  defineSymbol(math4, ams, bin2, "\u2216", "\\smallsetminus");
+  defineSymbol(math4, ams, bin2, "\u22D2", "\\Cap", true);
+  defineSymbol(math4, ams, bin2, "\u22D3", "\\Cup", true);
+  defineSymbol(math4, ams, bin2, "\u2A5E", "\\doublebarwedge", true);
+  defineSymbol(math4, ams, bin2, "\u229F", "\\boxminus", true);
+  defineSymbol(math4, ams, bin2, "\u229E", "\\boxplus", true);
+  defineSymbol(math4, ams, bin2, "\u22C7", "\\divideontimes", true);
+  defineSymbol(math4, ams, bin2, "\u22C9", "\\ltimes", true);
+  defineSymbol(math4, ams, bin2, "\u22CA", "\\rtimes", true);
+  defineSymbol(math4, ams, bin2, "\u22CB", "\\leftthreetimes", true);
+  defineSymbol(math4, ams, bin2, "\u22CC", "\\rightthreetimes", true);
+  defineSymbol(math4, ams, bin2, "\u22CF", "\\curlywedge", true);
+  defineSymbol(math4, ams, bin2, "\u22CE", "\\curlyvee", true);
+  defineSymbol(math4, ams, bin2, "\u229D", "\\circleddash", true);
+  defineSymbol(math4, ams, bin2, "\u229B", "\\circledast", true);
+  defineSymbol(math4, ams, bin2, "\u22C5", "\\centerdot");
+  defineSymbol(math4, ams, bin2, "\u22BA", "\\intercal", true);
+  defineSymbol(math4, ams, bin2, "\u22D2", "\\doublecap");
+  defineSymbol(math4, ams, bin2, "\u22D3", "\\doublecup");
+  defineSymbol(math4, ams, bin2, "\u22A0", "\\boxtimes", true);
+  defineSymbol(math4, ams, rel, "\u21E2", "\\dashrightarrow", true);
+  defineSymbol(math4, ams, rel, "\u21E0", "\\dashleftarrow", true);
+  defineSymbol(math4, ams, rel, "\u21C7", "\\leftleftarrows", true);
+  defineSymbol(math4, ams, rel, "\u21C6", "\\leftrightarrows", true);
+  defineSymbol(math4, ams, rel, "\u21DA", "\\Lleftarrow", true);
+  defineSymbol(math4, ams, rel, "\u219E", "\\twoheadleftarrow", true);
+  defineSymbol(math4, ams, rel, "\u21A2", "\\leftarrowtail", true);
+  defineSymbol(math4, ams, rel, "\u21AB", "\\looparrowleft", true);
+  defineSymbol(math4, ams, rel, "\u21CB", "\\leftrightharpoons", true);
+  defineSymbol(math4, ams, rel, "\u21B6", "\\curvearrowleft", true);
+  defineSymbol(math4, ams, rel, "\u21BA", "\\circlearrowleft", true);
+  defineSymbol(math4, ams, rel, "\u21B0", "\\Lsh", true);
+  defineSymbol(math4, ams, rel, "\u21C8", "\\upuparrows", true);
+  defineSymbol(math4, ams, rel, "\u21BF", "\\upharpoonleft", true);
+  defineSymbol(math4, ams, rel, "\u21C3", "\\downharpoonleft", true);
+  defineSymbol(math4, main, rel, "\u22B6", "\\origof", true);
+  defineSymbol(math4, main, rel, "\u22B7", "\\imageof", true);
+  defineSymbol(math4, ams, rel, "\u22B8", "\\multimap", true);
+  defineSymbol(math4, ams, rel, "\u21AD", "\\leftrightsquigarrow", true);
+  defineSymbol(math4, ams, rel, "\u21C9", "\\rightrightarrows", true);
+  defineSymbol(math4, ams, rel, "\u21C4", "\\rightleftarrows", true);
+  defineSymbol(math4, ams, rel, "\u21A0", "\\twoheadrightarrow", true);
+  defineSymbol(math4, ams, rel, "\u21A3", "\\rightarrowtail", true);
+  defineSymbol(math4, ams, rel, "\u21AC", "\\looparrowright", true);
+  defineSymbol(math4, ams, rel, "\u21B7", "\\curvearrowright", true);
+  defineSymbol(math4, ams, rel, "\u21BB", "\\circlearrowright", true);
+  defineSymbol(math4, ams, rel, "\u21B1", "\\Rsh", true);
+  defineSymbol(math4, ams, rel, "\u21CA", "\\downdownarrows", true);
+  defineSymbol(math4, ams, rel, "\u21BE", "\\upharpoonright", true);
+  defineSymbol(math4, ams, rel, "\u21C2", "\\downharpoonright", true);
+  defineSymbol(math4, ams, rel, "\u21DD", "\\rightsquigarrow", true);
+  defineSymbol(math4, ams, rel, "\u21DD", "\\leadsto");
+  defineSymbol(math4, ams, rel, "\u21DB", "\\Rrightarrow", true);
+  defineSymbol(math4, ams, rel, "\u21BE", "\\restriction");
+  defineSymbol(math4, main, textord, "\u2018", "`");
+  defineSymbol(math4, main, textord, "$", "\\$");
   defineSymbol(text, main, textord, "$", "\\$");
   defineSymbol(text, main, textord, "$", "\\textdollar");
-  defineSymbol(math3, main, textord, "%", "\\%");
+  defineSymbol(math4, main, textord, "%", "\\%");
   defineSymbol(text, main, textord, "%", "\\%");
-  defineSymbol(math3, main, textord, "_", "\\_");
+  defineSymbol(math4, main, textord, "_", "\\_");
   defineSymbol(text, main, textord, "_", "\\_");
   defineSymbol(text, main, textord, "_", "\\textunderscore");
-  defineSymbol(math3, main, textord, "\u2220", "\\angle", true);
-  defineSymbol(math3, main, textord, "\u221E", "\\infty", true);
-  defineSymbol(math3, main, textord, "\u2032", "\\prime");
-  defineSymbol(math3, main, textord, "\u25B3", "\\triangle");
-  defineSymbol(math3, main, textord, "\u0393", "\\Gamma", true);
-  defineSymbol(math3, main, textord, "\u0394", "\\Delta", true);
-  defineSymbol(math3, main, textord, "\u0398", "\\Theta", true);
-  defineSymbol(math3, main, textord, "\u039B", "\\Lambda", true);
-  defineSymbol(math3, main, textord, "\u039E", "\\Xi", true);
-  defineSymbol(math3, main, textord, "\u03A0", "\\Pi", true);
-  defineSymbol(math3, main, textord, "\u03A3", "\\Sigma", true);
-  defineSymbol(math3, main, textord, "\u03A5", "\\Upsilon", true);
-  defineSymbol(math3, main, textord, "\u03A6", "\\Phi", true);
-  defineSymbol(math3, main, textord, "\u03A8", "\\Psi", true);
-  defineSymbol(math3, main, textord, "\u03A9", "\\Omega", true);
-  defineSymbol(math3, main, textord, "A", "\u0391");
-  defineSymbol(math3, main, textord, "B", "\u0392");
-  defineSymbol(math3, main, textord, "E", "\u0395");
-  defineSymbol(math3, main, textord, "Z", "\u0396");
-  defineSymbol(math3, main, textord, "H", "\u0397");
-  defineSymbol(math3, main, textord, "I", "\u0399");
-  defineSymbol(math3, main, textord, "K", "\u039A");
-  defineSymbol(math3, main, textord, "M", "\u039C");
-  defineSymbol(math3, main, textord, "N", "\u039D");
-  defineSymbol(math3, main, textord, "O", "\u039F");
-  defineSymbol(math3, main, textord, "P", "\u03A1");
-  defineSymbol(math3, main, textord, "T", "\u03A4");
-  defineSymbol(math3, main, textord, "X", "\u03A7");
-  defineSymbol(math3, main, textord, "\xAC", "\\neg", true);
-  defineSymbol(math3, main, textord, "\xAC", "\\lnot");
-  defineSymbol(math3, main, textord, "\u22A4", "\\top");
-  defineSymbol(math3, main, textord, "\u22A5", "\\bot");
-  defineSymbol(math3, main, textord, "\u2205", "\\emptyset");
-  defineSymbol(math3, ams, textord, "\u2205", "\\varnothing");
-  defineSymbol(math3, main, mathord, "\u03B1", "\\alpha", true);
-  defineSymbol(math3, main, mathord, "\u03B2", "\\beta", true);
-  defineSymbol(math3, main, mathord, "\u03B3", "\\gamma", true);
-  defineSymbol(math3, main, mathord, "\u03B4", "\\delta", true);
-  defineSymbol(math3, main, mathord, "\u03F5", "\\epsilon", true);
-  defineSymbol(math3, main, mathord, "\u03B6", "\\zeta", true);
-  defineSymbol(math3, main, mathord, "\u03B7", "\\eta", true);
-  defineSymbol(math3, main, mathord, "\u03B8", "\\theta", true);
-  defineSymbol(math3, main, mathord, "\u03B9", "\\iota", true);
-  defineSymbol(math3, main, mathord, "\u03BA", "\\kappa", true);
-  defineSymbol(math3, main, mathord, "\u03BB", "\\lambda", true);
-  defineSymbol(math3, main, mathord, "\u03BC", "\\mu", true);
-  defineSymbol(math3, main, mathord, "\u03BD", "\\nu", true);
-  defineSymbol(math3, main, mathord, "\u03BE", "\\xi", true);
-  defineSymbol(math3, main, mathord, "\u03BF", "\\omicron", true);
-  defineSymbol(math3, main, mathord, "\u03C0", "\\pi", true);
-  defineSymbol(math3, main, mathord, "\u03C1", "\\rho", true);
-  defineSymbol(math3, main, mathord, "\u03C3", "\\sigma", true);
-  defineSymbol(math3, main, mathord, "\u03C4", "\\tau", true);
-  defineSymbol(math3, main, mathord, "\u03C5", "\\upsilon", true);
-  defineSymbol(math3, main, mathord, "\u03D5", "\\phi", true);
-  defineSymbol(math3, main, mathord, "\u03C7", "\\chi", true);
-  defineSymbol(math3, main, mathord, "\u03C8", "\\psi", true);
-  defineSymbol(math3, main, mathord, "\u03C9", "\\omega", true);
-  defineSymbol(math3, main, mathord, "\u03B5", "\\varepsilon", true);
-  defineSymbol(math3, main, mathord, "\u03D1", "\\vartheta", true);
-  defineSymbol(math3, main, mathord, "\u03D6", "\\varpi", true);
-  defineSymbol(math3, main, mathord, "\u03F1", "\\varrho", true);
-  defineSymbol(math3, main, mathord, "\u03C2", "\\varsigma", true);
-  defineSymbol(math3, main, mathord, "\u03C6", "\\varphi", true);
-  defineSymbol(math3, main, bin2, "\u2217", "*", true);
-  defineSymbol(math3, main, bin2, "+", "+");
-  defineSymbol(math3, main, bin2, "\u2212", "-", true);
-  defineSymbol(math3, main, bin2, "\u22C5", "\\cdot", true);
-  defineSymbol(math3, main, bin2, "\u2218", "\\circ", true);
-  defineSymbol(math3, main, bin2, "\xF7", "\\div", true);
-  defineSymbol(math3, main, bin2, "\xB1", "\\pm", true);
-  defineSymbol(math3, main, bin2, "\xD7", "\\times", true);
-  defineSymbol(math3, main, bin2, "\u2229", "\\cap", true);
-  defineSymbol(math3, main, bin2, "\u222A", "\\cup", true);
-  defineSymbol(math3, main, bin2, "\u2216", "\\setminus", true);
-  defineSymbol(math3, main, bin2, "\u2227", "\\land");
-  defineSymbol(math3, main, bin2, "\u2228", "\\lor");
-  defineSymbol(math3, main, bin2, "\u2227", "\\wedge", true);
-  defineSymbol(math3, main, bin2, "\u2228", "\\vee", true);
-  defineSymbol(math3, main, textord, "\u221A", "\\surd");
-  defineSymbol(math3, main, open, "\u27E8", "\\langle", true);
-  defineSymbol(math3, main, open, "\u2223", "\\lvert");
-  defineSymbol(math3, main, open, "\u2225", "\\lVert");
-  defineSymbol(math3, main, close, "?", "?");
-  defineSymbol(math3, main, close, "!", "!");
-  defineSymbol(math3, main, close, "\u27E9", "\\rangle", true);
-  defineSymbol(math3, main, close, "\u2223", "\\rvert");
-  defineSymbol(math3, main, close, "\u2225", "\\rVert");
-  defineSymbol(math3, main, rel, "=", "=");
-  defineSymbol(math3, main, rel, ":", ":");
-  defineSymbol(math3, main, rel, "\u2248", "\\approx", true);
-  defineSymbol(math3, main, rel, "\u2245", "\\cong", true);
-  defineSymbol(math3, main, rel, "\u2265", "\\ge");
-  defineSymbol(math3, main, rel, "\u2265", "\\geq", true);
-  defineSymbol(math3, main, rel, "\u2190", "\\gets");
-  defineSymbol(math3, main, rel, ">", "\\gt", true);
-  defineSymbol(math3, main, rel, "\u2208", "\\in", true);
-  defineSymbol(math3, main, rel, "\uE020", "\\@not");
-  defineSymbol(math3, main, rel, "\u2282", "\\subset", true);
-  defineSymbol(math3, main, rel, "\u2283", "\\supset", true);
-  defineSymbol(math3, main, rel, "\u2286", "\\subseteq", true);
-  defineSymbol(math3, main, rel, "\u2287", "\\supseteq", true);
-  defineSymbol(math3, ams, rel, "\u2288", "\\nsubseteq", true);
-  defineSymbol(math3, ams, rel, "\u2289", "\\nsupseteq", true);
-  defineSymbol(math3, main, rel, "\u22A8", "\\models");
-  defineSymbol(math3, main, rel, "\u2190", "\\leftarrow", true);
-  defineSymbol(math3, main, rel, "\u2264", "\\le");
-  defineSymbol(math3, main, rel, "\u2264", "\\leq", true);
-  defineSymbol(math3, main, rel, "<", "\\lt", true);
-  defineSymbol(math3, main, rel, "\u2192", "\\rightarrow", true);
-  defineSymbol(math3, main, rel, "\u2192", "\\to");
-  defineSymbol(math3, ams, rel, "\u2271", "\\ngeq", true);
-  defineSymbol(math3, ams, rel, "\u2270", "\\nleq", true);
-  defineSymbol(math3, main, spacing, "\xA0", "\\ ");
-  defineSymbol(math3, main, spacing, "\xA0", "\\space");
-  defineSymbol(math3, main, spacing, "\xA0", "\\nobreakspace");
+  defineSymbol(math4, main, textord, "\u2220", "\\angle", true);
+  defineSymbol(math4, main, textord, "\u221E", "\\infty", true);
+  defineSymbol(math4, main, textord, "\u2032", "\\prime");
+  defineSymbol(math4, main, textord, "\u25B3", "\\triangle");
+  defineSymbol(math4, main, textord, "\u0393", "\\Gamma", true);
+  defineSymbol(math4, main, textord, "\u0394", "\\Delta", true);
+  defineSymbol(math4, main, textord, "\u0398", "\\Theta", true);
+  defineSymbol(math4, main, textord, "\u039B", "\\Lambda", true);
+  defineSymbol(math4, main, textord, "\u039E", "\\Xi", true);
+  defineSymbol(math4, main, textord, "\u03A0", "\\Pi", true);
+  defineSymbol(math4, main, textord, "\u03A3", "\\Sigma", true);
+  defineSymbol(math4, main, textord, "\u03A5", "\\Upsilon", true);
+  defineSymbol(math4, main, textord, "\u03A6", "\\Phi", true);
+  defineSymbol(math4, main, textord, "\u03A8", "\\Psi", true);
+  defineSymbol(math4, main, textord, "\u03A9", "\\Omega", true);
+  defineSymbol(math4, main, textord, "A", "\u0391");
+  defineSymbol(math4, main, textord, "B", "\u0392");
+  defineSymbol(math4, main, textord, "E", "\u0395");
+  defineSymbol(math4, main, textord, "Z", "\u0396");
+  defineSymbol(math4, main, textord, "H", "\u0397");
+  defineSymbol(math4, main, textord, "I", "\u0399");
+  defineSymbol(math4, main, textord, "K", "\u039A");
+  defineSymbol(math4, main, textord, "M", "\u039C");
+  defineSymbol(math4, main, textord, "N", "\u039D");
+  defineSymbol(math4, main, textord, "O", "\u039F");
+  defineSymbol(math4, main, textord, "P", "\u03A1");
+  defineSymbol(math4, main, textord, "T", "\u03A4");
+  defineSymbol(math4, main, textord, "X", "\u03A7");
+  defineSymbol(math4, main, textord, "\xAC", "\\neg", true);
+  defineSymbol(math4, main, textord, "\xAC", "\\lnot");
+  defineSymbol(math4, main, textord, "\u22A4", "\\top");
+  defineSymbol(math4, main, textord, "\u22A5", "\\bot");
+  defineSymbol(math4, main, textord, "\u2205", "\\emptyset");
+  defineSymbol(math4, ams, textord, "\u2205", "\\varnothing");
+  defineSymbol(math4, main, mathord, "\u03B1", "\\alpha", true);
+  defineSymbol(math4, main, mathord, "\u03B2", "\\beta", true);
+  defineSymbol(math4, main, mathord, "\u03B3", "\\gamma", true);
+  defineSymbol(math4, main, mathord, "\u03B4", "\\delta", true);
+  defineSymbol(math4, main, mathord, "\u03F5", "\\epsilon", true);
+  defineSymbol(math4, main, mathord, "\u03B6", "\\zeta", true);
+  defineSymbol(math4, main, mathord, "\u03B7", "\\eta", true);
+  defineSymbol(math4, main, mathord, "\u03B8", "\\theta", true);
+  defineSymbol(math4, main, mathord, "\u03B9", "\\iota", true);
+  defineSymbol(math4, main, mathord, "\u03BA", "\\kappa", true);
+  defineSymbol(math4, main, mathord, "\u03BB", "\\lambda", true);
+  defineSymbol(math4, main, mathord, "\u03BC", "\\mu", true);
+  defineSymbol(math4, main, mathord, "\u03BD", "\\nu", true);
+  defineSymbol(math4, main, mathord, "\u03BE", "\\xi", true);
+  defineSymbol(math4, main, mathord, "\u03BF", "\\omicron", true);
+  defineSymbol(math4, main, mathord, "\u03C0", "\\pi", true);
+  defineSymbol(math4, main, mathord, "\u03C1", "\\rho", true);
+  defineSymbol(math4, main, mathord, "\u03C3", "\\sigma", true);
+  defineSymbol(math4, main, mathord, "\u03C4", "\\tau", true);
+  defineSymbol(math4, main, mathord, "\u03C5", "\\upsilon", true);
+  defineSymbol(math4, main, mathord, "\u03D5", "\\phi", true);
+  defineSymbol(math4, main, mathord, "\u03C7", "\\chi", true);
+  defineSymbol(math4, main, mathord, "\u03C8", "\\psi", true);
+  defineSymbol(math4, main, mathord, "\u03C9", "\\omega", true);
+  defineSymbol(math4, main, mathord, "\u03B5", "\\varepsilon", true);
+  defineSymbol(math4, main, mathord, "\u03D1", "\\vartheta", true);
+  defineSymbol(math4, main, mathord, "\u03D6", "\\varpi", true);
+  defineSymbol(math4, main, mathord, "\u03F1", "\\varrho", true);
+  defineSymbol(math4, main, mathord, "\u03C2", "\\varsigma", true);
+  defineSymbol(math4, main, mathord, "\u03C6", "\\varphi", true);
+  defineSymbol(math4, main, bin2, "\u2217", "*", true);
+  defineSymbol(math4, main, bin2, "+", "+");
+  defineSymbol(math4, main, bin2, "\u2212", "-", true);
+  defineSymbol(math4, main, bin2, "\u22C5", "\\cdot", true);
+  defineSymbol(math4, main, bin2, "\u2218", "\\circ", true);
+  defineSymbol(math4, main, bin2, "\xF7", "\\div", true);
+  defineSymbol(math4, main, bin2, "\xB1", "\\pm", true);
+  defineSymbol(math4, main, bin2, "\xD7", "\\times", true);
+  defineSymbol(math4, main, bin2, "\u2229", "\\cap", true);
+  defineSymbol(math4, main, bin2, "\u222A", "\\cup", true);
+  defineSymbol(math4, main, bin2, "\u2216", "\\setminus", true);
+  defineSymbol(math4, main, bin2, "\u2227", "\\land");
+  defineSymbol(math4, main, bin2, "\u2228", "\\lor");
+  defineSymbol(math4, main, bin2, "\u2227", "\\wedge", true);
+  defineSymbol(math4, main, bin2, "\u2228", "\\vee", true);
+  defineSymbol(math4, main, textord, "\u221A", "\\surd");
+  defineSymbol(math4, main, open, "\u27E8", "\\langle", true);
+  defineSymbol(math4, main, open, "\u2223", "\\lvert");
+  defineSymbol(math4, main, open, "\u2225", "\\lVert");
+  defineSymbol(math4, main, close, "?", "?");
+  defineSymbol(math4, main, close, "!", "!");
+  defineSymbol(math4, main, close, "\u27E9", "\\rangle", true);
+  defineSymbol(math4, main, close, "\u2223", "\\rvert");
+  defineSymbol(math4, main, close, "\u2225", "\\rVert");
+  defineSymbol(math4, main, rel, "=", "=");
+  defineSymbol(math4, main, rel, ":", ":");
+  defineSymbol(math4, main, rel, "\u2248", "\\approx", true);
+  defineSymbol(math4, main, rel, "\u2245", "\\cong", true);
+  defineSymbol(math4, main, rel, "\u2265", "\\ge");
+  defineSymbol(math4, main, rel, "\u2265", "\\geq", true);
+  defineSymbol(math4, main, rel, "\u2190", "\\gets");
+  defineSymbol(math4, main, rel, ">", "\\gt", true);
+  defineSymbol(math4, main, rel, "\u2208", "\\in", true);
+  defineSymbol(math4, main, rel, "\uE020", "\\@not");
+  defineSymbol(math4, main, rel, "\u2282", "\\subset", true);
+  defineSymbol(math4, main, rel, "\u2283", "\\supset", true);
+  defineSymbol(math4, main, rel, "\u2286", "\\subseteq", true);
+  defineSymbol(math4, main, rel, "\u2287", "\\supseteq", true);
+  defineSymbol(math4, ams, rel, "\u2288", "\\nsubseteq", true);
+  defineSymbol(math4, ams, rel, "\u2289", "\\nsupseteq", true);
+  defineSymbol(math4, main, rel, "\u22A8", "\\models");
+  defineSymbol(math4, main, rel, "\u2190", "\\leftarrow", true);
+  defineSymbol(math4, main, rel, "\u2264", "\\le");
+  defineSymbol(math4, main, rel, "\u2264", "\\leq", true);
+  defineSymbol(math4, main, rel, "<", "\\lt", true);
+  defineSymbol(math4, main, rel, "\u2192", "\\rightarrow", true);
+  defineSymbol(math4, main, rel, "\u2192", "\\to");
+  defineSymbol(math4, ams, rel, "\u2271", "\\ngeq", true);
+  defineSymbol(math4, ams, rel, "\u2270", "\\nleq", true);
+  defineSymbol(math4, main, spacing, "\xA0", "\\ ");
+  defineSymbol(math4, main, spacing, "\xA0", "\\space");
+  defineSymbol(math4, main, spacing, "\xA0", "\\nobreakspace");
   defineSymbol(text, main, spacing, "\xA0", "\\ ");
   defineSymbol(text, main, spacing, "\xA0", " ");
   defineSymbol(text, main, spacing, "\xA0", "\\space");
   defineSymbol(text, main, spacing, "\xA0", "\\nobreakspace");
-  defineSymbol(math3, main, spacing, null, "\\nobreak");
-  defineSymbol(math3, main, spacing, null, "\\allowbreak");
-  defineSymbol(math3, main, punct, ",", ",");
-  defineSymbol(math3, main, punct, ";", ";");
-  defineSymbol(math3, ams, bin2, "\u22BC", "\\barwedge", true);
-  defineSymbol(math3, ams, bin2, "\u22BB", "\\veebar", true);
-  defineSymbol(math3, main, bin2, "\u2299", "\\odot", true);
-  defineSymbol(math3, main, bin2, "\u2295", "\\oplus", true);
-  defineSymbol(math3, main, bin2, "\u2297", "\\otimes", true);
-  defineSymbol(math3, main, textord, "\u2202", "\\partial", true);
-  defineSymbol(math3, main, bin2, "\u2298", "\\oslash", true);
-  defineSymbol(math3, ams, bin2, "\u229A", "\\circledcirc", true);
-  defineSymbol(math3, ams, bin2, "\u22A1", "\\boxdot", true);
-  defineSymbol(math3, main, bin2, "\u25B3", "\\bigtriangleup");
-  defineSymbol(math3, main, bin2, "\u25BD", "\\bigtriangledown");
-  defineSymbol(math3, main, bin2, "\u2020", "\\dagger");
-  defineSymbol(math3, main, bin2, "\u22C4", "\\diamond");
-  defineSymbol(math3, main, bin2, "\u22C6", "\\star");
-  defineSymbol(math3, main, bin2, "\u25C3", "\\triangleleft");
-  defineSymbol(math3, main, bin2, "\u25B9", "\\triangleright");
-  defineSymbol(math3, main, open, "{", "\\{");
+  defineSymbol(math4, main, spacing, null, "\\nobreak");
+  defineSymbol(math4, main, spacing, null, "\\allowbreak");
+  defineSymbol(math4, main, punct, ",", ",");
+  defineSymbol(math4, main, punct, ";", ";");
+  defineSymbol(math4, ams, bin2, "\u22BC", "\\barwedge", true);
+  defineSymbol(math4, ams, bin2, "\u22BB", "\\veebar", true);
+  defineSymbol(math4, main, bin2, "\u2299", "\\odot", true);
+  defineSymbol(math4, main, bin2, "\u2295", "\\oplus", true);
+  defineSymbol(math4, main, bin2, "\u2297", "\\otimes", true);
+  defineSymbol(math4, main, textord, "\u2202", "\\partial", true);
+  defineSymbol(math4, main, bin2, "\u2298", "\\oslash", true);
+  defineSymbol(math4, ams, bin2, "\u229A", "\\circledcirc", true);
+  defineSymbol(math4, ams, bin2, "\u22A1", "\\boxdot", true);
+  defineSymbol(math4, main, bin2, "\u25B3", "\\bigtriangleup");
+  defineSymbol(math4, main, bin2, "\u25BD", "\\bigtriangledown");
+  defineSymbol(math4, main, bin2, "\u2020", "\\dagger");
+  defineSymbol(math4, main, bin2, "\u22C4", "\\diamond");
+  defineSymbol(math4, main, bin2, "\u22C6", "\\star");
+  defineSymbol(math4, main, bin2, "\u25C3", "\\triangleleft");
+  defineSymbol(math4, main, bin2, "\u25B9", "\\triangleright");
+  defineSymbol(math4, main, open, "{", "\\{");
   defineSymbol(text, main, textord, "{", "\\{");
   defineSymbol(text, main, textord, "{", "\\textbraceleft");
-  defineSymbol(math3, main, close, "}", "\\}");
+  defineSymbol(math4, main, close, "}", "\\}");
   defineSymbol(text, main, textord, "}", "\\}");
   defineSymbol(text, main, textord, "}", "\\textbraceright");
-  defineSymbol(math3, main, open, "{", "\\lbrace");
-  defineSymbol(math3, main, close, "}", "\\rbrace");
-  defineSymbol(math3, main, open, "[", "\\lbrack", true);
+  defineSymbol(math4, main, open, "{", "\\lbrace");
+  defineSymbol(math4, main, close, "}", "\\rbrace");
+  defineSymbol(math4, main, open, "[", "\\lbrack", true);
   defineSymbol(text, main, textord, "[", "\\lbrack", true);
-  defineSymbol(math3, main, close, "]", "\\rbrack", true);
+  defineSymbol(math4, main, close, "]", "\\rbrack", true);
   defineSymbol(text, main, textord, "]", "\\rbrack", true);
-  defineSymbol(math3, main, open, "(", "\\lparen", true);
-  defineSymbol(math3, main, close, ")", "\\rparen", true);
+  defineSymbol(math4, main, open, "(", "\\lparen", true);
+  defineSymbol(math4, main, close, ")", "\\rparen", true);
   defineSymbol(text, main, textord, "<", "\\textless", true);
   defineSymbol(text, main, textord, ">", "\\textgreater", true);
-  defineSymbol(math3, main, open, "\u230A", "\\lfloor", true);
-  defineSymbol(math3, main, close, "\u230B", "\\rfloor", true);
-  defineSymbol(math3, main, open, "\u2308", "\\lceil", true);
-  defineSymbol(math3, main, close, "\u2309", "\\rceil", true);
-  defineSymbol(math3, main, textord, "\\", "\\backslash");
-  defineSymbol(math3, main, textord, "\u2223", "|");
-  defineSymbol(math3, main, textord, "\u2223", "\\vert");
+  defineSymbol(math4, main, open, "\u230A", "\\lfloor", true);
+  defineSymbol(math4, main, close, "\u230B", "\\rfloor", true);
+  defineSymbol(math4, main, open, "\u2308", "\\lceil", true);
+  defineSymbol(math4, main, close, "\u2309", "\\rceil", true);
+  defineSymbol(math4, main, textord, "\\", "\\backslash");
+  defineSymbol(math4, main, textord, "\u2223", "|");
+  defineSymbol(math4, main, textord, "\u2223", "\\vert");
   defineSymbol(text, main, textord, "|", "\\textbar", true);
-  defineSymbol(math3, main, textord, "\u2225", "\\|");
-  defineSymbol(math3, main, textord, "\u2225", "\\Vert");
+  defineSymbol(math4, main, textord, "\u2225", "\\|");
+  defineSymbol(math4, main, textord, "\u2225", "\\Vert");
   defineSymbol(text, main, textord, "\u2225", "\\textbardbl");
   defineSymbol(text, main, textord, "~", "\\textasciitilde");
   defineSymbol(text, main, textord, "\\", "\\textbackslash");
   defineSymbol(text, main, textord, "^", "\\textasciicircum");
-  defineSymbol(math3, main, rel, "\u2191", "\\uparrow", true);
-  defineSymbol(math3, main, rel, "\u21D1", "\\Uparrow", true);
-  defineSymbol(math3, main, rel, "\u2193", "\\downarrow", true);
-  defineSymbol(math3, main, rel, "\u21D3", "\\Downarrow", true);
-  defineSymbol(math3, main, rel, "\u2195", "\\updownarrow", true);
-  defineSymbol(math3, main, rel, "\u21D5", "\\Updownarrow", true);
-  defineSymbol(math3, main, op, "\u2210", "\\coprod");
-  defineSymbol(math3, main, op, "\u22C1", "\\bigvee");
-  defineSymbol(math3, main, op, "\u22C0", "\\bigwedge");
-  defineSymbol(math3, main, op, "\u2A04", "\\biguplus");
-  defineSymbol(math3, main, op, "\u22C2", "\\bigcap");
-  defineSymbol(math3, main, op, "\u22C3", "\\bigcup");
-  defineSymbol(math3, main, op, "\u222B", "\\int");
-  defineSymbol(math3, main, op, "\u222B", "\\intop");
-  defineSymbol(math3, main, op, "\u222C", "\\iint");
-  defineSymbol(math3, main, op, "\u222D", "\\iiint");
-  defineSymbol(math3, main, op, "\u220F", "\\prod");
-  defineSymbol(math3, main, op, "\u2211", "\\sum");
-  defineSymbol(math3, main, op, "\u2A02", "\\bigotimes");
-  defineSymbol(math3, main, op, "\u2A01", "\\bigoplus");
-  defineSymbol(math3, main, op, "\u2A00", "\\bigodot");
-  defineSymbol(math3, main, op, "\u222E", "\\oint");
-  defineSymbol(math3, main, op, "\u222F", "\\oiint");
-  defineSymbol(math3, main, op, "\u2230", "\\oiiint");
-  defineSymbol(math3, main, op, "\u2A06", "\\bigsqcup");
-  defineSymbol(math3, main, op, "\u222B", "\\smallint");
+  defineSymbol(math4, main, rel, "\u2191", "\\uparrow", true);
+  defineSymbol(math4, main, rel, "\u21D1", "\\Uparrow", true);
+  defineSymbol(math4, main, rel, "\u2193", "\\downarrow", true);
+  defineSymbol(math4, main, rel, "\u21D3", "\\Downarrow", true);
+  defineSymbol(math4, main, rel, "\u2195", "\\updownarrow", true);
+  defineSymbol(math4, main, rel, "\u21D5", "\\Updownarrow", true);
+  defineSymbol(math4, main, op, "\u2210", "\\coprod");
+  defineSymbol(math4, main, op, "\u22C1", "\\bigvee");
+  defineSymbol(math4, main, op, "\u22C0", "\\bigwedge");
+  defineSymbol(math4, main, op, "\u2A04", "\\biguplus");
+  defineSymbol(math4, main, op, "\u22C2", "\\bigcap");
+  defineSymbol(math4, main, op, "\u22C3", "\\bigcup");
+  defineSymbol(math4, main, op, "\u222B", "\\int");
+  defineSymbol(math4, main, op, "\u222B", "\\intop");
+  defineSymbol(math4, main, op, "\u222C", "\\iint");
+  defineSymbol(math4, main, op, "\u222D", "\\iiint");
+  defineSymbol(math4, main, op, "\u220F", "\\prod");
+  defineSymbol(math4, main, op, "\u2211", "\\sum");
+  defineSymbol(math4, main, op, "\u2A02", "\\bigotimes");
+  defineSymbol(math4, main, op, "\u2A01", "\\bigoplus");
+  defineSymbol(math4, main, op, "\u2A00", "\\bigodot");
+  defineSymbol(math4, main, op, "\u222E", "\\oint");
+  defineSymbol(math4, main, op, "\u222F", "\\oiint");
+  defineSymbol(math4, main, op, "\u2230", "\\oiiint");
+  defineSymbol(math4, main, op, "\u2A06", "\\bigsqcup");
+  defineSymbol(math4, main, op, "\u222B", "\\smallint");
   defineSymbol(text, main, inner, "\u2026", "\\textellipsis");
-  defineSymbol(math3, main, inner, "\u2026", "\\mathellipsis");
+  defineSymbol(math4, main, inner, "\u2026", "\\mathellipsis");
   defineSymbol(text, main, inner, "\u2026", "\\ldots", true);
-  defineSymbol(math3, main, inner, "\u2026", "\\ldots", true);
-  defineSymbol(math3, main, inner, "\u22EF", "\\@cdots", true);
-  defineSymbol(math3, main, inner, "\u22F1", "\\ddots", true);
-  defineSymbol(math3, main, textord, "\u22EE", "\\varvdots");
+  defineSymbol(math4, main, inner, "\u2026", "\\ldots", true);
+  defineSymbol(math4, main, inner, "\u22EF", "\\@cdots", true);
+  defineSymbol(math4, main, inner, "\u22F1", "\\ddots", true);
+  defineSymbol(math4, main, textord, "\u22EE", "\\varvdots");
   defineSymbol(text, main, textord, "\u22EE", "\\varvdots");
-  defineSymbol(math3, main, accent, "\u02CA", "\\acute");
-  defineSymbol(math3, main, accent, "\u02CB", "\\grave");
-  defineSymbol(math3, main, accent, "\xA8", "\\ddot");
-  defineSymbol(math3, main, accent, "~", "\\tilde");
-  defineSymbol(math3, main, accent, "\u02C9", "\\bar");
-  defineSymbol(math3, main, accent, "\u02D8", "\\breve");
-  defineSymbol(math3, main, accent, "\u02C7", "\\check");
-  defineSymbol(math3, main, accent, "^", "\\hat");
-  defineSymbol(math3, main, accent, "\u20D7", "\\vec");
-  defineSymbol(math3, main, accent, "\u02D9", "\\dot");
-  defineSymbol(math3, main, accent, "\u02DA", "\\mathring");
-  defineSymbol(math3, main, mathord, "\uE131", "\\@imath");
-  defineSymbol(math3, main, mathord, "\uE237", "\\@jmath");
-  defineSymbol(math3, main, textord, "\u0131", "\u0131");
-  defineSymbol(math3, main, textord, "\u0237", "\u0237");
+  defineSymbol(math4, main, accent, "\u02CA", "\\acute");
+  defineSymbol(math4, main, accent, "\u02CB", "\\grave");
+  defineSymbol(math4, main, accent, "\xA8", "\\ddot");
+  defineSymbol(math4, main, accent, "~", "\\tilde");
+  defineSymbol(math4, main, accent, "\u02C9", "\\bar");
+  defineSymbol(math4, main, accent, "\u02D8", "\\breve");
+  defineSymbol(math4, main, accent, "\u02C7", "\\check");
+  defineSymbol(math4, main, accent, "^", "\\hat");
+  defineSymbol(math4, main, accent, "\u20D7", "\\vec");
+  defineSymbol(math4, main, accent, "\u02D9", "\\dot");
+  defineSymbol(math4, main, accent, "\u02DA", "\\mathring");
+  defineSymbol(math4, main, mathord, "\uE131", "\\@imath");
+  defineSymbol(math4, main, mathord, "\uE237", "\\@jmath");
+  defineSymbol(math4, main, textord, "\u0131", "\u0131");
+  defineSymbol(math4, main, textord, "\u0237", "\u0237");
   defineSymbol(text, main, textord, "\u0131", "\\i", true);
   defineSymbol(text, main, textord, "\u0237", "\\j", true);
   defineSymbol(text, main, textord, "\xDF", "\\ss", true);
@@ -53301,19 +53302,19 @@
   defineSymbol(text, main, textord, "\u201C", "\\textquotedblleft");
   defineSymbol(text, main, textord, "\u201D", "''", true);
   defineSymbol(text, main, textord, "\u201D", "\\textquotedblright");
-  defineSymbol(math3, main, textord, "\xB0", "\\degree", true);
+  defineSymbol(math4, main, textord, "\xB0", "\\degree", true);
   defineSymbol(text, main, textord, "\xB0", "\\degree");
   defineSymbol(text, main, textord, "\xB0", "\\textdegree", true);
-  defineSymbol(math3, main, textord, "\xA3", "\\pounds");
-  defineSymbol(math3, main, textord, "\xA3", "\\mathsterling", true);
+  defineSymbol(math4, main, textord, "\xA3", "\\pounds");
+  defineSymbol(math4, main, textord, "\xA3", "\\mathsterling", true);
   defineSymbol(text, main, textord, "\xA3", "\\pounds");
   defineSymbol(text, main, textord, "\xA3", "\\textsterling", true);
-  defineSymbol(math3, ams, textord, "\u2720", "\\maltese");
+  defineSymbol(math4, ams, textord, "\u2720", "\\maltese");
   defineSymbol(text, ams, textord, "\u2720", "\\maltese");
   var mathTextSymbols = '0123456789/@."';
   for (i2 = 0; i2 < mathTextSymbols.length; i2++) {
     ch = mathTextSymbols.charAt(i2);
-    defineSymbol(math3, main, textord, ch, ch);
+    defineSymbol(math4, main, textord, ch, ch);
   }
   var ch;
   var i2;
@@ -53327,84 +53328,84 @@
   var letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
   for (_i2 = 0; _i2 < letters.length; _i2++) {
     _ch2 = letters.charAt(_i2);
-    defineSymbol(math3, main, mathord, _ch2, _ch2);
+    defineSymbol(math4, main, mathord, _ch2, _ch2);
     defineSymbol(text, main, textord, _ch2, _ch2);
   }
   var _ch2;
   var _i2;
-  defineSymbol(math3, ams, textord, "C", "\u2102");
+  defineSymbol(math4, ams, textord, "C", "\u2102");
   defineSymbol(text, ams, textord, "C", "\u2102");
-  defineSymbol(math3, ams, textord, "H", "\u210D");
+  defineSymbol(math4, ams, textord, "H", "\u210D");
   defineSymbol(text, ams, textord, "H", "\u210D");
-  defineSymbol(math3, ams, textord, "N", "\u2115");
+  defineSymbol(math4, ams, textord, "N", "\u2115");
   defineSymbol(text, ams, textord, "N", "\u2115");
-  defineSymbol(math3, ams, textord, "P", "\u2119");
+  defineSymbol(math4, ams, textord, "P", "\u2119");
   defineSymbol(text, ams, textord, "P", "\u2119");
-  defineSymbol(math3, ams, textord, "Q", "\u211A");
+  defineSymbol(math4, ams, textord, "Q", "\u211A");
   defineSymbol(text, ams, textord, "Q", "\u211A");
-  defineSymbol(math3, ams, textord, "R", "\u211D");
+  defineSymbol(math4, ams, textord, "R", "\u211D");
   defineSymbol(text, ams, textord, "R", "\u211D");
-  defineSymbol(math3, ams, textord, "Z", "\u2124");
+  defineSymbol(math4, ams, textord, "Z", "\u2124");
   defineSymbol(text, ams, textord, "Z", "\u2124");
-  defineSymbol(math3, main, mathord, "h", "\u210E");
+  defineSymbol(math4, main, mathord, "h", "\u210E");
   defineSymbol(text, main, mathord, "h", "\u210E");
   var wideChar = "";
   for (_i3 = 0; _i3 < letters.length; _i3++) {
     _ch3 = letters.charAt(_i3);
     wideChar = String.fromCharCode(55349, 56320 + _i3);
-    defineSymbol(math3, main, mathord, _ch3, wideChar);
+    defineSymbol(math4, main, mathord, _ch3, wideChar);
     defineSymbol(text, main, textord, _ch3, wideChar);
     wideChar = String.fromCharCode(55349, 56372 + _i3);
-    defineSymbol(math3, main, mathord, _ch3, wideChar);
+    defineSymbol(math4, main, mathord, _ch3, wideChar);
     defineSymbol(text, main, textord, _ch3, wideChar);
     wideChar = String.fromCharCode(55349, 56424 + _i3);
-    defineSymbol(math3, main, mathord, _ch3, wideChar);
+    defineSymbol(math4, main, mathord, _ch3, wideChar);
     defineSymbol(text, main, textord, _ch3, wideChar);
     wideChar = String.fromCharCode(55349, 56580 + _i3);
-    defineSymbol(math3, main, mathord, _ch3, wideChar);
+    defineSymbol(math4, main, mathord, _ch3, wideChar);
     defineSymbol(text, main, textord, _ch3, wideChar);
     wideChar = String.fromCharCode(55349, 56684 + _i3);
-    defineSymbol(math3, main, mathord, _ch3, wideChar);
+    defineSymbol(math4, main, mathord, _ch3, wideChar);
     defineSymbol(text, main, textord, _ch3, wideChar);
     wideChar = String.fromCharCode(55349, 56736 + _i3);
-    defineSymbol(math3, main, mathord, _ch3, wideChar);
+    defineSymbol(math4, main, mathord, _ch3, wideChar);
     defineSymbol(text, main, textord, _ch3, wideChar);
     wideChar = String.fromCharCode(55349, 56788 + _i3);
-    defineSymbol(math3, main, mathord, _ch3, wideChar);
+    defineSymbol(math4, main, mathord, _ch3, wideChar);
     defineSymbol(text, main, textord, _ch3, wideChar);
     wideChar = String.fromCharCode(55349, 56840 + _i3);
-    defineSymbol(math3, main, mathord, _ch3, wideChar);
+    defineSymbol(math4, main, mathord, _ch3, wideChar);
     defineSymbol(text, main, textord, _ch3, wideChar);
     wideChar = String.fromCharCode(55349, 56944 + _i3);
-    defineSymbol(math3, main, mathord, _ch3, wideChar);
+    defineSymbol(math4, main, mathord, _ch3, wideChar);
     defineSymbol(text, main, textord, _ch3, wideChar);
     if (_i3 < 26) {
       wideChar = String.fromCharCode(55349, 56632 + _i3);
-      defineSymbol(math3, main, mathord, _ch3, wideChar);
+      defineSymbol(math4, main, mathord, _ch3, wideChar);
       defineSymbol(text, main, textord, _ch3, wideChar);
       wideChar = String.fromCharCode(55349, 56476 + _i3);
-      defineSymbol(math3, main, mathord, _ch3, wideChar);
+      defineSymbol(math4, main, mathord, _ch3, wideChar);
       defineSymbol(text, main, textord, _ch3, wideChar);
     }
   }
   var _ch3;
   var _i3;
   wideChar = String.fromCharCode(55349, 56668);
-  defineSymbol(math3, main, mathord, "k", wideChar);
+  defineSymbol(math4, main, mathord, "k", wideChar);
   defineSymbol(text, main, textord, "k", wideChar);
   for (_i4 = 0; _i4 < 10; _i4++) {
     _ch4 = _i4.toString();
     wideChar = String.fromCharCode(55349, 57294 + _i4);
-    defineSymbol(math3, main, mathord, _ch4, wideChar);
+    defineSymbol(math4, main, mathord, _ch4, wideChar);
     defineSymbol(text, main, textord, _ch4, wideChar);
     wideChar = String.fromCharCode(55349, 57314 + _i4);
-    defineSymbol(math3, main, mathord, _ch4, wideChar);
+    defineSymbol(math4, main, mathord, _ch4, wideChar);
     defineSymbol(text, main, textord, _ch4, wideChar);
     wideChar = String.fromCharCode(55349, 57324 + _i4);
-    defineSymbol(math3, main, mathord, _ch4, wideChar);
+    defineSymbol(math4, main, mathord, _ch4, wideChar);
     defineSymbol(text, main, textord, _ch4, wideChar);
     wideChar = String.fromCharCode(55349, 57334 + _i4);
-    defineSymbol(math3, main, mathord, _ch4, wideChar);
+    defineSymbol(math4, main, mathord, _ch4, wideChar);
     defineSymbol(text, main, textord, _ch4, wideChar);
   }
   var _ch4;
@@ -53412,7 +53413,7 @@
   var extraLatin = "\xD0\xDE\xFE";
   for (_i5 = 0; _i5 < extraLatin.length; _i5++) {
     _ch5 = extraLatin.charAt(_i5);
-    defineSymbol(math3, main, mathord, _ch5, _ch5);
+    defineSymbol(math4, main, mathord, _ch5, _ch5);
     defineSymbol(text, main, textord, _ch5, _ch5);
   }
   var _ch5;
@@ -54315,7 +54316,7 @@
   function newDocumentFragment(children) {
     return new DocumentFragment(children);
   }
-  var MathNode2 = class {
+  var MathNode3 = class {
     constructor(type, children, classes2) {
       this.type = type;
       this.attributes = {};
@@ -54486,7 +54487,7 @@
     if (body.length === 1) {
       return body[0];
     } else {
-      return new MathNode2("mrow", body);
+      return new MathNode3("mrow", body);
     }
   };
   var getVariant = function getVariant2(group, options) {
@@ -54566,7 +54567,7 @@
   var buildExpression2 = function buildExpression3(expression, options, isOrdgroup) {
     if (expression.length === 1) {
       var group = buildGroup2(expression[0], options);
-      if (isOrdgroup && group instanceof MathNode2 && group.type === "mo") {
+      if (isOrdgroup && group instanceof MathNode3 && group.type === "mo") {
         group.setAttribute("lspace", "0em");
         group.setAttribute("rspace", "0em");
       }
@@ -54576,7 +54577,7 @@
     var lastGroup;
     for (var i2 = 0; i2 < expression.length; i2++) {
       var _group = buildGroup2(expression[i2], options);
-      if (_group instanceof MathNode2 && lastGroup instanceof MathNode2) {
+      if (_group instanceof MathNode3 && lastGroup instanceof MathNode3) {
         if (_group.type === "mtext" && lastGroup.type === "mtext" && _group.getAttribute("mathvariant") === lastGroup.getAttribute("mathvariant")) {
           lastGroup.children.push(..._group.children);
           continue;
@@ -54591,7 +54592,7 @@
           groups.pop();
         } else if ((_group.type === "msup" || _group.type === "msub") && _group.children.length >= 1 && (lastGroup.type === "mn" || isNumberPunctuation(lastGroup))) {
           var base = _group.children[0];
-          if (base instanceof MathNode2 && base.type === "mn") {
+          if (base instanceof MathNode3 && base.type === "mn") {
             base.children = [...lastGroup.children, ...base.children];
             groups.pop();
           }
@@ -54616,7 +54617,7 @@
   };
   var buildGroup2 = function buildGroup3(group, options) {
     if (!group) {
-      return new MathNode2("mrow");
+      return new MathNode3("mrow");
     }
     if (_mathmlGroupBuilders[group.type]) {
       var result = _mathmlGroupBuilders[group.type](group, options);
@@ -54628,21 +54629,21 @@
   function buildMathML(tree, texExpression, options, isDisplayMode, forMathmlOnly) {
     var expression = buildExpression2(tree, options);
     var wrapper;
-    if (expression.length === 1 && expression[0] instanceof MathNode2 && rowLikeTypes.has(expression[0].type)) {
+    if (expression.length === 1 && expression[0] instanceof MathNode3 && rowLikeTypes.has(expression[0].type)) {
       wrapper = expression[0];
     } else {
-      wrapper = new MathNode2("mrow", expression);
+      wrapper = new MathNode3("mrow", expression);
     }
-    var annotation = new MathNode2("annotation", [new TextNode(texExpression)]);
+    var annotation = new MathNode3("annotation", [new TextNode(texExpression)]);
     annotation.setAttribute("encoding", "application/x-tex");
-    var semantics = new MathNode2("semantics", [wrapper, annotation]);
-    var math6 = new MathNode2("math", [semantics]);
-    math6.setAttribute("xmlns", "http://www.w3.org/1998/Math/MathML");
+    var semantics = new MathNode3("semantics", [wrapper, annotation]);
+    var math7 = new MathNode3("math", [semantics]);
+    math7.setAttribute("xmlns", "http://www.w3.org/1998/Math/MathML");
     if (isDisplayMode) {
-      math6.setAttribute("display", "block");
+      math7.setAttribute("display", "block");
     }
     var wrapperClass = forMathmlOnly ? "katex" : "katex-mathml";
-    return makeSpan([wrapperClass], [math6]);
+    return makeSpan([wrapperClass], [math7]);
   }
   var sizeStyleMap = [
     // Each element contains [textsize, scriptsize, scriptscriptsize].
@@ -54986,7 +54987,7 @@
     "\\cdlongequal": "="
   };
   var stretchyMathML = function stretchyMathML2(label) {
-    var node = new MathNode2("mo", [new TextNode(stretchyCodePoint[label.replace(/^\\/, "")])]);
+    var node = new MathNode3("mo", [new TextNode(stretchyCodePoint[label.replace(/^\\/, "")])]);
     node.setAttribute("stretchy", "true");
     return node;
   };
@@ -55316,8 +55317,8 @@
     }
   };
   var mathmlBuilder$9 = (group, options) => {
-    var accentNode = group.isStretchy ? stretchyMathML(group.label) : new MathNode2("mo", [makeText(group.label, group.mode)]);
-    var node = new MathNode2("mover", [buildGroup2(group.base, options), accentNode]);
+    var accentNode = group.isStretchy ? stretchyMathML(group.label) : new MathNode3("mo", [makeText(group.label, group.mode)]);
+    var node = new MathNode3("mover", [buildGroup2(group.base, options), accentNode]);
     node.setAttribute("accent", "true");
     return node;
   };
@@ -55415,13 +55416,13 @@
     },
     mathmlBuilder: (group, options) => {
       var accentNode = stretchyMathML(group.label);
-      var node = new MathNode2("munder", [buildGroup2(group.base, options), accentNode]);
+      var node = new MathNode3("munder", [buildGroup2(group.base, options), accentNode]);
       node.setAttribute("accentunder", "true");
       return node;
     }
   });
   var paddedNode = (group) => {
-    var node = new MathNode2("mpadded", group ? [group] : []);
+    var node = new MathNode3("mpadded", group ? [group] : []);
     node.setAttribute("width", "+0.6em");
     node.setAttribute("lspace", "0.3em");
     return node;
@@ -55537,16 +55538,16 @@
         var upperNode = paddedNode(buildGroup2(group.body, options));
         if (group.below) {
           var lowerNode = paddedNode(buildGroup2(group.below, options));
-          node = new MathNode2("munderover", [arrowNode, lowerNode, upperNode]);
+          node = new MathNode3("munderover", [arrowNode, lowerNode, upperNode]);
         } else {
-          node = new MathNode2("mover", [arrowNode, upperNode]);
+          node = new MathNode3("mover", [arrowNode, upperNode]);
         }
       } else if (group.below) {
         var _lowerNode = paddedNode(buildGroup2(group.below, options));
-        node = new MathNode2("munder", [arrowNode, _lowerNode]);
+        node = new MathNode3("munder", [arrowNode, _lowerNode]);
       } else {
         node = paddedNode();
-        node = new MathNode2("mover", [arrowNode, node]);
+        node = new MathNode3("mover", [arrowNode, node]);
       }
       return node;
     }
@@ -55559,20 +55560,20 @@
     var node;
     var inner2 = buildExpression2(group.body, options);
     if (group.mclass === "minner") {
-      node = new MathNode2("mpadded", inner2);
+      node = new MathNode3("mpadded", inner2);
     } else if (group.mclass === "mord") {
       if (group.isCharacterBox) {
         node = inner2[0];
         node.type = "mi";
       } else {
-        node = new MathNode2("mi", inner2);
+        node = new MathNode3("mi", inner2);
       }
     } else {
       if (group.isCharacterBox) {
         node = inner2[0];
         node.type = "mo";
       } else {
-        node = new MathNode2("mo", inner2);
+        node = new MathNode3("mo", inner2);
       }
       if (group.mclass === "mbin") {
         node.attributes.lspace = "0.22em";
@@ -55715,7 +55716,7 @@
     },
     mathmlBuilder(group, style) {
       var inner2 = buildExpression2(group.body, style);
-      var node = new MathNode2("mstyle", inner2);
+      var node = new MathNode3("mstyle", inner2);
       node.setAttribute("style", "text-shadow: 0.02em 0.01em 0.04px");
       return node;
     }
@@ -55921,14 +55922,14 @@
       return label;
     },
     mathmlBuilder(group, options) {
-      var label = new MathNode2("mrow", [buildGroup2(group.label, options)]);
-      label = new MathNode2("mpadded", [label]);
+      var label = new MathNode3("mrow", [buildGroup2(group.label, options)]);
+      label = new MathNode3("mpadded", [label]);
       label.setAttribute("width", "0");
       if (group.side === "left") {
         label.setAttribute("lspace", "-1width");
       }
       label.setAttribute("voffset", "0.7em");
-      label = new MathNode2("mstyle", [label]);
+      label = new MathNode3("mstyle", [label]);
       label.setAttribute("displaystyle", "false");
       label.setAttribute("scriptlevel", "1");
       return label;
@@ -55956,7 +55957,7 @@
       return parent;
     },
     mathmlBuilder(group, options) {
-      return new MathNode2("mrow", [buildGroup2(group.fragment, options)]);
+      return new MathNode3("mrow", [buildGroup2(group.fragment, options)]);
     }
   });
   defineFunction({
@@ -56002,7 +56003,7 @@
   };
   var mathmlBuilder$7 = (group, options) => {
     var inner2 = buildExpression2(group.body, options.withColor(group.color));
-    var node = new MathNode2("mstyle", inner2);
+    var node = new MathNode3("mstyle", inner2);
     node.setAttribute("mathcolor", group.color);
     return node;
   };
@@ -56090,7 +56091,7 @@
       return span;
     },
     mathmlBuilder(group, options) {
-      var node = new MathNode2("mspace");
+      var node = new MathNode3("mspace");
       if (group.newLine) {
         node.setAttribute("linebreak", "newline");
         if (group.size) {
@@ -56878,7 +56879,7 @@
       if (group.delim !== ".") {
         children.push(makeText(group.delim, group.mode));
       }
-      var node = new MathNode2("mo", children);
+      var node = new MathNode3("mo", children);
       if (group.mclass === "mopen" || group.mclass === "mclose") {
         node.setAttribute("fence", "true");
       } else {
@@ -56987,12 +56988,12 @@
       assertParsed(group);
       var inner2 = buildExpression2(group.body, options);
       if (group.left !== ".") {
-        var leftNode = new MathNode2("mo", [makeText(group.left, group.mode)]);
+        var leftNode = new MathNode3("mo", [makeText(group.left, group.mode)]);
         leftNode.setAttribute("fence", "true");
         inner2.unshift(leftNode);
       }
       if (group.right !== ".") {
-        var rightNode = new MathNode2("mo", [makeText(group.right, group.mode)]);
+        var rightNode = new MathNode3("mo", [makeText(group.right, group.mode)]);
         rightNode.setAttribute("fence", "true");
         if (group.rightColor) {
           rightNode.setAttribute("mathcolor", group.rightColor);
@@ -57036,7 +57037,7 @@
     },
     mathmlBuilder: (group, options) => {
       var textNode = group.delim === "\\vert" || group.delim === "|" ? makeText("|", "text") : makeText(group.delim, group.mode);
-      var middleNode = new MathNode2("mo", [textNode]);
+      var middleNode = new MathNode3("mo", [textNode]);
       middleNode.setAttribute("fence", "true");
       middleNode.setAttribute("lspace", "0.05em");
       middleNode.setAttribute("rspace", "0.05em");
@@ -57173,7 +57174,7 @@
   };
   var mathmlBuilder$6 = (group, options) => {
     var fboxsep = 0;
-    var node = new MathNode2(group.label.includes("colorbox") ? "mpadded" : "menclose", [buildGroup2(group.body, options)]);
+    var node = new MathNode3(group.label.includes("colorbox") ? "mpadded" : "menclose", [buildGroup2(group.body, options)]);
     switch (group.label) {
       case "\\cancel":
         node.setAttribute("notation", "updiagonalstrike");
@@ -57830,13 +57831,13 @@
   };
   var mathmlBuilder$5 = function mathmlBuilder(group, options) {
     var tbl = [];
-    var glue = new MathNode2("mtd", [], ["mtr-glue"]);
-    var tag2 = new MathNode2("mtd", [], ["mml-eqn-num"]);
+    var glue = new MathNode3("mtd", [], ["mtr-glue"]);
+    var tag2 = new MathNode3("mtd", [], ["mml-eqn-num"]);
     for (var i2 = 0; i2 < group.body.length; i2++) {
       var rw = group.body[i2];
       var row2 = [];
       for (var j = 0; j < rw.length; j++) {
-        row2.push(new MathNode2("mtd", [buildGroup2(rw[j], options)]));
+        row2.push(new MathNode3("mtd", [buildGroup2(rw[j], options)]));
       }
       if (group.tags && group.tags[i2]) {
         row2.unshift(glue);
@@ -57847,9 +57848,9 @@
           row2.push(tag2);
         }
       }
-      tbl.push(new MathNode2("mtr", row2));
+      tbl.push(new MathNode3("mtr", row2));
     }
-    var table = new MathNode2("mtable", tbl);
+    var table = new MathNode3("mtable", tbl);
     var gap = group.arraystretch === 0.5 ? 0.1 : 0.16 + group.arraystretch - 1 + (group.addJot ? 0.09 : 0);
     table.setAttribute("rowspacing", makeEm(gap));
     var menclose = "";
@@ -57915,11 +57916,11 @@
       table.setAttribute("rowlines", rowLines.trim());
     }
     if (menclose !== "") {
-      table = new MathNode2("menclose", [table]);
+      table = new MathNode3("menclose", [table]);
       table.setAttribute("notation", menclose.trim());
     }
     if (group.arraystretch && group.arraystretch < 1) {
-      table = new MathNode2("mstyle", [table]);
+      table = new MathNode3("mstyle", [table]);
       table.setAttribute("scriptlevel", "1");
     }
     return table;
@@ -58576,7 +58577,7 @@
     return makeSpan(["mord"].concat(newOptions.sizingClasses(options)), [leftDelim, makeSpan(["mfrac"], [frac]), rightDelim], options);
   };
   var mathmlBuilder$3 = (group, options) => {
-    var node = new MathNode2("mfrac", [buildGroup2(group.numer, options), buildGroup2(group.denom, options)]);
+    var node = new MathNode3("mfrac", [buildGroup2(group.numer, options), buildGroup2(group.denom, options)]);
     if (!group.hasBarLine) {
       node.setAttribute("linethickness", "0px");
     } else if (group.barSize) {
@@ -58586,13 +58587,13 @@
     if (group.leftDelim != null || group.rightDelim != null) {
       var withDelims = [];
       if (group.leftDelim != null) {
-        var leftOp = new MathNode2("mo", [new TextNode(group.leftDelim.replace("\\", ""))]);
+        var leftOp = new MathNode3("mo", [new TextNode(group.leftDelim.replace("\\", ""))]);
         leftOp.setAttribute("fence", "true");
         withDelims.push(leftOp);
       }
       withDelims.push(node);
       if (group.rightDelim != null) {
-        var rightOp = new MathNode2("mo", [new TextNode(group.rightDelim.replace("\\", ""))]);
+        var rightOp = new MathNode3("mo", [new TextNode(group.rightDelim.replace("\\", ""))]);
         rightOp.setAttribute("fence", "true");
         withDelims.push(rightOp);
       }
@@ -58932,7 +58933,7 @@
   };
   var mathmlBuilder$2 = (group, options) => {
     var accentNode = stretchyMathML(group.label);
-    return new MathNode2(group.isOver ? "mover" : "munder", [buildGroup2(group.base, options), accentNode]);
+    return new MathNode3(group.isOver ? "mover" : "munder", [buildGroup2(group.base, options), accentNode]);
   };
   defineFunction({
     type: "horizBrace",
@@ -58988,12 +58989,12 @@
       return makeAnchor(group.href, [], elements2, options);
     },
     mathmlBuilder: (group, options) => {
-      var math6 = buildExpressionRow(group.body, options);
-      if (!(math6 instanceof MathNode2)) {
-        math6 = new MathNode2("mrow", [math6]);
+      var math7 = buildExpressionRow(group.body, options);
+      if (!(math7 instanceof MathNode3)) {
+        math7 = new MathNode3("mrow", [math7]);
       }
-      math6.setAttribute("href", group.href);
-      return math6;
+      math7.setAttribute("href", group.href);
+      return math7;
     }
   });
   defineFunction({
@@ -59065,7 +59066,7 @@
       return makeFragment(elements2);
     },
     mathmlBuilder(group, options) {
-      return new MathNode2("mrow", buildExpression2(group.body, options));
+      return new MathNode3("mrow", buildExpression2(group.body, options));
     }
   });
   defineFunction({
@@ -59308,7 +59309,7 @@
       return node;
     },
     mathmlBuilder: (group, options) => {
-      var node = new MathNode2("mglyph", []);
+      var node = new MathNode3("mglyph", []);
       node.setAttribute("alt", group.alt);
       var height = calculateSize(group.height, options);
       var depth = 0;
@@ -59410,7 +59411,7 @@
       return makeSpan(["mord", "vbox"], [node], options);
     },
     mathmlBuilder: (group, options) => {
-      var node = new MathNode2("mpadded", [buildGroup2(group.body, options)]);
+      var node = new MathNode3("mpadded", [buildGroup2(group.body, options)]);
       if (group.alignment !== "rlap") {
         var offset = group.alignment === "llap" ? "-1" : "-0.5";
         node.setAttribute("lspace", offset + "width");
@@ -59685,17 +59686,17 @@
   var mathmlBuilder$1 = (group, options) => {
     var node;
     if (group.symbol) {
-      node = new MathNode2("mo", [makeText(group.name, group.mode)]);
+      node = new MathNode3("mo", [makeText(group.name, group.mode)]);
       if (noSuccessor.has(group.name)) {
         node.setAttribute("largeop", "false");
       }
     } else if (group.body) {
-      node = new MathNode2("mo", buildExpression2(group.body, options));
+      node = new MathNode3("mo", buildExpression2(group.body, options));
     } else {
-      node = new MathNode2("mi", [new TextNode(group.name.slice(1))]);
-      var operator = new MathNode2("mo", [makeText("\u2061", "text")]);
+      node = new MathNode3("mi", [new TextNode(group.name.slice(1))]);
+      var operator = new MathNode3("mo", [makeText("\u2061", "text")]);
       if (group.parentIsSupSub) {
-        node = new MathNode2("mrow", [node, operator]);
+        node = new MathNode3("mrow", [node, operator]);
       } else {
         node = newDocumentFragment([node, operator]);
       }
@@ -59899,7 +59900,7 @@
     for (var i2 = 0; i2 < expression.length; i2++) {
       var node = expression[i2];
       if (node instanceof SpaceNode) ;
-      else if (node instanceof MathNode2) {
+      else if (node instanceof MathNode3) {
         switch (node.type) {
           case "mi":
           case "mn":
@@ -59927,11 +59928,11 @@
       var word = expression.map((node2) => node2.toText()).join("");
       expression = [new TextNode(word)];
     }
-    var identifier = new MathNode2("mi", expression);
+    var identifier = new MathNode3("mi", expression);
     identifier.setAttribute("mathvariant", "normal");
-    var operator = new MathNode2("mo", [makeText("\u2061", "text")]);
+    var operator = new MathNode3("mo", [makeText("\u2061", "text")]);
     if (group.parentIsSupSub) {
-      return new MathNode2("mrow", [identifier, operator]);
+      return new MathNode3("mrow", [identifier, operator]);
     } else {
       return newDocumentFragment([identifier, operator]);
     }
@@ -60013,9 +60014,9 @@
       return makeSpan(["mord", "overline"], [vlist], options);
     },
     mathmlBuilder(group, options) {
-      var operator = new MathNode2("mo", [new TextNode("\u203E")]);
+      var operator = new MathNode3("mo", [new TextNode("\u203E")]);
       operator.setAttribute("stretchy", "true");
-      var node = new MathNode2("mover", [buildGroup2(group.body, options), operator]);
+      var node = new MathNode3("mover", [buildGroup2(group.body, options), operator]);
       node.setAttribute("accent", "true");
       return node;
     }
@@ -60044,7 +60045,7 @@
     },
     mathmlBuilder: (group, options) => {
       var inner2 = buildExpression2(group.body, options);
-      return new MathNode2("mphantom", inner2);
+      return new MathNode3("mphantom", inner2);
     }
   });
   defineMacro("\\hphantom", "\\smash{\\phantom{#1}}");
@@ -60073,8 +60074,8 @@
     },
     mathmlBuilder: (group, options) => {
       var inner2 = buildExpression2(ordargument(group.body), options);
-      var phantom = new MathNode2("mphantom", inner2);
-      var node = new MathNode2("mpadded", [phantom]);
+      var phantom = new MathNode3("mphantom", inner2);
+      var node = new MathNode3("mpadded", [phantom]);
       node.setAttribute("width", "0px");
       return node;
     }
@@ -60113,7 +60114,7 @@
       });
     },
     mathmlBuilder(group, options) {
-      var node = new MathNode2("mpadded", [buildGroup2(group.body, options)]);
+      var node = new MathNode3("mpadded", [buildGroup2(group.body, options)]);
       var dy = group.dy.number + group.dy.unit;
       node.setAttribute("voffset", dy);
       return node;
@@ -60181,11 +60182,11 @@
       var height = calculateSize(group.height, options);
       var shift = group.shift ? calculateSize(group.shift, options) : 0;
       var color2 = options.color && options.getColor() || "black";
-      var rule = new MathNode2("mspace");
+      var rule = new MathNode3("mspace");
       rule.setAttribute("mathbackground", color2);
       rule.setAttribute("width", makeEm(width));
       rule.setAttribute("height", makeEm(height));
-      var wrapper = new MathNode2("mpadded", [rule]);
+      var wrapper = new MathNode3("mpadded", [rule]);
       if (shift >= 0) {
         wrapper.setAttribute("height", makeEm(shift));
       } else {
@@ -60242,7 +60243,7 @@
     mathmlBuilder: (group, options) => {
       var newOptions = options.havingSize(group.size);
       var inner2 = buildExpression2(group.body, newOptions);
-      var node = new MathNode2("mstyle", inner2);
+      var node = new MathNode3("mstyle", inner2);
       node.setAttribute("mathsize", makeEm(newOptions.sizeMultiplier));
       return node;
     }
@@ -60324,7 +60325,7 @@
       return makeSpan(["mord"], [smashedNode], options);
     },
     mathmlBuilder: (group, options) => {
-      var node = new MathNode2("mpadded", [buildGroup2(group.body, options)]);
+      var node = new MathNode3("mpadded", [buildGroup2(group.body, options)]);
       if (group.smashHeight) {
         node.setAttribute("height", "0px");
       }
@@ -60419,7 +60420,7 @@
         body,
         index: index3
       } = group;
-      return index3 ? new MathNode2("mroot", [buildGroup2(body, options), buildGroup2(index3, options)]) : new MathNode2("msqrt", [buildGroup2(body, options)]);
+      return index3 ? new MathNode3("mroot", [buildGroup2(body, options), buildGroup2(index3, options)]) : new MathNode3("msqrt", [buildGroup2(body, options)]);
     }
   });
   var styleMap = {
@@ -60462,7 +60463,7 @@
       var newStyle = styleMap[group.style];
       var newOptions = options.havingStyle(newStyle);
       var inner2 = buildExpression2(group.body, newOptions);
-      var node = new MathNode2("mstyle", inner2);
+      var node = new MathNode3("mstyle", inner2);
       var styleAttributes = {
         "display": ["0", "true"],
         "text": ["0", "false"],
@@ -60656,7 +60657,7 @@
           nodeType = "msubsup";
         }
       }
-      return new MathNode2(nodeType, children);
+      return new MathNode3(nodeType, children);
     }
   });
   defineFunctionBuilders({
@@ -60665,7 +60666,7 @@
       return mathsym(group.text, group.mode, options, ["m" + group.family]);
     },
     mathmlBuilder(group, options) {
-      var node = new MathNode2("mo", [makeText(group.text, group.mode)]);
+      var node = new MathNode3("mo", [makeText(group.text, group.mode)]);
       if (group.family === "bin") {
         var variant = getVariant(group, options);
         if (variant === "bold-italic") {
@@ -60690,7 +60691,7 @@
       return makeOrd(group, options, "mathord");
     },
     mathmlBuilder(group, options) {
-      var node = new MathNode2("mi", [makeText(group.text, group.mode, options)]);
+      var node = new MathNode3("mi", [makeText(group.text, group.mode, options)]);
       var variant = getVariant(group, options) || "italic";
       if (variant !== defaultVariant[node.type]) {
         node.setAttribute("mathvariant", variant);
@@ -60708,13 +60709,13 @@
       var variant = getVariant(group, options) || "normal";
       var node;
       if (group.mode === "text") {
-        node = new MathNode2("mtext", [text2]);
+        node = new MathNode3("mtext", [text2]);
       } else if (/[0-9]/.test(group.text)) {
-        node = new MathNode2("mn", [text2]);
+        node = new MathNode3("mn", [text2]);
       } else if (group.text === "\\prime") {
-        node = new MathNode2("mo", [text2]);
+        node = new MathNode3("mo", [text2]);
       } else {
-        node = new MathNode2("mi", [text2]);
+        node = new MathNode3("mi", [text2]);
       }
       if (variant !== defaultVariant[node.type]) {
         node.setAttribute("mathvariant", variant);
@@ -60758,9 +60759,9 @@
     mathmlBuilder(group, options) {
       var node;
       if (regularSpace.hasOwnProperty(group.text)) {
-        node = new MathNode2("mtext", [new TextNode("\xA0")]);
+        node = new MathNode3("mtext", [new TextNode("\xA0")]);
       } else if (cssSpace.hasOwnProperty(group.text)) {
-        return new MathNode2("mspace");
+        return new MathNode3("mspace");
       } else {
         throw new ParseError('Unknown type of space "' + group.text + '"');
       }
@@ -60768,14 +60769,14 @@
     }
   });
   var pad = () => {
-    var padNode = new MathNode2("mtd", []);
+    var padNode = new MathNode3("mtd", []);
     padNode.setAttribute("width", "50%");
     return padNode;
   };
   defineFunctionBuilders({
     type: "tag",
     mathmlBuilder(group, options) {
-      var table = new MathNode2("mtable", [new MathNode2("mtr", [pad(), new MathNode2("mtd", [buildExpressionRow(group.body, options)]), pad(), new MathNode2("mtd", [buildExpressionRow(group.tag, options)])])]);
+      var table = new MathNode3("mtable", [new MathNode3("mtr", [pad(), new MathNode3("mtd", [buildExpressionRow(group.body, options)]), pad(), new MathNode3("mtd", [buildExpressionRow(group.tag, options)])])]);
       table.setAttribute("width", "100%");
       return table;
     }
@@ -60895,9 +60896,9 @@
       return makeSpan(["mord", "underline"], [vlist], options);
     },
     mathmlBuilder(group, options) {
-      var operator = new MathNode2("mo", [new TextNode("\u203E")]);
+      var operator = new MathNode3("mo", [new TextNode("\u203E")]);
       operator.setAttribute("stretchy", "true");
-      var node = new MathNode2("munder", [buildGroup2(group.body, options), operator]);
+      var node = new MathNode3("munder", [buildGroup2(group.body, options), operator]);
       node.setAttribute("accentunder", "true");
       return node;
     }
@@ -60935,7 +60936,7 @@
       });
     },
     mathmlBuilder(group, options) {
-      return new MathNode2("mpadded", [buildGroup2(group.body, options)], ["vcenter"]);
+      return new MathNode3("mpadded", [buildGroup2(group.body, options)], ["vcenter"]);
     }
   });
   defineFunction({
@@ -60963,7 +60964,7 @@
     },
     mathmlBuilder(group, options) {
       var text2 = new TextNode(makeVerb(group));
-      var node = new MathNode2("mtext", [text2]);
+      var node = new MathNode3("mtext", [text2]);
       node.setAttribute("mathvariant", "monospace");
       return node;
     }
@@ -63648,7 +63649,7 @@
   };
 
   // src/latex.ts
-  var math4 = create(all);
+  var math5 = create(all);
   function tex(latex, displayMode = false) {
     try {
       return katex.renderToString(latex, {
@@ -63668,7 +63669,7 @@
   }
   function exprToTex(expr) {
     try {
-      const node = math4.parse(expr);
+      const node = math5.parse(expr);
       return node.toTex({ parenthesis: "auto" });
     } catch {
       return expr;
@@ -63710,63 +63711,28 @@
     richardson: "D = \\frac{4D(h/2) - D(h)}{3}"
   };
 
-  // src/views/home.ts
-  function renderHome(onMethodClick) {
-    const sectionsHtml = categories.map((cat) => {
-      const cards = cat.methods.map((m) => {
-        const latexFormula = FORMULAS[m.id];
-        const formulaHtml = latexFormula ? texInline(latexFormula) : `<span class="formula-fallback">${m.formula}</span>`;
-        return `
-        <div class="method-card ${cat.cssClass}" data-method="${m.id}">
-          <h3>${m.name}</h3>
-          <div class="formula">${formulaHtml}</div>
-          <div class="description">${m.description}</div>
-        </div>
-      `;
-      }).join("");
+  // src/ui.ts
+  function renderSingleInput(inp) {
+    if (inp.type === "table") {
+      const cols = inp.tableColumns || 2;
+      const headers = inp.tableHeaders || Array.from({ length: cols }, (_, i2) => `col${i2 + 1}`);
+      const defaultRows = inp.defaultValue || "";
       return `
-      <div class="category-section">
-        <h2 class="category-title ${cat.cssClass}">${cat.name}</h2>
-        <div class="methods-grid">${cards}</div>
+      <div class="input-group input-group-table" data-table-input="${inp.id}" data-cols="${cols}">
+        <label>${inp.label}</label>
+        <table class="data-input-table" id="input-${inp.id}">
+          <thead><tr>${headers.map((h) => `<th>${h}</th>`).join("")}<th></th></tr></thead>
+          <tbody data-rows-for="${inp.id}"></tbody>
+        </table>
+        <div class="table-input-actions">
+          <button type="button" class="btn-mini" data-table-add="${inp.id}">+ fila</button>
+        </div>
+        <input type="hidden" data-table-default="${inp.id}" value="${defaultRows.replace(/"/g, "&quot;")}">
+        ${inp.hint ? `<div class="hint">${inp.hint}</div>` : ""}
       </div>
     `;
-    }).join("");
-    const comingSoon = `
-    <div class="category-section">
-      <h2 class="category-title" style="border-color: var(--overlay0)">Proximamente...</h2>
-      <div class="methods-grid">
-        <div class="method-card" style="opacity:0.5; cursor:default; border: 1px dashed var(--surface2);">
-          <h3>Interpolacion</h3>
-          <div class="description">Lagrange, Newton, Splines...</div>
-        </div>
-        <div class="method-card" style="opacity:0.5; cursor:default; border: 1px dashed var(--surface2);">
-          <h3>Sistemas de Ecuaciones</h3>
-          <div class="description">Gauss, Jacobi, Gauss-Seidel...</div>
-        </div>
-      </div>
-    </div>
-  `;
-    setTimeout(() => {
-      document.querySelectorAll(".method-card[data-method]").forEach((card) => {
-        card.addEventListener("click", () => {
-          const id = card.getAttribute("data-method");
-          if (id) onMethodClick(id);
-        });
-      });
-    }, 0);
+    }
     return `
-    <div class="home-header">
-      <h1>Modelado Numerico</h1>
-      <p>Metodos numericos interactivos con visualizacion en tiempo real</p>
-    </div>
-    ${sectionsHtml}
-    ${comingSoon}
-  `;
-  }
-
-  // src/ui.ts
-  function createInputForm(method) {
-    const inputs = method.inputs.map((inp) => `
     <div class="input-group">
       <label for="input-${inp.id}">${inp.label}</label>
       <input
@@ -63779,9 +63745,16 @@
       >
       ${inp.hint ? `<div class="hint">${inp.hint}</div>` : ""}
     </div>
-  `).join("");
+  `;
+  }
+  function createInputForm(method) {
+    const inputs = method.inputs.map(renderSingleInput).join("");
     const latexFormula = FORMULAS[method.id];
     const formulaHtml = latexFormula ? texBlock(latexFormula) : `<div class="method-formula-plain">${method.formula}</div>`;
+    const currentMode = getPrecisionMode();
+    const precisionOptions = ALL_PRECISION_MODES.map(
+      (m) => `<option value="${m}" ${m === currentMode ? "selected" : ""}>${precisionModeLabel(m)}</option>`
+    ).join("");
     return `
     <div class="method-header">
       <h2 class="method-title">${method.name}</h2>
@@ -63795,18 +63768,119 @@
       <div class="btn-row">
         <button class="btn btn-primary" id="btn-solve">Resolver</button>
         <button class="btn btn-secondary" id="btn-clear">Limpiar</button>
+        <button class="btn btn-secondary" id="btn-export" title="Descarga un .md con parametros, resultados y graficos">Exportar reporte</button>
+        <label class="precision-select-label">
+          Precision
+          <select id="precision-select">${precisionOptions}</select>
+        </label>
       </div>
       <div id="error-container"></div>
+      <div id="theorem-panels"></div>
     </div>
   `;
+  }
+  function initTableInputs(method) {
+    for (const inp of method.inputs) {
+      if (inp.type !== "table") continue;
+      const cols = inp.tableColumns || 2;
+      const tbody = document.querySelector(`tbody[data-rows-for="${inp.id}"]`);
+      if (!tbody) continue;
+      const parsed = parseTableValue(inp.defaultValue || "", cols);
+      const rows = parsed.length > 0 ? parsed : [Array(cols).fill("")];
+      tbody.innerHTML = "";
+      for (const r of rows) addTableRow(tbody, cols, r);
+    }
+    document.querySelectorAll("button[data-table-add]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const id = btn.getAttribute("data-table-add");
+        const container = document.querySelector(`[data-table-input="${id}"]`);
+        const cols = parseInt(container?.getAttribute("data-cols") || "2", 10);
+        const tbody = document.querySelector(`tbody[data-rows-for="${id}"]`);
+        if (tbody) addTableRow(tbody, cols, Array(cols).fill(""));
+      });
+    });
+    const sel = document.getElementById("precision-select");
+    if (sel) {
+      sel.addEventListener("change", () => {
+        setPrecisionMode(sel.value);
+        document.dispatchEvent(new CustomEvent("precision-changed"));
+      });
+    }
+  }
+  function addTableRow(tbody, cols, values) {
+    const tr = document.createElement("tr");
+    for (let i2 = 0; i2 < cols; i2++) {
+      const td = document.createElement("td");
+      const inp = document.createElement("input");
+      inp.type = "text";
+      inp.value = values[i2] ?? "";
+      inp.className = "table-cell-input";
+      td.appendChild(inp);
+      tr.appendChild(td);
+    }
+    const delTd = document.createElement("td");
+    const delBtn = document.createElement("button");
+    delBtn.type = "button";
+    delBtn.className = "btn-mini btn-mini-danger";
+    delBtn.textContent = "\xD7";
+    delBtn.addEventListener("click", () => tr.remove());
+    delTd.appendChild(delBtn);
+    tr.appendChild(delTd);
+    tbody.appendChild(tr);
+  }
+  function parseTableValue(raw, cols) {
+    if (!raw.trim()) return [];
+    return raw.split(";").map((row2) => {
+      const parts = row2.split(",").map((s) => s.trim());
+      while (parts.length < cols) parts.push("");
+      return parts.slice(0, cols);
+    });
+  }
+  function setInputValues(method, values) {
+    for (const inp of method.inputs) {
+      const raw = values[inp.id];
+      if (raw === void 0) continue;
+      if (inp.type === "table") {
+        const cols = inp.tableColumns || 2;
+        const tbody = document.querySelector(`tbody[data-rows-for="${inp.id}"]`);
+        if (!tbody) continue;
+        const parsed = parseTableValue(raw, cols);
+        const rows = parsed.length > 0 ? parsed : [Array(cols).fill("")];
+        tbody.innerHTML = "";
+        for (const r of rows) addTableRow(tbody, cols, r);
+      } else {
+        const el = document.getElementById(`input-${inp.id}`);
+        if (el) el.value = raw;
+      }
+    }
   }
   function getInputValues(method) {
     const values = {};
     for (const inp of method.inputs) {
-      const el = document.getElementById(`input-${inp.id}`);
-      values[inp.id] = el?.value ?? "";
+      if (inp.type === "table") {
+        const tbody = document.querySelector(`tbody[data-rows-for="${inp.id}"]`);
+        if (!tbody) {
+          values[inp.id] = "";
+          continue;
+        }
+        const rows = [];
+        tbody.querySelectorAll("tr").forEach((tr) => {
+          const cells = Array.from(tr.querySelectorAll("input.table-cell-input")).map((i2) => i2.value.trim());
+          if (cells.some((c) => c !== "")) rows.push(cells.join(","));
+        });
+        values[inp.id] = rows.join(";");
+      } else {
+        const el = document.getElementById(`input-${inp.id}`);
+        values[inp.id] = el?.value ?? "";
+      }
     }
     return values;
+  }
+  function parseTableData(raw) {
+    if (!raw || !raw.trim()) return [];
+    return raw.split(";").map(
+      (row2) => row2.split(",").map((s) => parseFloat(s.trim())).filter((n) => !isNaN(n))
+    ).filter((r) => r.length > 0);
   }
   function renderResultSummary(result) {
     const items = [];
@@ -63815,6 +63889,24 @@
     }
     if (result.integral !== void 0) {
       items.push(`<div class="result-item"><span class="label">Integral aproximada</span><span class="value">${renderNumber(result.integral)}</span></div>`);
+    }
+    if (result.exact !== void 0) {
+      items.push(`<div class="result-item"><span class="label">Valor exacto</span><span class="value">${renderNumber(result.exact)}</span></div>`);
+    }
+    if (result.relativeErrorPercent !== void 0) {
+      const pctClass = result.relativeErrorPercent > 1 ? "error" : "";
+      items.push(`<div class="result-item"><span class="label">Error relativo</span><span class="value ${pctClass}">${formatNum(result.relativeErrorPercent)} %</span></div>`);
+    }
+    if (result.truncationBound !== void 0) {
+      const order = result.truncationOrder ?? 2;
+      items.push(`<div class="result-item"><span class="label">Cota de error |E| (f<sup>(${order})</sup>)</span><span class="value">${renderNumber(result.truncationBound)}</span></div>`);
+    }
+    if (result.maxDerivative !== void 0 && result.xiApprox !== void 0) {
+      const order = result.truncationOrder ?? 2;
+      items.push(`<div class="result-item"><span class="label">max |f<sup>(${order})</sup>(\u03BE)|</span><span class="value">${formatNum(result.maxDerivative)} en \u03BE \u2248 ${formatNum(result.xiApprox)}</span></div>`);
+    }
+    if (result.retried) {
+      items.push(`<div class="result-item"><span class="label">Reintento</span><span class="value">Error > 1 % \u2192 n refinado</span></div>`);
     }
     if (result.derivative !== void 0) {
       items.push(`<div class="result-item"><span class="label">Derivada aproximada</span><span class="value">${renderNumber(result.derivative)}</span></div>`);
@@ -63835,10 +63927,16 @@
     const rows = result.iterations.map((row2) => {
       const cells = columns.map((c) => {
         const v = row2[c.key];
-        if (typeof v === "number") return `<td>${v.toPrecision(10)}</td>`;
+        if (v === null || v === void 0) return `<td class="td-null">\u2014</td>`;
+        if (typeof v === "number") return `<td>${formatNum(v)}</td>`;
         return `<td>${v}</td>`;
       }).join("");
-      return `<tr>${cells}</tr>`;
+      const highlight = typeof row2._highlight === "string" ? row2._highlight : "";
+      const rowClasses = [];
+      if (highlight.includes("target")) rowClasses.push("row-highlight-target");
+      if (highlight.includes("verify")) rowClasses.push("row-highlight-verify");
+      const classAttr = rowClasses.length > 0 ? ` class="${rowClasses.join(" ")}"` : "";
+      return `<tr${classAttr}>${cells}</tr>`;
     }).join("");
     return `
     <div class="iter-table-container">
@@ -63861,6 +63959,1794 @@
   function clearError() {
     const container = document.getElementById("error-container");
     if (container) container.innerHTML = "";
+  }
+
+  // src/methods/interpolation/lagrange.ts
+  function evalLagrange(xs, ys, x) {
+    const n = xs.length;
+    const basis = [];
+    let sum3 = 0;
+    for (let i2 = 0; i2 < n; i2++) {
+      let Li = 1;
+      for (let j = 0; j < n; j++) {
+        if (i2 === j) continue;
+        Li *= (x - xs[j]) / (xs[i2] - xs[j]);
+      }
+      basis.push(Li);
+      sum3 += ys[i2] * Li;
+    }
+    return { value: sum3, basis };
+  }
+  function factorial2(n) {
+    let r = 1;
+    for (let i2 = 2; i2 <= n; i2++) r *= i2;
+    return r;
+  }
+  var lagrange = {
+    id: "lagrange",
+    name: "Interpolacion de Lagrange",
+    category: "interpolation",
+    formula: "P_n(x) = \u03A3 y_i \xB7 L_i(x), L_i(x) = \u220F_{j\u2260i} (x - x_j)/(x_i - x_j)",
+    description: "Construye el polinomio interpolante de grado \u2264 n que pasa por n+1 puntos. Si se provee f(x), calcula error local y cota global.",
+    inputs: [
+      {
+        id: "points",
+        label: "Puntos (x, y)",
+        placeholder: "",
+        type: "table",
+        tableColumns: 2,
+        tableHeaders: ["x_i", "y_i"],
+        defaultValue: "0,1;1,3;2,2;3,5"
+      },
+      { id: "xQuery", label: "x objetivo (donde evaluar P_n(x))", placeholder: "1.5", type: "number", defaultValue: "1.5" },
+      { id: "fx", label: "f(x) real (opcional, para error)", placeholder: "p.ej. sin(x)", hint: "Funcion subyacente para calcular error local y cota global." }
+    ],
+    tableColumns: [
+      { key: "i", label: "i" },
+      { key: "xi", label: "x_i" },
+      { key: "yi", label: "y_i" },
+      { key: "Li", label: "L_i(x)" },
+      { key: "yiLi", label: "y_i \xB7 L_i(x)" }
+    ],
+    steps: [
+      "Carga la <b>tabla de puntos</b> (x_i, y_i) en el primer input. Podes:<br>&nbsp;&nbsp;\u2022 Pegar tabla discreta tal cual viene del parcial, ej: <code>0,1;1,3;3,0</code> (puntos (0,1), (1,3), (3,0)).<br>&nbsp;&nbsp;\u2022 Construirla evaluando <code>f(x)</code> en cada nodo. Ej: para <code>f(x) = sin(\u03C0x)</code> en nodos 0, 0.5, 1, 1.5 \u2192 <code>0,0;0.5,1;1,0;1.5,-1</code>.",
+      "El <b>grado</b> del polinomio interpolante sera <code>n - 1</code> donde n es la cantidad de puntos. Con 4 puntos \u2192 polinomio cubico.",
+      'En "x objetivo" pone donde queres <b>evaluar</b> <code>P_n(x*)</code>. Ej: x = 2 para la tabla (0,1)(1,3)(3,0); o x = 0.45 o x = 0.75 segun el parcial.',
+      'Si el parcial da una <code>f(x)</code> original (no solo tabla), escribila en el campo "f(x) real". La app calcula:<br>&nbsp;&nbsp;\u2022 <b>Error local</b> en x*: <code>|f(x*) - P_n(x*)|</code>.<br>&nbsp;&nbsp;\u2022 <b>Cota global</b>: <code>|E| \u2264 max|f\u207D\u207F\u207A\xB9\u207E(\u03BE)| / (n+1)! \xB7 |\u220F(x - x_i)|</code>. La app deriva <code>f</code> simbolicamente orden n+1 y encuentra <code>max|f\u207D\u207F\u207A\xB9\u207E|</code> en [min(x_i), max(x_i)] numericamente. \u03BE es el punto donde ese maximo se alcanza.',
+      "Pulsa <b>Resolver</b>. La tabla muestra por nodo: <code>i, x_i, y_i, L_i(x*), y_i\xB7L_i(x*)</code>. La suma de la ultima columna es <code>P_n(x*)</code>. Cada <code>L_i(x)</code> es <code>\u220F_{j\u2260i} (x - x_j) / (x_i - x_j)</code>: vale 1 en x_i y 0 en los demas nodos.",
+      "Revisa los graficos:<br>&nbsp;&nbsp;1. <em>Polinomio interpolante</em> con nodos marcados y, si diste f(x), la curva real superpuesta para ver donde divergen.<br>&nbsp;&nbsp;2. <em>Polinomios base L_i(x)</em> \u2014 cada L_i vale 1 en un solo nodo.<br>&nbsp;&nbsp;3. <em>Error |f - P_n|</em> o el factor <code>\u220F(x - x_i)</code>.<br>&nbsp;&nbsp;4. <em>Contribuciones y_i\xB7L_i(x*)</em>.",
+      "Para el <b>punto b del parcial</b> (derivar en x*): copia <code>P_n(x*)</code> como <code>y_0</code> y usa <b>diferencias centrales</b> con paso chico sobre el polinomio. O mejor: re-evalua <code>P_n</code> en <code>x* \xB1 h</code> directamente con Lagrange y aplica <code>f'(x*) \u2248 [P_n(x*+h) - P_n(x*-h)] / (2h)</code>. La guia del metodo <em>Diferencia central</em> te indica como.",
+      "Informe: polinomio resultante, grafica, error local en \u03BE, cota global, y justificacion de que <code>|error| &lt; 1 %</code>."
+    ],
+    solve(params) {
+      const table = parseTableData(params.points);
+      if (table.length < 2) throw new Error("Se requieren al menos 2 puntos");
+      const xs = table.map((r) => r[0]);
+      const ys = table.map((r) => r[1]);
+      const uniqueXs = new Set(xs);
+      if (uniqueXs.size !== xs.length) throw new Error("Los valores de x_i deben ser distintos");
+      const xQuery = parseFloat(params.xQuery);
+      if (isNaN(xQuery)) throw new Error("x objetivo invalido");
+      const { value, basis } = evalLagrange(xs, ys, xQuery);
+      const n = xs.length - 1;
+      const iterations = xs.map((xi, i2) => ({
+        i: i2,
+        xi,
+        yi: ys[i2],
+        Li: basis[i2],
+        yiLi: ys[i2] * basis[i2]
+      }));
+      let relativeErrorPercent2;
+      let truncationBound;
+      let maxDerivative;
+      let xiApprox;
+      let derivativeExpr;
+      let message = `P_${n}(${xQuery}) = ${value.toPrecision(8)} | grado ${n}`;
+      const fxExpr = (params.fx ?? "").trim();
+      if (fxExpr !== "") {
+        try {
+          const f = parseExpression(fxExpr);
+          const fVal = f(xQuery);
+          relativeErrorPercent2 = Math.abs(fVal) > 1e-14 ? Math.abs(value - fVal) / Math.abs(fVal) * 100 : Math.abs(value - fVal) * 100;
+          const aInt = Math.min(...xs);
+          const bInt = Math.max(...xs);
+          const d = maxAbsDerivative(fxExpr, n + 1, aInt, bInt);
+          maxDerivative = d.max;
+          xiApprox = d.xAtMax;
+          derivativeExpr = d.derivativeExpr ?? void 0;
+          let prod2 = 1;
+          for (const xi of xs) prod2 *= xQuery - xi;
+          truncationBound = d.max / factorial2(n + 1) * Math.abs(prod2);
+          message += ` \xB7 f(${xQuery}) = ${fVal.toPrecision(8)} \xB7 |error| = ${Math.abs(value - fVal).toPrecision(6)}`;
+          if (derivativeExpr) message += ` \xB7 f\u207D${n + 1}\u207E(x) = ${derivativeExpr}`;
+        } catch (e3) {
+          message += ` \xB7 (no se pudo evaluar f(x): ${e3.message})`;
+        }
+      }
+      return {
+        root: value,
+        iterations,
+        converged: true,
+        error: truncationBound ?? 0,
+        exact: fxExpr !== "" ? parseExpression(fxExpr)(xQuery) : void 0,
+        relativeErrorPercent: relativeErrorPercent2,
+        truncationBound,
+        truncationOrder: truncationBound !== void 0 ? n + 1 : void 0,
+        maxDerivative,
+        xiApprox,
+        derivativeExpr,
+        message
+      };
+    },
+    getCharts(params, result) {
+      const table = parseTableData(params.points);
+      const xs = table.map((r) => r[0]);
+      const ys = table.map((r) => r[1]);
+      const xQuery = parseFloat(params.xQuery);
+      const n = xs.length - 1;
+      const aInt = Math.min(...xs);
+      const bInt = Math.max(...xs);
+      const pad2 = (bInt - aInt) * 0.15 + 1e-6;
+      const xsPlot = linspace(aInt - pad2, bInt + pad2, 400);
+      const ysPoly = xsPlot.map((x) => evalLagrange(xs, ys, x).value);
+      const fxExpr = (params.fx ?? "").trim();
+      const datasetsCurve = [
+        { label: "P_n(x)", x: xsPlot, y: ysPoly, color: "#cba6f7" },
+        { label: "Datos", x: xs, y: ys, color: "#f9e2af", pointRadius: 5, showLine: false },
+        { label: "P_n(x*)", x: [xQuery], y: [result.root ?? 0], color: "#a6e3a1", pointRadius: 6, showLine: false }
+      ];
+      if (fxExpr !== "") {
+        try {
+          const f = parseExpression(fxExpr);
+          datasetsCurve.unshift({ label: "f(x)", x: xsPlot, y: xsPlot.map((x) => f(x)), color: "#89b4fa", dashed: true });
+        } catch {
+        }
+      }
+      const chart1 = {
+        title: `Polinomio interpolante (grado ${n})`,
+        type: "line",
+        datasets: datasetsCurve,
+        xLabel: "x",
+        yLabel: "y"
+      };
+      const basisDatasets = xs.map((_, i2) => ({
+        label: `L_${i2}(x)`,
+        x: xsPlot,
+        y: xsPlot.map((x) => evalLagrange(xs, ys, x).basis[i2]),
+        color: `hsl(${i2 * 360 / xs.length}, 70%, 65%)`,
+        pointRadius: 0
+      }));
+      const chart2 = {
+        title: "Polinomios base L_i(x)",
+        type: "line",
+        datasets: basisDatasets,
+        xLabel: "x",
+        yLabel: "L_i(x)"
+      };
+      let chart3;
+      if (fxExpr !== "") {
+        try {
+          const f = parseExpression(fxExpr);
+          const err = xsPlot.map((x) => Math.abs(f(x) - evalLagrange(xs, ys, x).value));
+          chart3 = {
+            title: "|f(x) - P_n(x)| \u2014 error absoluto",
+            type: "line",
+            datasets: [
+              { label: "|error|", x: xsPlot, y: err, color: "#f38ba8" },
+              { label: "x objetivo", x: [xQuery, xQuery], y: [0, Math.max(...err)], color: "#a6e3a1", dashed: true, pointRadius: 0 }
+            ],
+            xLabel: "x",
+            yLabel: "|error|"
+          };
+        } catch {
+          chart3 = productChart(xsPlot, xs, xQuery);
+        }
+      } else {
+        chart3 = productChart(xsPlot, xs, xQuery);
+      }
+      const iterRows = result.iterations;
+      const contribX = iterRows.map((r) => r.i);
+      const contribY = iterRows.map((r) => r.yiLi);
+      const chart4 = {
+        title: `Contribuciones y_i \xB7 L_i(x*) con x* = ${xQuery}`,
+        type: "bar",
+        datasets: [
+          { label: "y_i \xB7 L_i(x*)", x: contribX, y: contribY, color: "#94e2d5" }
+        ],
+        xLabel: "i",
+        yLabel: "Contribucion"
+      };
+      return [chart1, chart2, chart3, chart4];
+    }
+  };
+  function productChart(xsPlot, xs, xQuery) {
+    const prodY = xsPlot.map((x) => xs.reduce((acc, xi) => acc * (x - xi), 1));
+    return {
+      title: "\u220F (x - x_i) \u2014 factor del error",
+      type: "line",
+      datasets: [
+        { label: "\u220F(x - x_i)", x: xsPlot, y: prodY, color: "#fab387" },
+        { label: "x objetivo", x: [xQuery], y: [xs.reduce((acc, xi) => acc * (xQuery - xi), 1)], color: "#a6e3a1", pointRadius: 6, showLine: false }
+      ],
+      xLabel: "x",
+      yLabel: "producto"
+    };
+  }
+
+  // src/methods/interpolation/newtonDD.ts
+  function dividedDifferences(xs, ys) {
+    const n = xs.length;
+    const table = [ys.slice()];
+    for (let k = 1; k < n; k++) {
+      const col = [];
+      for (let i2 = 0; i2 < n - k; i2++) {
+        const num = table[k - 1][i2 + 1] - table[k - 1][i2];
+        const den = xs[i2 + k] - xs[i2];
+        col.push(num / den);
+      }
+      table.push(col);
+    }
+    return table;
+  }
+  function evalNewton(xs, coeffs, x) {
+    let result = coeffs[coeffs.length - 1];
+    for (let i2 = coeffs.length - 2; i2 >= 0; i2--) {
+      result = result * (x - xs[i2]) + coeffs[i2];
+    }
+    return result;
+  }
+  function factorial3(n) {
+    let r = 1;
+    for (let i2 = 2; i2 <= n; i2++) r *= i2;
+    return r;
+  }
+  var newtonDD = {
+    id: "newtonDD",
+    name: "Diferencias Divididas de Newton",
+    category: "interpolation",
+    formula: "P_n(x) = f[x_0] + f[x_0,x_1](x-x_0) + ... + f[x_0,...,x_n]\u220F(x-x_i)",
+    description: "Construye el polinomio interpolante de Newton con diferencias divididas. Tabla triangular con f[x_i,...,x_{i+k}] como coeficientes.",
+    inputs: [
+      {
+        id: "points",
+        label: "Puntos (x, y)",
+        placeholder: "",
+        type: "table",
+        tableColumns: 2,
+        tableHeaders: ["x_i", "y_i"],
+        defaultValue: "0,1;1,3;2,2;3,5"
+      },
+      { id: "xQuery", label: "x objetivo (donde evaluar P_n(x))", placeholder: "1.5", type: "number", defaultValue: "1.5" },
+      { id: "fx", label: "f(x) real (opcional, para error)", placeholder: "p.ej. sin(x)", hint: "Funcion subyacente para calcular error local y cota global." }
+    ],
+    tableColumns: [
+      { key: "i", label: "i" },
+      { key: "xi", label: "x_i" },
+      { key: "f0", label: "f[x_i]" },
+      { key: "f1", label: "f[\xB7,\xB7]" },
+      { key: "f2", label: "f[\xB7,\xB7,\xB7]" },
+      { key: "f3", label: "f[\xB7,\xB7,\xB7,\xB7]" },
+      { key: "f4", label: "f[\xB7,\xB7,\xB7,\xB7,\xB7]" }
+    ],
+    steps: [
+      "Carga los puntos (x_i, y_i) en la tabla. Funciona igual que Lagrange pero produce el polinomio en <b>forma de Newton</b>: <code>P_n(x) = a_0 + a_1(x - x_0) + a_2(x - x_0)(x - x_1) + ...</code> donde los <code>a_k</code> son las diferencias divididas.",
+      "Ventaja vs Lagrange: <em>agregar un nuevo punto no obliga a recomputar todo</em> \u2014 solo agregas una columna a la tabla. Util cuando el parcial pide progresivamente ver como cambia el polinomio al sumar puntos.",
+      "Pulsa <b>Resolver</b>. La tabla triangular muestra:<br>&nbsp;&nbsp;\u2022 Columna <code>f[x_i]</code>: valores <code>y_i</code>.<br>&nbsp;&nbsp;\u2022 Columna <code>f[x_i, x_{i+1}]</code>: <code>(f[x_{i+1}] - f[x_i]) / (x_{i+1} - x_i)</code>.<br>&nbsp;&nbsp;\u2022 Columnas siguientes: diferencias divididas de orden mayor.<br>Los <b>coeficientes</b> <code>a_k = f[x_0, ..., x_k]</code> son la fila superior (i = 0) de cada columna.",
+      "Si diste <code>f(x)</code> real, la app calcula error local y cota global igual que Lagrange.",
+      "Los graficos muestran, ademas del polinomio final, los <b>polinomios parciales</b> <code>P_0, P_1, ..., P_n</code> \u2014 util para visualizar como cada punto nuevo refina la interpolacion.",
+      "En el informe mostra la tabla triangular completa de diferencias divididas + el polinomio resultante + valor en x* + error vs f(x) si esta disponible."
+    ],
+    solve(params) {
+      const table = parseTableData(params.points);
+      if (table.length < 2) throw new Error("Se requieren al menos 2 puntos");
+      const xs = table.map((r) => r[0]);
+      const ys = table.map((r) => r[1]);
+      const uniqueXs = new Set(xs);
+      if (uniqueXs.size !== xs.length) throw new Error("Los valores de x_i deben ser distintos");
+      const xQuery = parseFloat(params.xQuery);
+      if (isNaN(xQuery)) throw new Error("x objetivo invalido");
+      const dd = dividedDifferences(xs, ys);
+      const coeffs = dd.map((col) => col[0]);
+      const n = xs.length - 1;
+      const value = evalNewton(xs, coeffs, xQuery);
+      const iterations = xs.map((xi, i2) => {
+        const row2 = { i: i2, xi };
+        for (let k = 0; k < dd.length && k <= 4; k++) {
+          row2[`f${k}`] = i2 < dd[k].length ? dd[k][i2] : null;
+        }
+        return row2;
+      });
+      let relativeErrorPercent2;
+      let truncationBound;
+      let maxDerivative;
+      let xiApprox;
+      let derivativeExpr;
+      const coeffStr = coeffs.map((c, i2) => `${i2 === 0 ? "" : c >= 0 ? "+" : ""}${c.toPrecision(5)}`).join(" ");
+      let message = `P_${n}(${xQuery}) = ${value.toPrecision(8)} | coef: [${coeffStr}]`;
+      const fxExpr = (params.fx ?? "").trim();
+      if (fxExpr !== "") {
+        try {
+          const f = parseExpression(fxExpr);
+          const fVal = f(xQuery);
+          relativeErrorPercent2 = Math.abs(fVal) > 1e-14 ? Math.abs(value - fVal) / Math.abs(fVal) * 100 : Math.abs(value - fVal) * 100;
+          const aInt = Math.min(...xs);
+          const bInt = Math.max(...xs);
+          const d = maxAbsDerivative(fxExpr, n + 1, aInt, bInt);
+          maxDerivative = d.max;
+          xiApprox = d.xAtMax;
+          derivativeExpr = d.derivativeExpr ?? void 0;
+          let prod2 = 1;
+          for (const xi of xs) prod2 *= xQuery - xi;
+          truncationBound = d.max / factorial3(n + 1) * Math.abs(prod2);
+          message += ` \xB7 f(${xQuery}) = ${fVal.toPrecision(8)} \xB7 |error| = ${Math.abs(value - fVal).toPrecision(6)}`;
+          if (derivativeExpr) message += ` \xB7 f\u207D${n + 1}\u207E(x) = ${derivativeExpr}`;
+        } catch (e3) {
+          message += ` \xB7 (no se pudo evaluar f(x): ${e3.message})`;
+        }
+      }
+      return {
+        root: value,
+        iterations,
+        converged: true,
+        error: truncationBound ?? 0,
+        exact: fxExpr !== "" ? parseExpression(fxExpr)(xQuery) : void 0,
+        relativeErrorPercent: relativeErrorPercent2,
+        truncationBound,
+        truncationOrder: truncationBound !== void 0 ? n + 1 : void 0,
+        maxDerivative,
+        xiApprox,
+        derivativeExpr,
+        message
+      };
+    },
+    getCharts(params, result) {
+      const table = parseTableData(params.points);
+      const xs = table.map((r) => r[0]);
+      const ys = table.map((r) => r[1]);
+      const xQuery = parseFloat(params.xQuery);
+      const n = xs.length - 1;
+      const dd = dividedDifferences(xs, ys);
+      const coeffs = dd.map((col) => col[0]);
+      const aInt = Math.min(...xs);
+      const bInt = Math.max(...xs);
+      const pad2 = (bInt - aInt) * 0.15 + 1e-6;
+      const xsPlot = linspace(aInt - pad2, bInt + pad2, 400);
+      const ysPoly = xsPlot.map((x) => evalNewton(xs, coeffs, x));
+      const fxExpr = (params.fx ?? "").trim();
+      const datasetsCurve = [
+        { label: "P_n(x)", x: xsPlot, y: ysPoly, color: "#cba6f7" },
+        { label: "Datos", x: xs, y: ys, color: "#f9e2af", pointRadius: 5, showLine: false },
+        { label: "P_n(x*)", x: [xQuery], y: [result.root ?? 0], color: "#a6e3a1", pointRadius: 6, showLine: false }
+      ];
+      if (fxExpr !== "") {
+        try {
+          const f = parseExpression(fxExpr);
+          datasetsCurve.unshift({ label: "f(x)", x: xsPlot, y: xsPlot.map((x) => f(x)), color: "#89b4fa", dashed: true });
+        } catch {
+        }
+      }
+      const chart1 = {
+        title: `Polinomio de Newton (grado ${n})`,
+        type: "line",
+        datasets: datasetsCurve,
+        xLabel: "x",
+        yLabel: "y"
+      };
+      const partialDatasets = [];
+      const COLORS2 = ["#89b4fa", "#a6e3a1", "#fab387", "#f38ba8", "#94e2d5", "#f9e2af", "#cba6f7", "#f5c2e7"];
+      for (let k = 0; k <= n; k++) {
+        const partialCoeffs = coeffs.slice(0, k + 1);
+        const partialXs = xs.slice(0, k + 1);
+        partialDatasets.push({
+          label: `P_${k}(x)`,
+          x: xsPlot,
+          y: xsPlot.map((x) => evalNewton(partialXs, partialCoeffs, x)),
+          color: COLORS2[k % COLORS2.length],
+          pointRadius: 0
+        });
+      }
+      partialDatasets.push({ label: "Datos", x: xs, y: ys, color: "#f9e2af", pointRadius: 5, showLine: false });
+      const chart2 = {
+        title: "Polinomios parciales P_0 ... P_n",
+        type: "line",
+        datasets: partialDatasets,
+        xLabel: "x",
+        yLabel: "y"
+      };
+      let chart3;
+      if (fxExpr !== "") {
+        try {
+          const f = parseExpression(fxExpr);
+          const err = xsPlot.map((x) => Math.abs(f(x) - evalNewton(xs, coeffs, x)));
+          chart3 = {
+            title: "|f(x) - P_n(x)| \u2014 error absoluto",
+            type: "line",
+            datasets: [
+              { label: "|error|", x: xsPlot, y: err, color: "#f38ba8" },
+              { label: "x objetivo", x: [xQuery, xQuery], y: [0, Math.max(...err)], color: "#a6e3a1", dashed: true, pointRadius: 0 }
+            ],
+            xLabel: "x",
+            yLabel: "|error|"
+          };
+        } catch {
+          chart3 = productChart2(xsPlot, xs, xQuery);
+        }
+      } else {
+        chart3 = productChart2(xsPlot, xs, xQuery);
+      }
+      const chart4 = {
+        title: "Coeficientes de Newton f[x_0, ..., x_k]",
+        type: "bar",
+        datasets: [
+          { label: "a_k", x: coeffs.map((_, i2) => i2), y: coeffs, color: "#94e2d5" }
+        ],
+        xLabel: "k",
+        yLabel: "coeficiente"
+      };
+      return [chart1, chart2, chart3, chart4];
+    }
+  };
+  function productChart2(xsPlot, xs, xQuery) {
+    const prodY = xsPlot.map((x) => xs.reduce((acc, xi) => acc * (x - xi), 1));
+    return {
+      title: "\u220F (x - x_i) \u2014 factor del error",
+      type: "line",
+      datasets: [
+        { label: "\u220F(x - x_i)", x: xsPlot, y: prodY, color: "#fab387" },
+        { label: "x objetivo", x: [xQuery], y: [xs.reduce((acc, xi) => acc * (xQuery - xi), 1)], color: "#a6e3a1", pointRadius: 6, showLine: false }
+      ],
+      xLabel: "x",
+      yLabel: "producto"
+    };
+  }
+
+  // src/odeHelpers.ts
+  var commonOdeInputs = [
+    { id: "xTarget", label: "x objetivo (opcional)", placeholder: "0.5", type: "number", hint: "Resalta el paso cuyo x\u2099 se acerca mas a este valor." },
+    { id: "verifyStep", label: "Iteracion a verificar (opcional)", placeholder: "1", type: "number", hint: "Indice del paso para comparar con un valor esperado." },
+    { id: "verifyValue", label: "Valor esperado y\u2099 en esa iter (opcional)", placeholder: "1.1", type: "number", hint: "Se muestra diferencia absoluta en la tabla." }
+  ];
+  function applyOdeTargetAndVerification(result, params) {
+    const xTargetRaw = (params.xTarget ?? "").trim();
+    const verifyStepRaw = (params.verifyStep ?? "").trim();
+    const verifyValueRaw = (params.verifyValue ?? "").trim();
+    const notes = [];
+    if (xTargetRaw !== "") {
+      const xTarget = parseFloat(xTargetRaw);
+      if (!isNaN(xTarget)) {
+        let bestIdx = -1;
+        let bestDiff = Infinity;
+        result.iterations.forEach((row2, idx) => {
+          const xn = row2.xn;
+          if (typeof xn === "number") {
+            const d = Math.abs(xn - xTarget);
+            if (d < bestDiff) {
+              bestDiff = d;
+              bestIdx = idx;
+            }
+          }
+        });
+        if (bestIdx >= 0) {
+          const row2 = result.iterations[bestIdx];
+          row2._highlight = "target";
+          const yn = row2.yn;
+          notes.push(`y(${formatNum(xTarget)}) \u2248 ${formatNum(yn)} (paso ${row2.step ?? bestIdx})`);
+        }
+      }
+    }
+    if (verifyStepRaw !== "" && verifyValueRaw !== "") {
+      const step = parseInt(verifyStepRaw);
+      const expected = parseFloat(verifyValueRaw);
+      if (!isNaN(step) && !isNaN(expected)) {
+        const match = result.iterations.find((r) => r.step === step);
+        if (match) {
+          const yn = match.yn;
+          const diff2 = Math.abs(yn - expected);
+          match._highlight = match._highlight ? `${match._highlight},verify` : "verify";
+          match.verifyDiff = diff2;
+          notes.push(`Verificacion iter ${step}: |y\u2099 - esperado| = ${formatNum(diff2)}`);
+        }
+      }
+    }
+    if (notes.length > 0) {
+      result.message = result.message ? `${result.message} \xB7 ${notes.join(" \xB7 ")}` : notes.join(" \xB7 ");
+    }
+  }
+  var verifyDiffColumn = { key: "verifyDiff", label: "|y\u2099 \u2212 esperado|" };
+
+  // src/methods/ode/euler.ts
+  var euler = {
+    id: "euler",
+    name: "Metodo de Euler",
+    category: "ode",
+    formula: "y_{n+1} = y_n + h \xB7 f(x_n, y_n)",
+    description: "Resuelve EDOs de primer orden dy/dx = f(x,y) con condicion inicial. Metodo explicito de orden 1.",
+    inputs: [
+      { id: "fxy", label: "f(x, y) = dy/dx", placeholder: "x + y", defaultValue: "x + y" },
+      { id: "x0", label: "x\u2080", placeholder: "0", type: "number", defaultValue: "0" },
+      { id: "y0", label: "y\u2080", placeholder: "1", type: "number", defaultValue: "1" },
+      { id: "xEnd", label: "x final", placeholder: "2", type: "number", defaultValue: "2" },
+      { id: "h", label: "h (paso)", placeholder: "0.1", type: "number", defaultValue: "0.1" },
+      { id: "exact", label: "Solucion exacta y(x) (opcional)", placeholder: "2*exp(x) - x - 1", hint: "Para calcular error" },
+      ...commonOdeInputs
+    ],
+    tableColumns: [
+      { key: "step", label: "Paso n" },
+      { key: "xn", label: "x\u2099" },
+      { key: "yn", label: "y\u2099" },
+      { key: "fxy", label: "f(x\u2099, y\u2099)" },
+      { key: "yNext", label: "y\u2099\u208A\u2081" },
+      { key: "exact", label: "y exacta" },
+      { key: "error", label: "|Error|" },
+      verifyDiffColumn
+    ],
+    steps: [
+      "Identifica la EDO: debe tener la forma <code>dy/dx = f(x, y)</code>. Ejemplo parcial tipico: <code>dy/dx = x + y</code> con <code>y(0) = 1</code>, resolver hasta <code>x = 2</code>.",
+      "Escribe <code>f(x, y)</code> en el primer campo. Usa sintaxis <code>math.js</code>: <code>x + y</code>, <code>x*y - sin(x)</code>, <code>exp(-x)*y</code>, etc.",
+      "Completa: <code>x\u2080</code> (valor inicial de x), <code>y\u2080</code> (condicion inicial), <code>x_final</code> (donde termina), <code>h</code> (paso). <em>Mas peque\xF1o h \u2192 mas preciso pero mas pasos</em>. Tipico: <code>h = 0.1</code> o <code>h = 0.05</code>.",
+      "Si tenes la <b>solucion analitica</b> <code>y(x)</code> (obtenida con separacion de variables o factor integrante), ponla en <em>Solucion exacta</em> para comparar. Ej: para <code>y' = x + y</code>, <code>y(0) = 1</code>: solucion exacta <code>y(x) = 2\xB7e\u02E3 - x - 1</code>.",
+      "Pulsa <b>Resolver</b>. Por cada paso la tabla muestra:<br>&nbsp;&nbsp;\u2022 <code>x\u2099 = x\u2080 + n\xB7h</code><br>&nbsp;&nbsp;\u2022 <code>y\u2099</code> (aproximacion)<br>&nbsp;&nbsp;\u2022 <code>f(x\u2099, y\u2099)</code> (pendiente)<br>&nbsp;&nbsp;\u2022 <code>y\u2099\u208A\u2081 = y\u2099 + h\xB7f(x\u2099, y\u2099)</code> <em>(formula de Euler)</em><br>&nbsp;&nbsp;\u2022 <code>y(x\u2099)</code> exacta (si se dio)<br>&nbsp;&nbsp;\u2022 <code>|error|</code> absoluto.",
+      "<b>Error global</b>: Euler es <code>O(h)</code> \u2014 si reduces h a la mitad, el error se reduce a la mitad (lineal). Por eso es poco preciso. Usa Heun (O(h\xB2)) o RK4 (O(h\u2074)) para mejor precision.",
+      "Interpretacion visual: el <em>campo de pendientes</em> (grafica 4) muestra en cada punto la direccion <code>(1, f(x,y))</code>. La trayectoria de Euler sigue estas pendientes con pasos rectos de longitud h.",
+      "Para el informe: (1) tabla completa de pasos; (2) <code>y(x_final)</code> estimado; (3) si hay exacta: <code>|y_N - y(x_final)|</code>; (4) observacion de error creciente con n (acumulacion). Menciona la limitacion de Euler: asume pendiente constante en todo el intervalo [x\u2099, x\u2099\u208A\u2081]."
+    ],
+    solve(params) {
+      const f = parseExpression2(params.fxy);
+      const x0 = parseFloat(params.x0);
+      const y0 = parseFloat(params.y0);
+      const xEnd = parseFloat(params.xEnd);
+      const h = parseFloat(params.h);
+      if (isNaN(x0) || isNaN(y0) || isNaN(xEnd) || isNaN(h)) {
+        throw new Error("Todos los parametros numericos deben ser validos");
+      }
+      if (h <= 0) throw new Error("h debe ser > 0");
+      if (xEnd <= x0) throw new Error("x final debe ser > x\u2080");
+      let exactFn = null;
+      if (params.exact && params.exact.trim() !== "") {
+        exactFn = parseExpression(params.exact);
+      }
+      const iterations = [];
+      const N = Math.ceil((xEnd - x0) / h);
+      let x = x0;
+      let y = y0;
+      let maxError = 0;
+      for (let n = 0; n <= N; n++) {
+        x = x0 + n * h;
+        if (x > xEnd) x = xEnd;
+        const fVal = f(x, y);
+        const yNext = y + h * fVal;
+        const exactVal = exactFn ? exactFn(x) : null;
+        const error = exactVal !== null ? Math.abs(y - exactVal) : null;
+        if (error !== null && error > maxError) maxError = error;
+        iterations.push({
+          step: n,
+          xn: x,
+          yn: y,
+          fxy: fVal,
+          yNext: n < N ? yNext : null,
+          exact: exactVal,
+          error
+        });
+        if (n < N) y = yNext;
+      }
+      const result = {
+        root: y,
+        iterations,
+        converged: true,
+        error: maxError,
+        message: `y(${xEnd}) \u2248 ${y.toFixed(8)} | ${N} pasos, h=${h}${maxError > 0 ? ` | Error max = ${maxError.toExponential(4)}` : ""}`
+      };
+      applyOdeTargetAndVerification(result, params);
+      return result;
+    },
+    getCharts(params, result) {
+      const xs = result.iterations.map((r) => r.xn);
+      const ys = result.iterations.map((r) => r.yn);
+      const fxys = result.iterations.map((r) => r.fxy);
+      const hasExact = result.iterations[0]?.exact !== null;
+      const datasets1 = [
+        { label: "Euler y\u2099", x: xs, y: ys, color: "#89b4fa", pointRadius: 3 }
+      ];
+      if (hasExact) {
+        let exactFn = null;
+        if (params.exact && params.exact.trim() !== "") {
+          try {
+            exactFn = parseExpression(params.exact);
+          } catch {
+          }
+        }
+        if (exactFn) {
+          const xSmooth = linspace(xs[0], xs[xs.length - 1], 200);
+          const ySmooth = xSmooth.map((x) => exactFn(x));
+          datasets1.unshift({ label: "Exacta y(x)", x: xSmooth, y: ySmooth, color: "#a6e3a1", pointRadius: 0 });
+        }
+      }
+      const chart1 = {
+        title: "Solucion y(x)",
+        type: "line",
+        datasets: datasets1,
+        xLabel: "x",
+        yLabel: "y"
+      };
+      const chart2 = {
+        title: "f(x, y) = dy/dx a lo largo de la trayectoria",
+        type: "line",
+        datasets: [
+          { label: "f(x\u2099, y\u2099)", x: xs, y: fxys, color: "#f9e2af", pointRadius: 3 }
+        ],
+        xLabel: "x",
+        yLabel: "f(x, y)"
+      };
+      let chart3;
+      if (hasExact) {
+        const errors = result.iterations.map((r) => r.error).filter((e3) => e3 > 0);
+        const xsErr = result.iterations.filter((r) => r.error > 0).map((r) => r.xn);
+        chart3 = {
+          title: "|Error| vs x",
+          type: "line",
+          datasets: [
+            { label: "|y\u2099 - y(x\u2099)|", x: xsErr, y: errors, color: "#f38ba8", pointRadius: 2 }
+          ],
+          xLabel: "x",
+          yLabel: "|Error|",
+          yLog: errors.length > 2 && errors[errors.length - 1] / errors[0] > 100
+        };
+      } else {
+        const steps2 = xs.slice(0, -1);
+        const deltas = steps2.map((_, i2) => Math.abs(ys[i2 + 1] - ys[i2]));
+        chart3 = {
+          title: "|\u0394y| por paso",
+          type: "line",
+          datasets: [
+            { label: "|y\u2099\u208A\u2081 - y\u2099|", x: steps2, y: deltas, color: "#fab387", pointRadius: 2 }
+          ],
+          xLabel: "x",
+          yLabel: "|\u0394y|"
+        };
+      }
+      const f = parseExpression2(params.fxy);
+      const x0 = parseFloat(params.x0);
+      const xEnd = parseFloat(params.xEnd);
+      const yMin = Math.min(...ys);
+      const yMax = Math.max(...ys);
+      const yPad = (yMax - yMin) * 0.3 || 1;
+      const nFieldX = 15;
+      const nFieldY = 12;
+      const fieldXs = linspace(x0, xEnd, nFieldX);
+      const fieldYs = linspace(yMin - yPad, yMax + yPad, nFieldY);
+      const dx = (xEnd - x0) / nFieldX * 0.35;
+      const segX = [];
+      const segY = [];
+      for (const gx of fieldXs) {
+        for (const gy of fieldYs) {
+          const slope = f(gx, gy);
+          if (!isFinite(slope)) continue;
+          const dy = slope * dx;
+          segX.push(gx - dx / 2, gx + dx / 2, NaN);
+          segY.push(gy - dy / 2, gy + dy / 2, NaN);
+        }
+      }
+      const chart4 = {
+        title: "Campo de pendientes con trayectoria",
+        type: "scatter",
+        datasets: [
+          { label: "Pendientes", x: segX, y: segY, color: "#585b70", pointRadius: 0 },
+          { label: "Euler", x: xs, y: ys, color: "#89b4fa", pointRadius: 2 }
+        ],
+        xLabel: "x",
+        yLabel: "y"
+      };
+      return [chart1, chart2, chart3, chart4];
+    }
+  };
+
+  // src/methods/ode/heun.ts
+  var heun = {
+    id: "heun",
+    name: "Metodo de Heun (RK2)",
+    category: "ode",
+    formula: "y_{n+1} = y_n + (h/2)[f(x_n, y_n) + f(x_{n+1}, \u1EF9_{n+1})]",
+    description: "Metodo predictor-corrector de orden 2. Predice con Euler, corrige promediando pendientes en ambos extremos.",
+    inputs: [
+      { id: "fxy", label: "f(x, y) = dy/dx", placeholder: "x + y", defaultValue: "x + y" },
+      { id: "x0", label: "x\u2080", placeholder: "0", type: "number", defaultValue: "0" },
+      { id: "y0", label: "y\u2080", placeholder: "1", type: "number", defaultValue: "1" },
+      { id: "xEnd", label: "x final", placeholder: "2", type: "number", defaultValue: "2" },
+      { id: "h", label: "h (paso)", placeholder: "0.1", type: "number", defaultValue: "0.1" },
+      { id: "exact", label: "Solucion exacta y(x) (opcional)", placeholder: "2*exp(x) - x - 1", hint: "Para calcular error" },
+      ...commonOdeInputs
+    ],
+    tableColumns: [
+      { key: "step", label: "Paso n" },
+      { key: "xn", label: "x\u2099" },
+      { key: "yn", label: "y\u2099" },
+      { key: "fxy", label: "f(x\u2099, y\u2099)" },
+      { key: "yPredict", label: "\u1EF9 (predictor)" },
+      { key: "fPredict", label: "f(x\u2099\u208A\u2081, \u1EF9)" },
+      { key: "yNext", label: "y\u2099\u208A\u2081" },
+      { key: "exact", label: "y exacta" },
+      { key: "error", label: "|Error|" },
+      verifyDiffColumn
+    ],
+    steps: [
+      "Heun (tambien llamado <b>Euler mejorado</b> o <b>RK2</b>) es un <em>predictor-corrector</em>: primero predice con Euler, luego corrige promediando pendientes.",
+      "Formato de entrada: igual que Euler. <code>f(x, y)</code>, <code>x\u2080</code>, <code>y\u2080</code>, <code>x_final</code>, <code>h</code>. Recomendado <code>h = 0.1</code>.",
+      "Pulsa <b>Resolver</b>. Por cada paso, Heun ejecuta <b>dos sub-pasos</b>:<br>&nbsp;&nbsp;1. <b>Predictor</b>: <code>\u1EF9 = y\u2099 + h \xB7 f(x\u2099, y\u2099)</code> \u2014 es <em>un paso de Euler</em>.<br>&nbsp;&nbsp;2. <b>Corrector</b>: <code>y\u2099\u208A\u2081 = y\u2099 + (h/2)\xB7[f(x\u2099, y\u2099) + f(x\u2099\u208A\u2081, \u1EF9)]</code> \u2014 <em>promedio</em> de pendientes en ambos extremos.",
+      "La tabla muestra columnas separadas: <em>\u1EF9 (predictor)</em>, <em>f(x\u2099\u208A\u2081, \u1EF9)</em>, <em>y\u2099\u208A\u2081 (corrector)</em> \u2014 para verificar cada sub-calculo a mano en el informe.",
+      "<b>Error global</b>: <code>O(h\xB2)</code> \u2014 <em>muchisimo mejor que Euler</em>. Reducir h a la mitad reduce el error a un cuarto. Para la misma precision necesitas ~10\xD7 menos pasos que Euler.",
+      "Si das la <b>solucion exacta</b> <code>y(x)</code>, la app calcula error absoluto en cada paso y grafica su evolucion.",
+      "Para el informe: (1) tabla con predictor y corrector; (2) <code>y(x_final)</code>; (3) comparacion con Euler para mismo h \u2014 Heun deberia dar error ~10\xD7 menor; (4) comparacion con RK4 si pedido.",
+      'Interpretacion geometrica: Euler usa solo la pendiente en <code>(x\u2099, y\u2099)</code>. Heun promedia la pendiente inicial y la pendiente en el punto predicho \u2014 como "mirar adelante" antes de dar el paso.'
+    ],
+    solve(params) {
+      const f = parseExpression2(params.fxy);
+      const x0 = parseFloat(params.x0);
+      const y0 = parseFloat(params.y0);
+      const xEnd = parseFloat(params.xEnd);
+      const h = parseFloat(params.h);
+      if (isNaN(x0) || isNaN(y0) || isNaN(xEnd) || isNaN(h)) {
+        throw new Error("Todos los parametros numericos deben ser validos");
+      }
+      if (h <= 0) throw new Error("h debe ser > 0");
+      if (xEnd <= x0) throw new Error("x final debe ser > x\u2080");
+      let exactFn = null;
+      if (params.exact && params.exact.trim() !== "") {
+        exactFn = parseExpression(params.exact);
+      }
+      const iterations = [];
+      const N = Math.ceil((xEnd - x0) / h);
+      let x = x0;
+      let y = y0;
+      let maxError = 0;
+      for (let n = 0; n <= N; n++) {
+        x = x0 + n * h;
+        if (x > xEnd) x = xEnd;
+        const fVal = f(x, y);
+        const yPred = y + h * fVal;
+        const xNext = x + h;
+        const fPred = f(xNext, yPred);
+        const yNext = y + h / 2 * (fVal + fPred);
+        const exactVal = exactFn ? exactFn(x) : null;
+        const error = exactVal !== null ? Math.abs(y - exactVal) : null;
+        if (error !== null && error > maxError) maxError = error;
+        iterations.push({
+          step: n,
+          xn: x,
+          yn: y,
+          fxy: fVal,
+          yPredict: n < N ? yPred : null,
+          fPredict: n < N ? fPred : null,
+          yNext: n < N ? yNext : null,
+          exact: exactVal,
+          error
+        });
+        if (n < N) y = yNext;
+      }
+      const result = {
+        root: y,
+        iterations,
+        converged: true,
+        error: maxError,
+        message: `y(${xEnd}) \u2248 ${y.toFixed(8)} | ${N} pasos, h=${h}${maxError > 0 ? ` | Error max = ${maxError.toExponential(4)}` : ""}`
+      };
+      applyOdeTargetAndVerification(result, params);
+      return result;
+    },
+    getCharts(params, result) {
+      const xs = result.iterations.map((r) => r.xn);
+      const ys = result.iterations.map((r) => r.yn);
+      const fxys = result.iterations.map((r) => r.fxy);
+      const hasExact = result.iterations[0]?.exact !== null;
+      const datasets1 = [
+        { label: "Heun y\u2099", x: xs, y: ys, color: "#94e2d5", pointRadius: 3 }
+      ];
+      if (hasExact) {
+        let exactFn = null;
+        if (params.exact && params.exact.trim() !== "") {
+          try {
+            exactFn = parseExpression(params.exact);
+          } catch {
+          }
+        }
+        if (exactFn) {
+          const xSmooth = linspace(xs[0], xs[xs.length - 1], 200);
+          const ySmooth = xSmooth.map((x) => exactFn(x));
+          datasets1.unshift({ label: "Exacta y(x)", x: xSmooth, y: ySmooth, color: "#a6e3a1", pointRadius: 0 });
+        }
+      }
+      const chart1 = {
+        title: "Solucion y(x)",
+        type: "line",
+        datasets: datasets1,
+        xLabel: "x",
+        yLabel: "y"
+      };
+      const yPreds = result.iterations.filter((r) => r.yPredict !== null).map((r) => r.yPredict);
+      const yNexts = result.iterations.filter((r) => r.yNext !== null).map((r) => r.yNext);
+      const xsStep = xs.slice(0, -1);
+      const chart2 = {
+        title: "Predictor (Euler) vs Corrector (Heun)",
+        type: "line",
+        datasets: [
+          { label: "\u1EF9 predictor", x: xsStep, y: yPreds, color: "#f9e2af", pointRadius: 3 },
+          { label: "y\u2099\u208A\u2081 corrector", x: xsStep, y: yNexts, color: "#94e2d5", pointRadius: 3 }
+        ],
+        xLabel: "x",
+        yLabel: "y"
+      };
+      let chart3;
+      if (hasExact) {
+        const errors = result.iterations.map((r) => r.error).filter((e3) => e3 > 0);
+        const xsErr = result.iterations.filter((r) => r.error > 0).map((r) => r.xn);
+        chart3 = {
+          title: "|Error| vs x",
+          type: "line",
+          datasets: [
+            { label: "|y\u2099 - y(x\u2099)|", x: xsErr, y: errors, color: "#f38ba8", pointRadius: 2 }
+          ],
+          xLabel: "x",
+          yLabel: "|Error|",
+          yLog: errors.length > 2 && errors[errors.length - 1] / errors[0] > 100
+        };
+      } else {
+        const deltas = xsStep.map((_, i2) => Math.abs(ys[i2 + 1] - ys[i2]));
+        chart3 = {
+          title: "|\u0394y| por paso",
+          type: "line",
+          datasets: [
+            { label: "|y\u2099\u208A\u2081 - y\u2099|", x: xsStep, y: deltas, color: "#fab387", pointRadius: 2 }
+          ],
+          xLabel: "x",
+          yLabel: "|\u0394y|"
+        };
+      }
+      const f = parseExpression2(params.fxy);
+      const x0 = parseFloat(params.x0);
+      const xEnd = parseFloat(params.xEnd);
+      const yMin = Math.min(...ys);
+      const yMax = Math.max(...ys);
+      const yPad = (yMax - yMin) * 0.3 || 1;
+      const fieldXs = linspace(x0, xEnd, 15);
+      const fieldYs = linspace(yMin - yPad, yMax + yPad, 12);
+      const dx = (xEnd - x0) / 15 * 0.35;
+      const segX = [];
+      const segY = [];
+      for (const gx of fieldXs) {
+        for (const gy of fieldYs) {
+          const slope = f(gx, gy);
+          if (!isFinite(slope)) continue;
+          const dy = slope * dx;
+          segX.push(gx - dx / 2, gx + dx / 2, NaN);
+          segY.push(gy - dy / 2, gy + dy / 2, NaN);
+        }
+      }
+      const chart4 = {
+        title: "Campo de pendientes con trayectoria",
+        type: "scatter",
+        datasets: [
+          { label: "Pendientes", x: segX, y: segY, color: "#585b70", pointRadius: 0 },
+          { label: "Heun", x: xs, y: ys, color: "#94e2d5", pointRadius: 2 }
+        ],
+        xLabel: "x",
+        yLabel: "y"
+      };
+      return [chart1, chart2, chart3, chart4];
+    }
+  };
+
+  // src/methods/ode/rungeKutta.ts
+  var rungeKutta = {
+    id: "rungeKutta",
+    name: "Runge-Kutta (RK4)",
+    category: "ode",
+    formula: "y_{n+1} = y_n + (h/6)(k\u2081 + 2k\u2082 + 2k\u2083 + k\u2084)",
+    description: "Metodo clasico de Runge-Kutta de orden 4. Resuelve dy/dx = f(x,y) con alta precision usando 4 evaluaciones por paso.",
+    inputs: [
+      { id: "fxy", label: "f(x, y) = dy/dx", placeholder: "x + y", defaultValue: "x + y" },
+      { id: "x0", label: "x\u2080", placeholder: "0", type: "number", defaultValue: "0" },
+      { id: "y0", label: "y\u2080", placeholder: "1", type: "number", defaultValue: "1" },
+      { id: "xEnd", label: "x final", placeholder: "2", type: "number", defaultValue: "2" },
+      { id: "h", label: "h (paso)", placeholder: "0.1", type: "number", defaultValue: "0.1" },
+      { id: "exact", label: "Solucion exacta y(x) (opcional)", placeholder: "2*exp(x) - x - 1", hint: "Para calcular error" },
+      ...commonOdeInputs
+    ],
+    tableColumns: [
+      { key: "step", label: "Paso n" },
+      { key: "xn", label: "x\u2099" },
+      { key: "yn", label: "y\u2099" },
+      { key: "k1", label: "k\u2081" },
+      { key: "k2", label: "k\u2082" },
+      { key: "k3", label: "k\u2083" },
+      { key: "k4", label: "k\u2084" },
+      { key: "yNext", label: "y\u2099\u208A\u2081" },
+      { key: "exact", label: "y exacta" },
+      { key: "error", label: "|Error|" },
+      verifyDiffColumn
+    ],
+    steps: [
+      '<b>RK4 es el metodo estandar de la industria</b> para EDOs \u2014 altamente preciso, relativamente simple de implementar, estable. Si el parcial dice "resuelva con alta precision" o "sin mencionar orden", usa RK4.',
+      "Escribe <code>f(x, y)</code> y las condiciones: <code>x\u2080</code>, <code>y\u2080</code>, <code>x_final</code>, <code>h</code>. Tipico: <code>h = 0.1</code> ya da error <code>~10\u207B\u2075</code>.",
+      "Pulsa <b>Resolver</b>. Por cada paso, RK4 calcula <b>4 pendientes</b>:<br>&nbsp;&nbsp;\u2022 <code>k\u2081 = f(x\u2099, y\u2099)</code> \u2014 pendiente al inicio<br>&nbsp;&nbsp;\u2022 <code>k\u2082 = f(x\u2099 + h/2, y\u2099 + (h/2)\xB7k\u2081)</code> \u2014 pendiente en el medio (usando k\u2081)<br>&nbsp;&nbsp;\u2022 <code>k\u2083 = f(x\u2099 + h/2, y\u2099 + (h/2)\xB7k\u2082)</code> \u2014 pendiente en el medio (usando k\u2082, corregida)<br>&nbsp;&nbsp;\u2022 <code>k\u2084 = f(x\u2099 + h, y\u2099 + h\xB7k\u2083)</code> \u2014 pendiente al final",
+      "Formula combinada: <code>y\u2099\u208A\u2081 = y\u2099 + (h/6)\xB7(k\u2081 + 2\xB7k\u2082 + 2\xB7k\u2083 + k\u2084)</code>. Los pesos <b>1, 2, 2, 1</b> dan el <em>promedio ponderado</em> optimo de las 4 pendientes.",
+      "La tabla muestra cada <code>k_i</code> separadamente \u2014 util para verificar a mano en el parcial. Tipicamente el parcial pide escribir explicitamente <code>k\u2081, k\u2082, k\u2083, k\u2084</code> antes de dar <code>y\u2099\u208A\u2081</code>.",
+      "<b>Error global</b>: <code>O(h\u2074)</code> \u2014 <em>drasticamente mejor</em> que Euler (O(h)) o Heun (O(h\xB2)). Reducir h a la mitad reduce el error por factor 16.",
+      "Si das la <b>solucion exacta</b> (ej. <code>2*exp(x) - x - 1</code>), la tabla muestra error absoluto por paso. Error tipico con h=0.1: <code>|error| ~ 10\u207B\u2075</code> o menor.",
+      "Para el informe: (1) tabla con las 4 columnas <code>k_i</code> visibles en al menos los primeros 2-3 pasos; (2) <code>y(x_final)</code>; (3) si el parcial compara metodos: RK4 debe dar error ~1000\xD7 menor que Euler para mismo h; (4) costo computacional: 4 evaluaciones de <code>f</code> por paso (vs 1 Euler, 2 Heun).",
+      'Truco para entender geometricamente: las 4 pendientes son como "tomar 4 fotos" de la direccion del campo vectorial en distintos puntos del paso, y promediarlas con pesos mayores para las fotos del medio (k\u2082 y k\u2083). Esto captura la <em>curvatura</em> de la solucion.'
+    ],
+    solve(params) {
+      const f = parseExpression2(params.fxy);
+      const x0 = parseFloat(params.x0);
+      const y0 = parseFloat(params.y0);
+      const xEnd = parseFloat(params.xEnd);
+      const h = parseFloat(params.h);
+      if (isNaN(x0) || isNaN(y0) || isNaN(xEnd) || isNaN(h)) {
+        throw new Error("Todos los parametros numericos deben ser validos");
+      }
+      if (h <= 0) throw new Error("h debe ser > 0");
+      if (xEnd <= x0) throw new Error("x final debe ser > x\u2080");
+      let exactFn = null;
+      if (params.exact && params.exact.trim() !== "") {
+        exactFn = parseExpression(params.exact);
+      }
+      const iterations = [];
+      const N = Math.ceil((xEnd - x0) / h);
+      let x = x0;
+      let y = y0;
+      let maxError = 0;
+      for (let n = 0; n <= N; n++) {
+        x = x0 + n * h;
+        if (x > xEnd) x = xEnd;
+        const k1 = f(x, y);
+        const k2 = f(x + h / 2, y + h / 2 * k1);
+        const k3 = f(x + h / 2, y + h / 2 * k2);
+        const k4 = f(x + h, y + h * k3);
+        const yNext = y + h / 6 * (k1 + 2 * k2 + 2 * k3 + k4);
+        const exactVal = exactFn ? exactFn(x) : null;
+        const error = exactVal !== null ? Math.abs(y - exactVal) : null;
+        if (error !== null && error > maxError) maxError = error;
+        iterations.push({
+          step: n,
+          xn: x,
+          yn: y,
+          k1,
+          k2,
+          k3,
+          k4,
+          yNext: n < N ? yNext : null,
+          exact: exactVal,
+          error
+        });
+        if (n < N) y = yNext;
+      }
+      const result = {
+        root: y,
+        iterations,
+        converged: true,
+        error: maxError,
+        message: `y(${xEnd}) \u2248 ${y.toFixed(8)} | ${N} pasos, h=${h}${maxError > 0 ? ` | Error max = ${maxError.toExponential(4)}` : ""}`
+      };
+      applyOdeTargetAndVerification(result, params);
+      return result;
+    },
+    getCharts(params, result) {
+      const xs = result.iterations.map((r) => r.xn);
+      const ys = result.iterations.map((r) => r.yn);
+      const k1s = result.iterations.map((r) => r.k1);
+      const k2s = result.iterations.map((r) => r.k2);
+      const k3s = result.iterations.map((r) => r.k3);
+      const k4s = result.iterations.map((r) => r.k4);
+      const hasExact = result.iterations[0]?.exact !== null;
+      const datasets1 = [
+        { label: "RK4 y\u2099", x: xs, y: ys, color: "#cba6f7", pointRadius: 3 }
+      ];
+      if (hasExact) {
+        let exactFn = null;
+        if (params.exact && params.exact.trim() !== "") {
+          try {
+            exactFn = parseExpression(params.exact);
+          } catch {
+          }
+        }
+        if (exactFn) {
+          const xSmooth = linspace(xs[0], xs[xs.length - 1], 200);
+          const ySmooth = xSmooth.map((x) => exactFn(x));
+          datasets1.unshift({ label: "Exacta y(x)", x: xSmooth, y: ySmooth, color: "#a6e3a1", pointRadius: 0 });
+        }
+      }
+      const chart1 = {
+        title: "Solucion y(x)",
+        type: "line",
+        datasets: datasets1,
+        xLabel: "x",
+        yLabel: "y"
+      };
+      const chart2 = {
+        title: "Coeficientes k\u2081, k\u2082, k\u2083, k\u2084 vs x",
+        type: "line",
+        datasets: [
+          { label: "k\u2081", x: xs, y: k1s, color: "#89b4fa", pointRadius: 2 },
+          { label: "k\u2082", x: xs, y: k2s, color: "#a6e3a1", pointRadius: 2 },
+          { label: "k\u2083", x: xs, y: k3s, color: "#f9e2af", pointRadius: 2 },
+          { label: "k\u2084", x: xs, y: k4s, color: "#f38ba8", pointRadius: 2 }
+        ],
+        xLabel: "x",
+        yLabel: "k"
+      };
+      let chart3;
+      if (hasExact) {
+        const errors = result.iterations.map((r) => r.error).filter((e3) => e3 > 0);
+        const xsErr = result.iterations.filter((r) => r.error > 0).map((r) => r.xn);
+        chart3 = {
+          title: "|Error| vs x",
+          type: "line",
+          datasets: [
+            { label: "|y\u2099 - y(x\u2099)|", x: xsErr, y: errors, color: "#f38ba8", pointRadius: 2 }
+          ],
+          xLabel: "x",
+          yLabel: "|Error|",
+          yLog: errors.length > 2 && errors[errors.length - 1] / errors[0] > 100
+        };
+      } else {
+        const steps2 = xs.slice(0, -1);
+        const deltas = steps2.map((_, i2) => Math.abs(ys[i2 + 1] - ys[i2]));
+        chart3 = {
+          title: "|\u0394y| por paso",
+          type: "line",
+          datasets: [
+            { label: "|y\u2099\u208A\u2081 - y\u2099|", x: steps2, y: deltas, color: "#fab387", pointRadius: 2 }
+          ],
+          xLabel: "x",
+          yLabel: "|\u0394y|"
+        };
+      }
+      const f = parseExpression2(params.fxy);
+      const x0 = parseFloat(params.x0);
+      const xEnd = parseFloat(params.xEnd);
+      const yMin = Math.min(...ys);
+      const yMax = Math.max(...ys);
+      const yPad = (yMax - yMin) * 0.3 || 1;
+      const nFieldX = 15;
+      const nFieldY = 12;
+      const fieldXs = linspace(x0, xEnd, nFieldX);
+      const fieldYs = linspace(yMin - yPad, yMax + yPad, nFieldY);
+      const dx = (xEnd - x0) / nFieldX * 0.35;
+      const segX = [];
+      const segY = [];
+      for (const gx of fieldXs) {
+        for (const gy of fieldYs) {
+          const slope = f(gx, gy);
+          if (!isFinite(slope)) continue;
+          const dy = slope * dx;
+          segX.push(gx - dx / 2, gx + dx / 2, NaN);
+          segY.push(gy - dy / 2, gy + dy / 2, NaN);
+        }
+      }
+      const chart4 = {
+        title: "Campo de pendientes con trayectoria",
+        type: "scatter",
+        datasets: [
+          { label: "Pendientes", x: segX, y: segY, color: "#585b70", pointRadius: 0 },
+          { label: "RK4", x: xs, y: ys, color: "#cba6f7", pointRadius: 2 }
+        ],
+        xLabel: "x",
+        yLabel: "y"
+      };
+      return [chart1, chart2, chart3, chart4];
+    }
+  };
+
+  // src/methods/differentiation/forward.ts
+  var forward = {
+    id: "forward",
+    name: "Diferencia Hacia Adelante",
+    category: "differentiation",
+    formula: "f'(x) \u2248 (f(x+h) - f(x)) / h",
+    description: "Aproximacion de primer orden O(h) de la derivada usando diferencia hacia adelante.",
+    inputs: [
+      { id: "fx", label: "f(x)", placeholder: "sin(x)", defaultValue: "sin(x)" },
+      { id: "x0", label: "x\u2080 (punto de evaluacion)", placeholder: "1", type: "number", defaultValue: "1" },
+      { id: "h", label: "h (paso)", placeholder: "0.1", defaultValue: "0.1" },
+      { id: "dfx", label: "f'(x) exacta (opcional, para error)", placeholder: "cos(x)", hint: "Para calcular error real", defaultValue: "cos(x)" }
+    ],
+    tableColumns: [
+      { key: "step", label: "Paso" },
+      { key: "h", label: "h" },
+      { key: "approx", label: "f'(x) aprox" },
+      { key: "exact", label: "f'(x) exacta" },
+      { key: "error", label: "Error absoluto" }
+    ],
+    solve(params) {
+      const f = parseExpression(params.fx);
+      const x0 = parseFloat(params.x0);
+      const hStart = parseFloat(params.h) || 0.1;
+      const dfExpr = params.dfx?.trim();
+      const df = dfExpr ? parseExpression(dfExpr) : null;
+      if (isNaN(x0)) throw new Error("x\u2080 debe ser un numero valido");
+      const iterations = [];
+      let h = hStart;
+      let lastApprox = 0;
+      for (let step = 1; step <= 12; step++) {
+        const approx = (f(x0 + h) - f(x0)) / h;
+        const exact = df ? df(x0) : NaN;
+        const error = df ? Math.abs(approx - exact) : step > 1 ? Math.abs(approx - lastApprox) : NaN;
+        iterations.push({ step, h, approx, exact, error: isNaN(error) ? 0 : error });
+        lastApprox = approx;
+        h /= 2;
+      }
+      const finalApprox = iterations[0].approx;
+      const finalError = df ? Math.abs(finalApprox - df(x0)) : 0;
+      return {
+        derivative: finalApprox,
+        iterations,
+        converged: true,
+        error: finalError,
+        message: `f'(${x0}) \u2248 ${finalApprox.toPrecision(10)}`
+      };
+    },
+    getCharts(params, result) {
+      const f = parseExpression(params.fx);
+      const x0 = parseFloat(params.x0);
+      const h = parseFloat(params.h) || 0.1;
+      const dfExpr = params.dfx?.trim();
+      const df = dfExpr ? parseExpression(dfExpr) : null;
+      const pad2 = 2;
+      const xs = linspace(x0 - pad2, x0 + pad2, 500);
+      const ys = xs.map((x) => f(x));
+      const slope = (f(x0 + h) - f(x0)) / h;
+      const tanXs = linspace(x0 - 1, x0 + 1, 100);
+      const tanYs = tanXs.map((x) => f(x0) + slope * (x - x0));
+      const chart1 = {
+        title: "f(x) con recta tangente aproximada",
+        type: "line",
+        datasets: [
+          { label: "f(x)", x: xs, y: ys, color: "#89b4fa" },
+          { label: `Tangente (h=${h})`, x: tanXs, y: tanYs, color: "#a6e3a1", dashed: true },
+          { label: "x\u2080", x: [x0], y: [f(x0)], color: "#fab387", pointRadius: 6, showLine: false }
+        ],
+        xLabel: "x",
+        yLabel: "y"
+      };
+      const hValues = result.iterations.map((r) => r.h);
+      const errors = result.iterations.map((r) => r.error).filter((e3) => e3 > 0);
+      const chart2 = {
+        title: "Error vs h",
+        type: "line",
+        datasets: [{ label: "Error", x: hValues.slice(0, errors.length), y: errors, color: "#f38ba8", pointRadius: 3 }],
+        xLabel: "h",
+        yLabel: "|Error|",
+        yLog: true
+      };
+      const approxVals = result.iterations.map((r) => r.approx);
+      const steps2 = result.iterations.map((r) => r.step);
+      const chart3 = {
+        title: "Convergencia de f'(x) con h decreciente",
+        type: "line",
+        datasets: [
+          { label: "f' aprox", x: steps2, y: approxVals, color: "#cba6f7", pointRadius: 3 },
+          ...df ? [{ label: "f' exacta", x: [steps2[0], steps2[steps2.length - 1]], y: [df(x0), df(x0)], color: "#a6e3a1", dashed: true, pointRadius: 0 }] : []
+        ],
+        xLabel: "Paso (h se reduce)",
+        yLabel: "f'(x)"
+      };
+      const chart4 = {
+        title: "Puntos usados en la formula",
+        type: "scatter",
+        datasets: [
+          { label: "f(x)", x: xs, y: ys, color: "#89b4fa", pointRadius: 0 },
+          { label: "f(x\u2080)", x: [x0], y: [f(x0)], color: "#fab387", pointRadius: 6, showLine: false },
+          { label: "f(x\u2080+h)", x: [x0 + h], y: [f(x0 + h)], color: "#f38ba8", pointRadius: 6, showLine: false },
+          { label: "Secante", x: [x0, x0 + h], y: [f(x0), f(x0 + h)], color: "#a6e3a1", dashed: true, pointRadius: 0 }
+        ],
+        xLabel: "x",
+        yLabel: "f(x)"
+      };
+      return [chart1, chart2, chart3, chart4];
+    }
+  };
+
+  // src/methods/differentiation/backward.ts
+  var backward = {
+    id: "backward",
+    name: "Diferencia Hacia Atras",
+    category: "differentiation",
+    formula: "f'(x) \u2248 (f(x) - f(x-h)) / h",
+    description: "Aproximacion de primer orden O(h) de la derivada usando diferencia hacia atras.",
+    inputs: [
+      { id: "fx", label: "f(x)", placeholder: "sin(x)", defaultValue: "sin(x)" },
+      { id: "x0", label: "x\u2080 (punto de evaluacion)", placeholder: "1", type: "number", defaultValue: "1" },
+      { id: "h", label: "h (paso)", placeholder: "0.1", defaultValue: "0.1" },
+      { id: "dfx", label: "f'(x) exacta (opcional, para error)", placeholder: "cos(x)", defaultValue: "cos(x)" }
+    ],
+    tableColumns: [
+      { key: "step", label: "Paso" },
+      { key: "h", label: "h" },
+      { key: "approx", label: "f'(x) aprox" },
+      { key: "exact", label: "f'(x) exacta" },
+      { key: "error", label: "Error absoluto" }
+    ],
+    solve(params) {
+      const f = parseExpression(params.fx);
+      const x0 = parseFloat(params.x0);
+      const hStart = parseFloat(params.h) || 0.1;
+      const dfExpr = params.dfx?.trim();
+      const df = dfExpr ? parseExpression(dfExpr) : null;
+      if (isNaN(x0)) throw new Error("x\u2080 debe ser un numero valido");
+      const iterations = [];
+      let h = hStart;
+      let lastApprox = 0;
+      for (let step = 1; step <= 12; step++) {
+        const approx = (f(x0) - f(x0 - h)) / h;
+        const exact = df ? df(x0) : NaN;
+        const error = df ? Math.abs(approx - exact) : step > 1 ? Math.abs(approx - lastApprox) : NaN;
+        iterations.push({ step, h, approx, exact, error: isNaN(error) ? 0 : error });
+        lastApprox = approx;
+        h /= 2;
+      }
+      const finalApprox = iterations[0].approx;
+      const finalError = df ? Math.abs(finalApprox - df(x0)) : 0;
+      return {
+        derivative: finalApprox,
+        iterations,
+        converged: true,
+        error: finalError,
+        message: `f'(${x0}) \u2248 ${finalApprox.toPrecision(10)}`
+      };
+    },
+    getCharts(params, result) {
+      const f = parseExpression(params.fx);
+      const x0 = parseFloat(params.x0);
+      const h = parseFloat(params.h) || 0.1;
+      const dfExpr = params.dfx?.trim();
+      const df = dfExpr ? parseExpression(dfExpr) : null;
+      const pad2 = 2;
+      const xs = linspace(x0 - pad2, x0 + pad2, 500);
+      const ys = xs.map((x) => f(x));
+      const slope = (f(x0) - f(x0 - h)) / h;
+      const tanXs = linspace(x0 - 1, x0 + 1, 100);
+      const tanYs = tanXs.map((x) => f(x0) + slope * (x - x0));
+      const chart1 = {
+        title: "f(x) con recta tangente aproximada",
+        type: "line",
+        datasets: [
+          { label: "f(x)", x: xs, y: ys, color: "#89b4fa" },
+          { label: `Tangente (h=${h})`, x: tanXs, y: tanYs, color: "#a6e3a1", dashed: true },
+          { label: "x\u2080", x: [x0], y: [f(x0)], color: "#fab387", pointRadius: 6, showLine: false }
+        ],
+        xLabel: "x",
+        yLabel: "y"
+      };
+      const hValues = result.iterations.map((r) => r.h);
+      const errors = result.iterations.map((r) => r.error).filter((e3) => e3 > 0);
+      const chart2 = {
+        title: "Error vs h",
+        type: "line",
+        datasets: [{ label: "Error", x: hValues.slice(0, errors.length), y: errors, color: "#f38ba8", pointRadius: 3 }],
+        xLabel: "h",
+        yLabel: "|Error|",
+        yLog: true
+      };
+      const approxVals = result.iterations.map((r) => r.approx);
+      const steps2 = result.iterations.map((r) => r.step);
+      const chart3 = {
+        title: "Convergencia de f'(x)",
+        type: "line",
+        datasets: [
+          { label: "f' aprox", x: steps2, y: approxVals, color: "#cba6f7", pointRadius: 3 },
+          ...df ? [{ label: "f' exacta", x: [steps2[0], steps2[steps2.length - 1]], y: [df(x0), df(x0)], color: "#a6e3a1", dashed: true, pointRadius: 0 }] : []
+        ],
+        xLabel: "Paso",
+        yLabel: "f'(x)"
+      };
+      const chart4 = {
+        title: "Puntos usados: f(x\u2080-h), f(x\u2080)",
+        type: "scatter",
+        datasets: [
+          { label: "f(x)", x: xs, y: ys, color: "#89b4fa", pointRadius: 0 },
+          { label: "f(x\u2080-h)", x: [x0 - h], y: [f(x0 - h)], color: "#f38ba8", pointRadius: 6, showLine: false },
+          { label: "f(x\u2080)", x: [x0], y: [f(x0)], color: "#fab387", pointRadius: 6, showLine: false },
+          { label: "Secante", x: [x0 - h, x0], y: [f(x0 - h), f(x0)], color: "#a6e3a1", dashed: true, pointRadius: 0 }
+        ],
+        xLabel: "x",
+        yLabel: "f(x)"
+      };
+      return [chart1, chart2, chart3, chart4];
+    }
+  };
+
+  // src/methods/differentiation/central.ts
+  var central = {
+    id: "central",
+    name: "Diferencia Central",
+    category: "differentiation",
+    formula: "f'(x) \u2248 (f(x+h) - f(x-h)) / 2h",
+    description: "Aproximacion de segundo orden O(h\xB2) de la derivada. Mas precisa que forward/backward.",
+    inputs: [
+      { id: "fx", label: "f(x)", placeholder: "sin(x)", defaultValue: "sin(x)" },
+      { id: "x0", label: "x\u2080 (punto de evaluacion)", placeholder: "1", type: "number", defaultValue: "1" },
+      { id: "h", label: "h (paso)", placeholder: "0.1", defaultValue: "0.1" },
+      { id: "dfx", label: "f'(x) exacta (opcional)", placeholder: "cos(x)", defaultValue: "cos(x)" }
+    ],
+    tableColumns: [
+      { key: "step", label: "Paso" },
+      { key: "h", label: "h" },
+      { key: "approx", label: "f'(x) aprox" },
+      { key: "exact", label: "f'(x) exacta" },
+      { key: "error", label: "Error absoluto" }
+    ],
+    solve(params) {
+      const f = parseExpression(params.fx);
+      const x0 = parseFloat(params.x0);
+      const hStart = parseFloat(params.h) || 0.1;
+      const dfExpr = params.dfx?.trim();
+      const df = dfExpr ? parseExpression(dfExpr) : null;
+      if (isNaN(x0)) throw new Error("x\u2080 debe ser un numero valido");
+      const iterations = [];
+      let h = hStart;
+      let lastApprox = 0;
+      for (let step = 1; step <= 12; step++) {
+        const approx = (f(x0 + h) - f(x0 - h)) / (2 * h);
+        const exact = df ? df(x0) : NaN;
+        const error = df ? Math.abs(approx - exact) : step > 1 ? Math.abs(approx - lastApprox) : NaN;
+        iterations.push({ step, h, approx, exact, error: isNaN(error) ? 0 : error });
+        lastApprox = approx;
+        h /= 2;
+      }
+      const finalApprox = iterations[0].approx;
+      const finalError = df ? Math.abs(finalApprox - df(x0)) : 0;
+      return {
+        derivative: finalApprox,
+        iterations,
+        converged: true,
+        error: finalError,
+        message: `f'(${x0}) \u2248 ${finalApprox.toPrecision(10)}, O(h\xB2)`
+      };
+    },
+    getCharts(params, result) {
+      const f = parseExpression(params.fx);
+      const x0 = parseFloat(params.x0);
+      const h = parseFloat(params.h) || 0.1;
+      const dfExpr = params.dfx?.trim();
+      const df = dfExpr ? parseExpression(dfExpr) : null;
+      const pad2 = 2;
+      const xs = linspace(x0 - pad2, x0 + pad2, 500);
+      const ys = xs.map((x) => f(x));
+      const slope = (f(x0 + h) - f(x0 - h)) / (2 * h);
+      const tanXs = linspace(x0 - 1, x0 + 1, 100);
+      const tanYs = tanXs.map((x) => f(x0) + slope * (x - x0));
+      const chart1 = {
+        title: "f(x) con tangente central",
+        type: "line",
+        datasets: [
+          { label: "f(x)", x: xs, y: ys, color: "#89b4fa" },
+          { label: `Tangente central (h=${h})`, x: tanXs, y: tanYs, color: "#a6e3a1", dashed: true },
+          { label: "x\u2080", x: [x0], y: [f(x0)], color: "#fab387", pointRadius: 6, showLine: false }
+        ],
+        xLabel: "x",
+        yLabel: "y"
+      };
+      const hValues = result.iterations.map((r) => r.h);
+      const errors = result.iterations.map((r) => r.error).filter((e3) => e3 > 0);
+      const chart2 = {
+        title: "Error vs h (O(h\xB2) - decrece mas rapido)",
+        type: "line",
+        datasets: [{ label: "Error", x: hValues.slice(0, errors.length), y: errors, color: "#f38ba8", pointRadius: 3 }],
+        xLabel: "h",
+        yLabel: "|Error|",
+        yLog: true
+      };
+      const approxVals = result.iterations.map((r) => r.approx);
+      const steps2 = result.iterations.map((r) => r.step);
+      const chart3 = {
+        title: "Convergencia de f'(x)",
+        type: "line",
+        datasets: [
+          { label: "f' aprox", x: steps2, y: approxVals, color: "#cba6f7", pointRadius: 3 },
+          ...df ? [{ label: "f' exacta", x: [steps2[0], steps2[steps2.length - 1]], y: [df(x0), df(x0)], color: "#a6e3a1", dashed: true, pointRadius: 0 }] : []
+        ],
+        xLabel: "Paso",
+        yLabel: "f'(x)"
+      };
+      const chart4 = {
+        title: "Puntos usados: f(x\u2080-h), f(x\u2080+h)",
+        type: "scatter",
+        datasets: [
+          { label: "f(x)", x: xs, y: ys, color: "#89b4fa", pointRadius: 0 },
+          { label: "f(x\u2080-h)", x: [x0 - h], y: [f(x0 - h)], color: "#f38ba8", pointRadius: 6, showLine: false },
+          { label: "f(x\u2080)", x: [x0], y: [f(x0)], color: "#fab387", pointRadius: 6, showLine: false },
+          { label: "f(x\u2080+h)", x: [x0 + h], y: [f(x0 + h)], color: "#94e2d5", pointRadius: 6, showLine: false },
+          { label: "Secante", x: [x0 - h, x0 + h], y: [f(x0 - h), f(x0 + h)], color: "#a6e3a1", dashed: true, pointRadius: 0 }
+        ],
+        xLabel: "x",
+        yLabel: "f(x)"
+      };
+      return [chart1, chart2, chart3, chart4];
+    }
+  };
+
+  // src/methods/differentiation/secondDerivative.ts
+  var secondDerivative = {
+    id: "secondDerivative",
+    name: "Segunda Derivada (Central)",
+    category: "differentiation",
+    formula: "f''(x) \u2248 (f(x+h) - 2f(x) + f(x-h)) / h\xB2",
+    description: "Aproximacion de segundo orden O(h\xB2) de la segunda derivada usando diferencia central.",
+    inputs: [
+      { id: "fx", label: "f(x)", placeholder: "sin(x)", defaultValue: "sin(x)" },
+      { id: "x0", label: "x\u2080 (punto de evaluacion)", placeholder: "1", type: "number", defaultValue: "1" },
+      { id: "h", label: "h (paso)", placeholder: "0.1", defaultValue: "0.1" },
+      { id: "ddfx", label: "f''(x) exacta (opcional)", placeholder: "-sin(x)", defaultValue: "-sin(x)" }
+    ],
+    tableColumns: [
+      { key: "step", label: "Paso" },
+      { key: "h", label: "h" },
+      { key: "approx", label: "f''(x) aprox" },
+      { key: "exact", label: "f''(x) exacta" },
+      { key: "error", label: "Error absoluto" }
+    ],
+    solve(params) {
+      const f = parseExpression(params.fx);
+      const x0 = parseFloat(params.x0);
+      const hStart = parseFloat(params.h) || 0.1;
+      const ddfExpr = params.ddfx?.trim();
+      const ddf = ddfExpr ? parseExpression(ddfExpr) : null;
+      if (isNaN(x0)) throw new Error("x\u2080 debe ser un numero valido");
+      const iterations = [];
+      let h = hStart;
+      let lastApprox = 0;
+      for (let step = 1; step <= 12; step++) {
+        const approx = (f(x0 + h) - 2 * f(x0) + f(x0 - h)) / (h * h);
+        const exact = ddf ? ddf(x0) : NaN;
+        const error = ddf ? Math.abs(approx - exact) : step > 1 ? Math.abs(approx - lastApprox) : NaN;
+        iterations.push({ step, h, approx, exact, error: isNaN(error) ? 0 : error });
+        lastApprox = approx;
+        h /= 2;
+      }
+      const finalApprox = iterations[0].approx;
+      const finalError = ddf ? Math.abs(finalApprox - ddf(x0)) : 0;
+      return {
+        derivative: finalApprox,
+        iterations,
+        converged: true,
+        error: finalError,
+        message: `f''(${x0}) \u2248 ${finalApprox.toPrecision(10)}`
+      };
+    },
+    getCharts(params, result) {
+      const f = parseExpression(params.fx);
+      const x0 = parseFloat(params.x0);
+      const h = parseFloat(params.h) || 0.1;
+      const pad2 = 2;
+      const xs = linspace(x0 - pad2, x0 + pad2, 500);
+      const ys = xs.map((x) => f(x));
+      const chart1 = {
+        title: "f(x) y puntos de evaluacion",
+        type: "scatter",
+        datasets: [
+          { label: "f(x)", x: xs, y: ys, color: "#89b4fa", pointRadius: 0 },
+          { label: "f(x\u2080-h)", x: [x0 - h], y: [f(x0 - h)], color: "#f38ba8", pointRadius: 6, showLine: false },
+          { label: "f(x\u2080)", x: [x0], y: [f(x0)], color: "#fab387", pointRadius: 6, showLine: false },
+          { label: "f(x\u2080+h)", x: [x0 + h], y: [f(x0 + h)], color: "#94e2d5", pointRadius: 6, showLine: false }
+        ],
+        xLabel: "x",
+        yLabel: "f(x)"
+      };
+      const hValues = result.iterations.map((r) => r.h);
+      const errors = result.iterations.map((r) => r.error).filter((e3) => e3 > 0);
+      const chart2 = {
+        title: "Error vs h",
+        type: "line",
+        datasets: [{ label: "Error", x: hValues.slice(0, errors.length), y: errors, color: "#f38ba8", pointRadius: 3 }],
+        xLabel: "h",
+        yLabel: "|Error|",
+        yLog: true
+      };
+      const approxVals = result.iterations.map((r) => r.approx);
+      const steps2 = result.iterations.map((r) => r.step);
+      const ddfExpr = params.ddfx?.trim();
+      const ddf = ddfExpr ? parseExpression(ddfExpr) : null;
+      const chart3 = {
+        title: "Convergencia de f''(x)",
+        type: "line",
+        datasets: [
+          { label: "f'' aprox", x: steps2, y: approxVals, color: "#cba6f7", pointRadius: 3 },
+          ...ddf ? [{ label: "f'' exacta", x: [steps2[0], steps2[steps2.length - 1]], y: [ddf(x0), ddf(x0)], color: "#a6e3a1", dashed: true, pointRadius: 0 }] : []
+        ],
+        xLabel: "Paso",
+        yLabel: "f''(x)"
+      };
+      const secondDeriv = (f(x0 + h) - 2 * f(x0) + f(x0 - h)) / (h * h);
+      const chart4 = {
+        title: `Concavidad en x\u2080 (f''\u2248${secondDeriv.toFixed(4)})`,
+        type: "line",
+        datasets: [
+          { label: "f(x)", x: xs, y: ys, color: "#89b4fa" },
+          { label: "x\u2080", x: [x0], y: [f(x0)], color: "#fab387", pointRadius: 6, showLine: false }
+        ],
+        xLabel: "x",
+        yLabel: "f(x)"
+      };
+      return [chart1, chart2, chart3, chart4];
+    }
+  };
+
+  // src/methods/differentiation/richardson.ts
+  var richardson = {
+    id: "richardson",
+    name: "Extrapolacion de Richardson",
+    category: "differentiation",
+    formula: "D = (4\xB7D(h/2) - D(h)) / 3, mejora O(h\xB2) a O(h\u2074)",
+    description: "Combina aproximaciones con diferentes h para obtener mayor precision. Usa diferencia central como base.",
+    inputs: [
+      { id: "fx", label: "f(x)", placeholder: "sin(x)", defaultValue: "sin(x)" },
+      { id: "x0", label: "x\u2080 (punto de evaluacion)", placeholder: "1", type: "number", defaultValue: "1" },
+      { id: "h", label: "h (paso inicial)", placeholder: "0.5", defaultValue: "0.5" },
+      { id: "levels", label: "Niveles de extrapolacion", placeholder: "4", type: "number", defaultValue: "4" },
+      { id: "dfx", label: "f'(x) exacta (opcional)", placeholder: "cos(x)", defaultValue: "cos(x)" }
+    ],
+    tableColumns: [
+      { key: "level", label: "Nivel" },
+      { key: "h", label: "h" },
+      { key: "D_base", label: "D base (central)" },
+      { key: "D_richardson", label: "D Richardson" },
+      { key: "error_base", label: "Error base" },
+      { key: "error_rich", label: "Error Richardson" }
+    ],
+    solve(params) {
+      const f = parseExpression(params.fx);
+      const x0 = parseFloat(params.x0);
+      const hStart = parseFloat(params.h) || 0.5;
+      const levels = parseInt(params.levels) || 4;
+      const dfExpr = params.dfx?.trim();
+      const df = dfExpr ? parseExpression(dfExpr) : null;
+      if (isNaN(x0)) throw new Error("x\u2080 debe ser un numero valido");
+      if (levels < 2) throw new Error("Se necesitan al menos 2 niveles");
+      const n = levels;
+      const D2 = [];
+      for (let i2 = 0; i2 < n; i2++) {
+        const h = hStart / Math.pow(2, i2);
+        D2.push([(f(x0 + h) - f(x0 - h)) / (2 * h)]);
+      }
+      for (let j = 1; j < n; j++) {
+        for (let i2 = j; i2 < n; i2++) {
+          const factor = Math.pow(4, j);
+          const val = (factor * D2[i2][j - 1] - D2[i2 - 1][j - 1]) / (factor - 1);
+          D2[i2].push(val);
+        }
+      }
+      const iterations = [];
+      const exact = df ? df(x0) : NaN;
+      for (let i2 = 0; i2 < n; i2++) {
+        const h = hStart / Math.pow(2, i2);
+        const dBase = D2[i2][0];
+        const dRich = D2[i2][D2[i2].length - 1];
+        const errorBase = df ? Math.abs(dBase - exact) : 0;
+        const errorRich = df ? Math.abs(dRich - exact) : 0;
+        iterations.push({
+          level: i2 + 1,
+          h,
+          D_base: dBase,
+          D_richardson: dRich,
+          error_base: errorBase,
+          error_rich: errorRich
+        });
+      }
+      const bestApprox = D2[n - 1][D2[n - 1].length - 1];
+      const finalError = df ? Math.abs(bestApprox - exact) : 0;
+      return {
+        derivative: bestApprox,
+        iterations,
+        converged: true,
+        error: finalError,
+        message: `f'(${x0}) \u2248 ${bestApprox.toPrecision(12)} (nivel ${n})`
+      };
+    },
+    getCharts(params, result) {
+      const f = parseExpression(params.fx);
+      const x0 = parseFloat(params.x0);
+      const dfExpr = params.dfx?.trim();
+      const df = dfExpr ? parseExpression(dfExpr) : null;
+      const pad2 = 2;
+      const xs = linspace(x0 - pad2, x0 + pad2, 500);
+      const ys = xs.map((x) => f(x));
+      const bestSlope = result.derivative ?? 0;
+      const tanXs = linspace(x0 - 1, x0 + 1, 100);
+      const tanYs = tanXs.map((x) => f(x0) + bestSlope * (x - x0));
+      const chart1 = {
+        title: "f(x) con tangente Richardson",
+        type: "line",
+        datasets: [
+          { label: "f(x)", x: xs, y: ys, color: "#89b4fa" },
+          { label: "Tangente Richardson", x: tanXs, y: tanYs, color: "#a6e3a1", dashed: true },
+          { label: "x\u2080", x: [x0], y: [f(x0)], color: "#fab387", pointRadius: 6, showLine: false }
+        ],
+        xLabel: "x",
+        yLabel: "y"
+      };
+      const levels = result.iterations.map((r) => r.level);
+      const errBase = result.iterations.map((r) => r.error_base).filter((e3) => e3 > 0);
+      const errRich = result.iterations.map((r) => r.error_rich).filter((e3) => e3 > 0);
+      const chart2 = {
+        title: "Error: Central vs Richardson",
+        type: "line",
+        datasets: [
+          { label: "Central O(h\xB2)", x: levels.slice(0, errBase.length), y: errBase, color: "#f38ba8", pointRadius: 3 },
+          { label: "Richardson O(h\u2074+)", x: levels.slice(0, errRich.length), y: errRich, color: "#a6e3a1", pointRadius: 3 }
+        ],
+        xLabel: "Nivel",
+        yLabel: "|Error|",
+        yLog: true
+      };
+      const dBase = result.iterations.map((r) => r.D_base);
+      const dRich = result.iterations.map((r) => r.D_richardson);
+      const chart3 = {
+        title: "Convergencia: Central vs Richardson",
+        type: "line",
+        datasets: [
+          { label: "Central", x: levels, y: dBase, color: "#f38ba8", pointRadius: 3 },
+          { label: "Richardson", x: levels, y: dRich, color: "#a6e3a1", pointRadius: 3 },
+          ...df ? [{ label: "f' exacta", x: [levels[0], levels[levels.length - 1]], y: [df(x0), df(x0)], color: "#f9e2af", dashed: true, pointRadius: 0 }] : []
+        ],
+        xLabel: "Nivel",
+        yLabel: "f'(x)"
+      };
+      const hValues = result.iterations.map((r) => r.h);
+      const chart4 = {
+        title: "Valores de h por nivel",
+        type: "line",
+        datasets: [{ label: "h", x: levels, y: hValues, color: "#cba6f7", pointRadius: 4 }],
+        xLabel: "Nivel",
+        yLabel: "h",
+        yLog: true
+      };
+      return [chart1, chart2, chart3, chart4];
+    }
+  };
+
+  // src/categories.ts
+  var categories = [
+    {
+      id: "rootFinding",
+      name: "Busqueda de Raices",
+      cssClass: "",
+      methods: [bisection, fixedPoint, newtonRaphson, secant, falsePosition, aitken, steffensen]
+    },
+    {
+      id: "integration",
+      name: "Integracion Numerica (Newton-Cotes)",
+      cssClass: "integration",
+      methods: [midpoint, trapezoidal, trapezoidalComp, simpson13, simpson13Comp, simpson38, simpson38Comp, montecarlo, montecarlo2D, montecarloArea, montecarloPi]
+    },
+    {
+      id: "interpolation",
+      name: "Interpolacion Polinomica",
+      cssClass: "interpolation",
+      methods: [lagrange, newtonDD]
+    },
+    {
+      id: "ode",
+      name: "Ecuaciones Diferenciales Ordinarias",
+      cssClass: "ode",
+      methods: [euler, heun, rungeKutta]
+    },
+    {
+      id: "differentiation",
+      name: "Diferenciacion Numerica",
+      cssClass: "differentiation",
+      methods: [forward, backward, central, secondDerivative, richardson]
+    }
+  ];
+  var allMethods = categories.flatMap((c) => c.methods);
+  function getMethod(id) {
+    return allMethods.find((m) => m.id === id);
+  }
+
+  // src/views/home.ts
+  function renderHome(onMethodClick) {
+    const sectionsHtml = categories.map((cat) => {
+      const cards = cat.methods.map((m) => {
+        const latexFormula = FORMULAS[m.id];
+        const formulaHtml = latexFormula ? texInline(latexFormula) : `<span class="formula-fallback">${m.formula}</span>`;
+        return `
+        <div class="method-card ${cat.cssClass}" data-method="${m.id}">
+          <h3>${m.name}</h3>
+          <div class="formula">${formulaHtml}</div>
+          <div class="description">${m.description}</div>
+        </div>
+      `;
+      }).join("");
+      return `
+      <div class="category-section">
+        <h2 class="category-title ${cat.cssClass}">${cat.name}</h2>
+        <div class="methods-grid">${cards}</div>
+      </div>
+    `;
+    }).join("");
+    const capabilityGroups = [
+      {
+        title: "G1 \u2014 Raices",
+        items: [
+          "Biseccion, Punto fijo, Newton-Raphson, Secante, Falsa posicion",
+          "Aitken \u0394\xB2 y Steffensen (aceleracion cuadratica)",
+          "Verificacion de Bolzano y Lipschitz automatica",
+          "Error relativo % y comparacion contra valor exacto"
+        ]
+      },
+      {
+        title: "G2 \u2014 Interpolacion",
+        items: [
+          "Lagrange con base L_i(x) y tabla de contribuciones",
+          "Newton diferencias divididas (tabla triangular)",
+          "Error local |f(x) - P_n(x)| y cota global M/(n+1)!\xB7|\u220F(x-x_i)|",
+          "Input tabla (x\u1D62, y\u1D62) con filas dinamicas"
+        ]
+      },
+      {
+        title: "G3 \u2014 Integracion numerica",
+        items: [
+          "Trapecio / Simpson 1/3 / Simpson 3/8 (simples y compuestos)",
+          "Punto medio y cota de error con max |f\u207D\u1D4F\u207E(\u03BE)|",
+          "Auto-retry con n refinado si el error supera el 1 %",
+          "Comparador de velocidad de convergencia"
+        ]
+      },
+      {
+        title: "G4 \u2014 Monte Carlo",
+        items: [
+          "MC 1D con semilla, desv. estandar, IC 95 %",
+          "MC 2D sobre rectangulo con K repeticiones promediadas",
+          "Area entre curvas por hit-or-miss",
+          "Demo de convergencia O(1/\u221AN) y \u03C0"
+        ]
+      },
+      {
+        title: "G5 \u2014 EDOs",
+        items: [
+          "Euler, Heun (RK2) y Runge-Kutta 4 (RK4)",
+          "x objetivo con resaltado en la tabla y verificacion de iteraciones",
+          "Comparador Euler \u2194 Heun \u2194 RK4 con overlay de trayectoria",
+          "Solucion exacta opcional para medir |error|"
+        ]
+      },
+      {
+        title: "Cross-cutting",
+        items: [
+          "Selector global de precision (decimales / cifras significativas)",
+          "Teclado matematico, calculadora simbolica, GeoGebra embebido",
+          "Exportar reporte Markdown con parametros, tabla y 4 graficos",
+          "Ejercicios precargados del parcial en cada metodo"
+        ]
+      }
+    ];
+    const capabilityHtml = `
+    <div class="category-section">
+      <h2 class="category-title" style="border-color: var(--yellow)">Capacidades cubiertas (mapeo a parciales)</h2>
+      <div class="capability-grid">
+        ${capabilityGroups.map((g) => `
+          <div class="capability-card">
+            <h3>${g.title}</h3>
+            <ul>${g.items.map((it) => `<li>${it}</li>`).join("")}</ul>
+          </div>
+        `).join("")}
+      </div>
+    </div>
+  `;
+    setTimeout(() => {
+      document.querySelectorAll(".method-card[data-method]").forEach((card) => {
+        card.addEventListener("click", () => {
+          const id = card.getAttribute("data-method");
+          if (id) onMethodClick(id);
+        });
+      });
+    }, 0);
+    return `
+    <div class="home-header">
+      <h1>Modelado Numerico</h1>
+      <p>Metodos numericos interactivos con visualizacion en tiempo real</p>
+    </div>
+    ${sectionsHtml}
+    ${capabilityHtml}
+  `;
   }
 
   // node_modules/@kurkle/color/dist/color.esm.js
@@ -78112,8 +79998,8 @@
       const options = this.options;
       const formats = options.time.displayFormats;
       const unit2 = this._unit;
-      const fmt = format5 || formats[unit2];
-      return this._adapter.format(value, fmt);
+      const fmt2 = format5 || formats[unit2];
+      return this._adapter.format(value, fmt2);
     }
     _tickFormatFunction(time, index3, ticks, format5) {
       const options = this.options;
@@ -78652,13 +80538,336 @@
     });
   }
 
+  // src/exportReport.ts
+  var MAX_TABLE_ROWS = 50;
+  function fmt(v) {
+    if (v === null || v === void 0) return "\u2014";
+    if (typeof v === "number") {
+      if (!isFinite(v)) return String(v);
+      const abs3 = Math.abs(v);
+      if (abs3 !== 0 && (abs3 < 1e-4 || abs3 >= 1e10)) return v.toExponential(6);
+      return v.toPrecision(8).replace(/\.?0+$/, "");
+    }
+    return String(v);
+  }
+  function escapePipes(s) {
+    return s.replace(/\|/g, "\\|").replace(/\n/g, " ");
+  }
+  function buildInputsSection(method, params) {
+    const rows = method.inputs.map((inp) => {
+      const label = escapePipes(inp.label);
+      const value = escapePipes(params[inp.id] ?? "");
+      return `| ${label} | \`${value}\` |`;
+    }).join("\n");
+    return `## Parametros de entrada
+
+| Campo | Valor |
+|---|---|
+${rows}`;
+  }
+  function buildResultSection(result) {
+    const lines = ["## Resultado"];
+    const kv = [];
+    if (result.root !== void 0) kv.push(["Raiz", fmt(result.root)]);
+    if (result.integral !== void 0) kv.push(["Integral", fmt(result.integral)]);
+    if (result.derivative !== void 0) kv.push(["Derivada", fmt(result.derivative)]);
+    if (result.exact !== void 0) kv.push(["Valor exacto", fmt(result.exact)]);
+    if (result.relativeErrorPercent !== void 0) kv.push(["Error relativo (%)", fmt(result.relativeErrorPercent)]);
+    if (result.truncationBound !== void 0) {
+      kv.push([`Cota |E| (orden ${result.truncationOrder ?? "?"})`, fmt(result.truncationBound)]);
+    }
+    if (result.maxDerivative !== void 0) {
+      kv.push([`max |f^(${result.truncationOrder ?? "?"})(\u03BE)|`, `${fmt(result.maxDerivative)} en \u03BE \u2248 ${fmt(result.xiApprox)}`]);
+    }
+    if (result.derivativeExpr) kv.push(["Derivada simbolica", `\`${result.derivativeExpr}\``]);
+    if (result.retried) kv.push(["Reintento", "Error > 1 % \u2192 n refinado"]);
+    kv.push(["Iteraciones", String(result.iterations.length)]);
+    kv.push(["Error final", fmt(result.error)]);
+    kv.push(["Convergido", result.converged ? "Si" : "No"]);
+    if (result.message) kv.push(["Nota", result.message]);
+    lines.push("", "| Campo | Valor |", "|---|---|");
+    for (const [k, v] of kv) lines.push(`| ${escapePipes(k)} | ${escapePipes(v)} |`);
+    return lines.join("\n");
+  }
+  function buildTableSection(result, columns) {
+    if (result.iterations.length === 0) return "";
+    const header = `| ${columns.map((c) => escapePipes(c.label)).join(" | ")} |`;
+    const separator = `|${columns.map(() => "---").join("|")}|`;
+    const rows = [];
+    const total = result.iterations.length;
+    const limit = Math.min(total, MAX_TABLE_ROWS);
+    for (let i2 = 0; i2 < limit; i2++) {
+      const row2 = result.iterations[i2];
+      const cells = columns.map((c) => escapePipes(fmt(row2[c.key]))).join(" | ");
+      rows.push(`| ${cells} |`);
+    }
+    const truncatedNote = total > limit ? `
+
+> Tabla truncada: mostrando las primeras ${limit} de ${total} filas.` : "";
+    return `## Tabla de iteraciones
+
+${header}
+${separator}
+${rows.join("\n")}${truncatedNote}`;
+  }
+  function buildTheoremSection(result) {
+    if (!result.theoremPanels || result.theoremPanels.length === 0) return "";
+    const stripped = result.theoremPanels.map(
+      (html) => html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim()
+    ).filter((s) => s.length > 0);
+    if (stripped.length === 0) return "";
+    return `## Verificaciones teoricas
+
+${stripped.map((s) => `- ${s}`).join("\n")}`;
+  }
+  function captureChartImages(count2) {
+    const images = [];
+    for (let i2 = 0; i2 < count2; i2++) {
+      const canvas = document.getElementById(`chart-${i2}`);
+      if (!canvas) continue;
+      try {
+        const data = canvas.toDataURL("image/png");
+        if (data && data.startsWith("data:image/png")) images.push(data);
+      } catch {
+      }
+    }
+    return images;
+  }
+  function buildChartsSection(chartImages) {
+    if (chartImages.length === 0) return "";
+    const blocks = chartImages.map((img, i2) => `### Grafico ${i2 + 1}
+
+![chart-${i2}](${img})`);
+    return `## Graficos
+
+${blocks.join("\n\n")}`;
+  }
+  function buildMarkdownReport(method, params, result) {
+    const now = (/* @__PURE__ */ new Date()).toISOString().replace("T", " ").substring(0, 19);
+    const chartImages = captureChartImages(4);
+    const sections = [
+      `# ${method.name}`,
+      `_${method.description}_`,
+      `**Formula:** \`${method.formula}\``,
+      `**Generado:** ${now}`,
+      buildInputsSection(method, params),
+      buildResultSection(result),
+      buildTheoremSection(result),
+      buildChartsSection(chartImages),
+      buildTableSection(result, method.tableColumns)
+    ].filter((s) => s && s.trim() !== "");
+    return sections.join("\n\n") + "\n";
+  }
+  function downloadMarkdownReport(method, params, result) {
+    const md = buildMarkdownReport(method, params, result);
+    const blob = new Blob([md], { type: "text/markdown;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    const safeName = method.id.replace(/[^a-zA-Z0-9_-]/g, "_");
+    const stamp = (/* @__PURE__ */ new Date()).toISOString().replace(/[:.]/g, "-").substring(0, 19);
+    a.href = url;
+    a.download = `reporte_${safeName}_${stamp}.md`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 1e3);
+  }
+
+  // src/exercises.ts
+  var EXERCISES = [
+    // Grupo 1 — Raices
+    {
+      id: "r-bis-1",
+      methodId: "bisection",
+      label: "x\xB3 - x - 2 en [1, 2]  (raiz \u2248 1.5214)",
+      description: "Bolzano OK: f(1) = -2, f(2) = 4",
+      params: { fx: "x^3 - x - 2", a: "1", b: "2", tol: "1e-6", maxIter: "50" }
+    },
+    {
+      id: "r-bis-2",
+      methodId: "bisection",
+      label: "cos(x) - x en [0, 1]  (raiz \u2248 0.7391)",
+      params: { fx: "cos(x) - x", a: "0", b: "1", tol: "1e-8", maxIter: "60" }
+    },
+    {
+      id: "r-fp-1",
+      methodId: "fixedPoint",
+      label: "g(x) = (x + 2)^(1/3) desde x\u2080 = 1  (punto fijo \u2248 1.5214)",
+      description: "Lipschitz OK en [1, 2]: max|g'(x)| < 1",
+      params: { gx: "(x + 2)^(1/3)", x0: "1", a: "1", b: "2", tol: "1e-8", maxIter: "40" }
+    },
+    {
+      id: "r-nr-1",
+      methodId: "newtonRaphson",
+      label: "cos(x) - x desde x\u2080 = 0.5  (exacto = 0.73908513)",
+      params: { fx: "cos(x) - x", dfx: "", x0: "0.5", tol: "1e-10", maxIter: "20", exact: "0.73908513321516" }
+    },
+    {
+      id: "r-nr-2",
+      methodId: "newtonRaphson",
+      label: "x\xB3 - 2x - 5 desde x\u2080 = 2  (exacto \u2248 2.0945515)",
+      params: { fx: "x^3 - 2*x - 5", dfx: "", x0: "2", tol: "1e-10", maxIter: "20", exact: "2.09455148154233" }
+    },
+    {
+      id: "r-sec-1",
+      methodId: "secant",
+      label: "e\u02E3 - 3x con x\u2080 = 0, x\u2081 = 1  (raiz \u2248 0.6190)",
+      params: { fx: "exp(x) - 3*x", x0: "0", x1: "1", tol: "1e-8", maxIter: "30" }
+    },
+    {
+      id: "r-fp-2",
+      methodId: "falsePosition",
+      label: "x\xB2 - 2 en [1, 2]  (\u221A2)",
+      params: { fx: "x^2 - 2", a: "1", b: "2", tol: "1e-8", maxIter: "50" }
+    },
+    {
+      id: "r-ait-1",
+      methodId: "aitken",
+      label: "Aitken \u0394\xB2 sobre g(x) = cos(x) desde x\u2080 = 0.5",
+      params: { gx: "cos(x)", x0: "0.5", a: "0", b: "1", tol: "1e-10", maxIter: "25", exact: "0.73908513321516" }
+    },
+    {
+      id: "r-stef-1",
+      methodId: "steffensen",
+      label: "Steffensen sobre g(x) = cos(x) desde x\u2080 = 0.5",
+      description: "Aceleracion cuadratica sobre punto fijo",
+      params: { gx: "cos(x)", x0: "0.5", a: "0", b: "1", tol: "1e-10", maxIter: "10", exact: "0.73908513321516" }
+    },
+    // Grupo 2 — Interpolacion
+    {
+      id: "i-lag-1",
+      methodId: "lagrange",
+      label: "Lagrange: (0,1), (1,3), (2,2), (3,5) en x = 1.5",
+      params: { points: "0,1;1,3;2,2;3,5", xQuery: "1.5", fx: "" }
+    },
+    {
+      id: "i-lag-2",
+      methodId: "lagrange",
+      label: "Lagrange: sin(x) en x = \u03C0/4 con nodos 0, \u03C0/6, \u03C0/3, \u03C0/2",
+      description: "Compara con f(x) = sin(x) para ver error",
+      params: { points: "0,0;0.5235987756,0.5;1.0471975512,0.8660254038;1.5707963268,1", xQuery: "0.7853981634", fx: "sin(x)" }
+    },
+    {
+      id: "i-ndd-1",
+      methodId: "newtonDD",
+      label: "Newton DD: (0,1), (1,3), (2,2), (3,5) en x = 1.5",
+      params: { points: "0,1;1,3;2,2;3,5", xQuery: "1.5", fx: "" }
+    },
+    {
+      id: "i-ndd-2",
+      methodId: "newtonDD",
+      label: "Newton DD: ln(x) en x = 1.5 con nodos 1, 2, 3, 4",
+      params: { points: "1,0;2,0.6931471806;3,1.0986122887;4,1.3862943611", xQuery: "1.5", fx: "log(x)" }
+    },
+    // Grupo 3 — Integracion
+    {
+      id: "int-trap-1",
+      methodId: "trapezoidalComp",
+      label: "Trapecio comp.: \u222B\u2080^\u03C0 sin(x) dx con n = 10  (exacto = 2)",
+      params: { fx: "sin(x)", a: "0", b: "3.14159265358979", n: "10", exact: "2" }
+    },
+    {
+      id: "int-s13-1",
+      methodId: "simpson13Comp",
+      label: "Simpson 1/3 comp.: \u222B\u2080\xB9 x\xB2 dx con n = 4  (exacto = 1/3)",
+      params: { fx: "x^2", a: "0", b: "1", n: "4", exact: "0.33333333333333" }
+    },
+    {
+      id: "int-s38-1",
+      methodId: "simpson38Comp",
+      label: "Simpson 3/8 comp.: \u222B\u2080\xB9 e\u02E3 dx con n = 6  (exacto = e - 1)",
+      params: { fx: "exp(x)", a: "0", b: "1", n: "6", exact: "1.71828182845905" }
+    },
+    {
+      id: "int-mid-1",
+      methodId: "midpoint",
+      label: "Punto medio: \u222B\u2081\xB2 1/x dx con n = 8  (exacto = ln 2)",
+      params: { fx: "1/x", a: "1", b: "2", n: "8", exact: "0.69314718055995" }
+    },
+    // Grupo 4 — Monte Carlo
+    {
+      id: "mc-1d-1",
+      methodId: "montecarlo",
+      label: "MC 1D: \u222B\u2080\xB9 x\xB2 dx con N = 10000, seed = 42  (exacto = 1/3)",
+      params: { fx: "x^2", a: "0", b: "1", n: "10000", seed: "42" }
+    },
+    {
+      id: "mc-pi-1",
+      methodId: "montecarloPi",
+      label: "MC \u03C0 con N = 10000, seed = 42",
+      params: { n: "10000", seed: "42" }
+    },
+    {
+      id: "mc-2d-1",
+      methodId: "montecarlo2D",
+      label: "MC 2D: \u222B\u222B(x\xB2 + y\xB2) dA en [0,1]\xB2 con K = 10  (exacto = 2/3)",
+      params: { fxy: "x^2 + y^2", a: "0", b: "1", c: "0", d: "1", n: "10000", K: "10", exact: "0.66666666666667", seed: "42" }
+    },
+    {
+      id: "mc-area-1",
+      methodId: "montecarloArea",
+      label: "MC area entre x y x\xB2 en [0, 1]  (exacto = 1/6)",
+      params: { fx: "x", gx: "x^2", a: "0", b: "1", n: "10000", K: "10", exact: "0.16666666666667", seed: "42" }
+    },
+    // Grupo 5 — EDOs
+    {
+      id: "ode-eu-1",
+      methodId: "euler",
+      label: "Euler: dy/dx = x + y, y(0)=1, x\u2208[0,2], h=0.1  (exacto: 2e\u02E3 - x - 1)",
+      params: { fxy: "x + y", x0: "0", y0: "1", xEnd: "2", h: "0.1", exact: "2*exp(x) - x - 1" }
+    },
+    {
+      id: "ode-heun-1",
+      methodId: "heun",
+      label: "Heun RK2: dy/dx = x + y, y(0)=1, x\u2208[0,2], h=0.1",
+      params: { fxy: "x + y", x0: "0", y0: "1", xEnd: "2", h: "0.1", exact: "2*exp(x) - x - 1" }
+    },
+    {
+      id: "ode-rk4-1",
+      methodId: "rungeKutta",
+      label: "RK4: dy/dx = x + y, y(0)=1, x\u2208[0,2], h=0.1",
+      params: { fxy: "x + y", x0: "0", y0: "1", xEnd: "2", h: "0.1", exact: "2*exp(x) - x - 1" }
+    },
+    {
+      id: "ode-rk4-2",
+      methodId: "rungeKutta",
+      label: "RK4: dy/dx = y, y(0)=1, x\u2208[0,1], h=0.1  (exacto: e\u02E3)",
+      params: { fxy: "y", x0: "0", y0: "1", xEnd: "1", h: "0.1", exact: "exp(x)" }
+    },
+    // Derivacion (bonus)
+    {
+      id: "d-cen-1",
+      methodId: "central",
+      label: "Diferencia central: sin(x) en x = 1, h = 0.1  (exacto: cos(1))",
+      params: { fx: "sin(x)", x: "1", h: "0.1", exact: "cos(x)" }
+    },
+    {
+      id: "d-rich-1",
+      methodId: "richardson",
+      label: "Richardson: e\u02E3 en x = 0, h = 0.5  (exacto: 1)",
+      params: { fx: "exp(x)", x: "0", h: "0.5", levels: "4", exact: "exp(x)" }
+    }
+  ];
+  function getExercisesForMethod(methodId) {
+    return EXERCISES.filter((e3) => e3.methodId === methodId);
+  }
+
   // src/views/methodView.ts
   function renderMethodView(method) {
     const form = createInputForm(method);
     setTimeout(() => bindMethodEvents(method), 0);
+    const stepsHtml = method.steps && method.steps.length > 0 ? `
+    <details class="method-steps" open>
+      <summary>\u{1F4CB} Paso a paso sugerido para resolver este metodo</summary>
+      <ol>
+        ${method.steps.map((s) => `<li>${s}</li>`).join("")}
+      </ol>
+    </details>
+  ` : "";
     return `
     <div class="method-view-full">
       ${form}
+      ${stepsHtml}
       <div id="result-summary"></div>
       <div class="charts-grid">
         <div class="chart-panel"><canvas id="chart-0"></canvas></div>
@@ -78670,11 +80879,34 @@
     </div>
   `;
   }
+  var lastResult = null;
+  var lastParams = null;
   function bindMethodEvents(method) {
     mountKeyboard("kb-container");
     setupKeyboardListeners();
+    initTableInputs(method);
+    mountExerciseDropdown(method);
+    document.addEventListener("precision-changed", () => {
+      if (!lastResult) return;
+      const tableEl = document.getElementById("iter-table");
+      if (tableEl) tableEl.innerHTML = renderIterationTable(lastResult, method.tableColumns);
+    });
     const solveBtn = document.getElementById("btn-solve");
     const clearBtn = document.getElementById("btn-clear");
+    const exportBtn = document.getElementById("btn-export");
+    if (exportBtn) {
+      exportBtn.addEventListener("click", () => {
+        if (!lastResult || !lastParams) {
+          showError("Primero resuelve el problema antes de exportar.");
+          return;
+        }
+        try {
+          downloadMarkdownReport(method, lastParams, lastResult);
+        } catch (e3) {
+          showError(e3.message || "Error al exportar reporte");
+        }
+      });
+    }
     if (solveBtn) {
       solveBtn.addEventListener("click", () => runSolve(method));
     }
@@ -78683,8 +80915,10 @@
         destroyAllCharts();
         const summary = document.getElementById("result-summary");
         const table = document.getElementById("iter-table");
+        const panels = document.getElementById("theorem-panels");
         if (summary) summary.innerHTML = "";
         if (table) table.innerHTML = "";
+        if (panels) panels.innerHTML = "";
         clearError();
         method.inputs.forEach((inp) => {
           const el = document.getElementById(`input-${inp.id}`);
@@ -78698,14 +80932,45 @@
       });
     });
   }
+  function mountExerciseDropdown(method) {
+    const exercises = getExercisesForMethod(method.id);
+    if (exercises.length === 0) return;
+    const btnRow = document.querySelector(".method-inputs-bar .btn-row");
+    if (!btnRow) return;
+    const wrapper = document.createElement("label");
+    wrapper.className = "exercise-select-label";
+    wrapper.innerHTML = `
+    Cargar ejercicio
+    <select id="exercise-select">
+      <option value="">\u2014 Elegir ejercicio del parcial \u2014</option>
+      ${exercises.map((ex) => `<option value="${ex.id}">${ex.label}</option>`).join("")}
+    </select>
+  `;
+    btnRow.appendChild(wrapper);
+    const select = wrapper.querySelector("#exercise-select");
+    select.addEventListener("change", () => {
+      const ex = exercises.find((e3) => e3.id === select.value);
+      if (!ex) return;
+      setInputValues(method, ex.params);
+      clearError();
+      if (ex.description) {
+        const errEl = document.getElementById("error-container");
+        if (errEl) errEl.innerHTML = `<div class="info-msg">${ex.description}</div>`;
+      }
+    });
+  }
   function runSolve(method) {
     clearError();
     destroyAllCharts();
     const params = getInputValues(method);
     try {
       const result = method.solve(params);
+      lastResult = result;
+      lastParams = params;
       const summaryEl = document.getElementById("result-summary");
       if (summaryEl) summaryEl.innerHTML = renderResultSummary(result);
+      const panelsEl = document.getElementById("theorem-panels");
+      if (panelsEl) panelsEl.innerHTML = (result.theoremPanels ?? []).join("");
       const charts = method.getCharts(params, result);
       charts.forEach((chartData, i2) => {
         try {
@@ -78735,11 +81000,11 @@
     return `
     <div class="compare-header">
       <h2>Comparar Metodos</h2>
-      <p style="color:var(--subtext0)">Selecciona metodos de la misma categoria, ingresa los parametros y compara resultados.</p>
+      <p style="color:var(--subtext0)">Selecciona metodos de la misma categoria, ingresa los parametros y compara resultados. Para EDOs, usa <code>f(x,y)</code> como f(x) y completa x final / h.</p>
     </div>
     <div class="compare-config">
       <div class="input-group">
-        <label>Funcion f(x)</label>
+        <label>Funcion f(x) o f(x,y) para EDOs</label>
         <input id="compare-fx" type="text" placeholder="x^3 - x - 2" value="x^3 - x - 2" style="font-family:Consolas,monospace">
       </div>
       <div style="display:flex;gap:12px;flex-wrap:wrap;">
@@ -78748,7 +81013,7 @@
           <input id="compare-a" type="number" value="1">
         </div>
         <div class="input-group" style="flex:1;min-width:120px;">
-          <label>b / x\u2081</label>
+          <label>b / x final</label>
           <input id="compare-b" type="number" value="2">
         </div>
         <div class="input-group" style="flex:1;min-width:120px;">
@@ -78758,6 +81023,14 @@
         <div class="input-group" style="flex:1;min-width:120px;">
           <label>Max iter / n</label>
           <input id="compare-max" type="number" value="100">
+        </div>
+        <div class="input-group" style="flex:1;min-width:120px;">
+          <label>y\u2080 (EDO)</label>
+          <input id="compare-y0" type="number" value="1">
+        </div>
+        <div class="input-group" style="flex:1;min-width:120px;">
+          <label>h (EDO)</label>
+          <input id="compare-h" type="number" value="0.1" step="0.01">
         </div>
       </div>
       <div>
@@ -78796,6 +81069,8 @@
     const b = document.getElementById("compare-b")?.value || "2";
     const tol = document.getElementById("compare-tol")?.value || "1e-6";
     const maxIter = document.getElementById("compare-max")?.value || "100";
+    const y0 = document.getElementById("compare-y0")?.value || "1";
+    const hStep = document.getElementById("compare-h")?.value || "0.1";
     const selectedIds = [];
     document.querySelectorAll(".method-chip.selected").forEach((chip) => {
       const id = chip.getAttribute("data-compare-method");
@@ -78811,15 +81086,17 @@
       if (!method) continue;
       const params = {};
       for (const inp of method.inputs) {
-        if (inp.id === "fx" || inp.id === "gx") params[inp.id] = fx;
+        if (inp.id === "fx" || inp.id === "gx" || inp.id === "fxy") params[inp.id] = fx;
         else if (inp.id === "a") params[inp.id] = a;
         else if (inp.id === "b") params[inp.id] = b;
         else if (inp.id === "x0") params[inp.id] = a;
         else if (inp.id === "x1") params[inp.id] = b;
+        else if (inp.id === "xEnd") params[inp.id] = b;
+        else if (inp.id === "y0") params[inp.id] = y0;
         else if (inp.id === "tol") params[inp.id] = tol;
         else if (inp.id === "maxIter") params[inp.id] = maxIter;
         else if (inp.id === "n") params[inp.id] = maxIter;
-        else if (inp.id === "h") params[inp.id] = "0.1";
+        else if (inp.id === "h") params[inp.id] = hStep;
         else if (inp.id === "dfx") params[inp.id] = "";
         else if (inp.id === "ddfx") params[inp.id] = "";
         else if (inp.id === "levels") params[inp.id] = "4";
@@ -78850,7 +81127,13 @@
     html += '<div class="chart-panel"><canvas id="compare-chart-error" style="max-height:350px;"></canvas></div>';
     resultsEl.innerHTML = html;
     const COLORS2 = ["#89b4fa", "#a6e3a1", "#fab387", "#cba6f7", "#f38ba8", "#94e2d5", "#f9e2af", "#f5c2e7"];
+    const isOdeSet = results.every((r) => r.method.category === "ode");
     const convDatasets = results.filter((r) => r.result.iterations.length > 0).map(({ method, result }, i2) => {
+      if (method.category === "ode") {
+        const xs = result.iterations.map((r) => r.xn);
+        const ys = result.iterations.map((r) => r.yn);
+        return { label: method.name, x: xs, y: ys, color: COLORS2[i2 % COLORS2.length], pointRadius: 2 };
+      }
       const iters = result.iterations.map((_, idx) => idx + 1);
       const values = result.iterations.map((row2) => {
         return row2.c ?? row2.xn ?? row2.gxn ?? row2.xn_aitken ?? row2.approx ?? row2.fxi ?? 0;
@@ -78860,11 +81143,11 @@
     if (convDatasets.length > 0) {
       try {
         renderChart("compare-chart-convergence", {
-          title: "Convergencia de valores",
+          title: isOdeSet ? "Trayectoria y(x) \u2014 comparacion de metodos ODE" : "Convergencia de valores",
           type: "line",
           datasets: convDatasets,
-          xLabel: "Iteracion",
-          yLabel: "Valor"
+          xLabel: isOdeSet ? "x" : "Iteracion",
+          yLabel: isOdeSet ? "y" : "Valor"
         });
       } catch {
       }
@@ -79043,21 +81326,21 @@
   }
 
   // src/symbolic.ts
-  var math5 = create(all);
+  var math6 = create(all);
   function symbolicDerivative(expr, variable = "x") {
     try {
-      const node = math5.parse(expr);
-      const derived = math5.derivative(node, variable);
-      return math5.simplify(derived).toString();
+      const node = math6.parse(expr);
+      const derived = math6.derivative(node, variable);
+      return math6.simplify(derived).toString();
     } catch (e3) {
       throw new Error(`No se pudo derivar: ${e3.message}`);
     }
   }
   function symbolicIntegral(expr, variable = "x") {
     try {
-      const node = math5.parse(expr);
+      const node = math6.parse(expr);
       const result = integrateNode(node, variable);
-      const simplified = math5.simplify(result).toString();
+      const simplified = math6.simplify(result).toString();
       return simplified + " + C";
     } catch (e3) {
       throw new Error(`No se pudo integrar: ${e3.message}`);
@@ -79280,12 +81563,12 @@
   }
   function tryProductIntegration(op2, v) {
     const str = op2.toString();
-    const expanded = math5.simplify(str, {}, { exactFractions: false });
+    const expanded = math6.simplify(str, {}, { exactFractions: false });
     if (expanded.type === "OperatorNode" && expanded.op === "^") {
       return integrateNode(expanded, v);
     }
-    const expandedStr = math5.simplify(str).toString();
-    const reparsed = math5.parse(expandedStr);
+    const expandedStr = math6.simplify(str).toString();
+    const reparsed = math6.parse(expandedStr);
     if (reparsed.toString() !== str) {
       return integrateNode(reparsed, v);
     }

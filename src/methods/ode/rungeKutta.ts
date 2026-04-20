@@ -1,5 +1,6 @@
 import type { MethodDefinition, MethodResult, ChartData } from '../types';
 import { parseExpression, parseExpression2, linspace } from '../../parser';
+import { commonOdeInputs, applyOdeTargetAndVerification, verifyDiffColumn } from '../../odeHelpers';
 
 export const rungeKutta: MethodDefinition = {
   id: 'rungeKutta',
@@ -14,6 +15,7 @@ export const rungeKutta: MethodDefinition = {
     { id: 'xEnd', label: 'x final', placeholder: '2', type: 'number', defaultValue: '2' },
     { id: 'h', label: 'h (paso)', placeholder: '0.1', type: 'number', defaultValue: '0.1' },
     { id: 'exact', label: 'Solucion exacta y(x) (opcional)', placeholder: '2*exp(x) - x - 1', hint: 'Para calcular error' },
+    ...commonOdeInputs,
   ],
   tableColumns: [
     { key: 'step', label: 'Paso n' },
@@ -26,6 +28,18 @@ export const rungeKutta: MethodDefinition = {
     { key: 'yNext', label: 'yₙ₊₁' },
     { key: 'exact', label: 'y exacta' },
     { key: 'error', label: '|Error|' },
+    verifyDiffColumn,
+  ],
+  steps: [
+    '<b>RK4 es el metodo estandar de la industria</b> para EDOs — altamente preciso, relativamente simple de implementar, estable. Si el parcial dice "resuelva con alta precision" o "sin mencionar orden", usa RK4.',
+    'Escribe <code>f(x, y)</code> y las condiciones: <code>x₀</code>, <code>y₀</code>, <code>x_final</code>, <code>h</code>. Tipico: <code>h = 0.1</code> ya da error <code>~10⁻⁵</code>.',
+    'Pulsa <b>Resolver</b>. Por cada paso, RK4 calcula <b>4 pendientes</b>:<br>&nbsp;&nbsp;• <code>k₁ = f(xₙ, yₙ)</code> — pendiente al inicio<br>&nbsp;&nbsp;• <code>k₂ = f(xₙ + h/2, yₙ + (h/2)·k₁)</code> — pendiente en el medio (usando k₁)<br>&nbsp;&nbsp;• <code>k₃ = f(xₙ + h/2, yₙ + (h/2)·k₂)</code> — pendiente en el medio (usando k₂, corregida)<br>&nbsp;&nbsp;• <code>k₄ = f(xₙ + h, yₙ + h·k₃)</code> — pendiente al final',
+    'Formula combinada: <code>yₙ₊₁ = yₙ + (h/6)·(k₁ + 2·k₂ + 2·k₃ + k₄)</code>. Los pesos <b>1, 2, 2, 1</b> dan el <em>promedio ponderado</em> optimo de las 4 pendientes.',
+    'La tabla muestra cada <code>k_i</code> separadamente — util para verificar a mano en el parcial. Tipicamente el parcial pide escribir explicitamente <code>k₁, k₂, k₃, k₄</code> antes de dar <code>yₙ₊₁</code>.',
+    '<b>Error global</b>: <code>O(h⁴)</code> — <em>drasticamente mejor</em> que Euler (O(h)) o Heun (O(h²)). Reducir h a la mitad reduce el error por factor 16.',
+    'Si das la <b>solucion exacta</b> (ej. <code>2*exp(x) - x - 1</code>), la tabla muestra error absoluto por paso. Error tipico con h=0.1: <code>|error| ~ 10⁻⁵</code> o menor.',
+    'Para el informe: (1) tabla con las 4 columnas <code>k_i</code> visibles en al menos los primeros 2-3 pasos; (2) <code>y(x_final)</code>; (3) si el parcial compara metodos: RK4 debe dar error ~1000× menor que Euler para mismo h; (4) costo computacional: 4 evaluaciones de <code>f</code> por paso (vs 1 Euler, 2 Heun).',
+    'Truco para entender geometricamente: las 4 pendientes son como "tomar 4 fotos" de la direccion del campo vectorial en distintos puntos del paso, y promediarlas con pesos mayores para las fotos del medio (k₂ y k₃). Esto captura la <em>curvatura</em> de la solucion.',
   ],
 
   solve(params) {
@@ -79,13 +93,15 @@ export const rungeKutta: MethodDefinition = {
       if (n < N) y = yNext;
     }
 
-    return {
+    const result: MethodResult = {
       root: y,
       iterations,
       converged: true,
       error: maxError,
       message: `y(${xEnd}) ≈ ${y.toFixed(8)} | ${N} pasos, h=${h}${maxError > 0 ? ` | Error max = ${maxError.toExponential(4)}` : ''}`,
     };
+    applyOdeTargetAndVerification(result, params);
+    return result;
   },
 
   getCharts(params, result) {

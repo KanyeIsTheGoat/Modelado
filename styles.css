@@ -131,6 +131,50 @@ body {
 .category-title.integration { border-color: var(--green); }
 .category-title.ode { border-color: var(--mauve); }
 .category-title.differentiation { border-color: var(--peach); }
+.category-title.interpolation { border-color: var(--pink); }
+
+.capability-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 16px;
+}
+
+.capability-card {
+  background: var(--surface0);
+  border: 1px solid var(--surface1);
+  border-radius: var(--radius);
+  padding: 16px 20px;
+}
+
+.capability-card h3 {
+  color: var(--yellow);
+  font-size: 1rem;
+  margin-bottom: 10px;
+}
+
+.capability-card ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.capability-card li {
+  color: var(--subtext1);
+  font-size: 0.85rem;
+  padding-left: 18px;
+  position: relative;
+}
+
+.capability-card li::before {
+  content: '✓';
+  position: absolute;
+  left: 0;
+  color: var(--green);
+  font-weight: bold;
+}
 
 .methods-grid {
   display: grid;
@@ -163,6 +207,7 @@ body {
 .method-card.integration::before { background: var(--green); }
 .method-card.ode::before { background: var(--mauve); }
 .method-card.differentiation::before { background: var(--peach); }
+.method-card.interpolation::before { background: var(--pink); }
 
 .method-card:hover {
   border-color: var(--surface2);
@@ -485,6 +530,94 @@ body {
   margin-top: 12px;
 }
 
+.info-msg {
+  background: rgba(137, 180, 250, 0.1);
+  border: 1px solid var(--blue);
+  border-radius: var(--radius-sm);
+  padding: 10px 14px;
+  color: var(--blue);
+  font-size: 0.85rem;
+  margin-top: 12px;
+}
+
+.method-steps {
+  background: var(--mantle);
+  border: 1px solid var(--surface1);
+  border-left: 4px solid var(--yellow);
+  border-radius: var(--radius);
+  padding: 14px 20px;
+  margin: 16px 0;
+}
+
+.method-steps summary {
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--yellow);
+  font-size: 0.95rem;
+  user-select: none;
+  padding: 4px 0;
+}
+
+.method-steps summary:hover {
+  color: var(--peach);
+}
+
+.method-steps[open] summary {
+  margin-bottom: 10px;
+}
+
+.method-steps ol {
+  margin: 0;
+  padding-left: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.method-steps li {
+  color: var(--subtext1);
+  font-size: 0.9rem;
+  line-height: 1.55;
+}
+
+.method-steps li b,
+.method-steps li strong {
+  color: var(--text);
+}
+
+.method-steps li code {
+  background: var(--surface0);
+  color: var(--mauve);
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-family: Consolas, monospace;
+  font-size: 0.85em;
+}
+
+.method-steps li em {
+  color: var(--blue);
+  font-style: normal;
+  font-weight: 500;
+}
+
+.exercise-select-label {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 0.72rem;
+  color: var(--subtext0);
+}
+
+.exercise-select-label select {
+  background: var(--surface0);
+  color: var(--text);
+  border: 1px solid var(--surface1);
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-size: 0.82rem;
+  max-width: 340px;
+}
+
 /* Calculator result card */
 .calc-result-card {
   background: var(--mantle);
@@ -670,4 +803,133 @@ body {
 
 .empty-state p {
   font-size: 1rem;
+}
+
+/* Theorem panels (Bolzano / Lipschitz) */
+.theorem-panel {
+  border-radius: var(--radius-sm);
+  padding: 10px 14px;
+  margin: 8px 0;
+  border-left: 4px solid var(--overlay0);
+  background: var(--mantle);
+  font-size: 0.88rem;
+}
+.theorem-panel.theorem-pass { border-left-color: var(--green); }
+.theorem-panel.theorem-fail { border-left-color: var(--red); }
+.theorem-header {
+  font-weight: 600;
+  margin-bottom: 4px;
+  color: var(--text);
+}
+.theorem-icon {
+  display: inline-block;
+  width: 18px;
+  text-align: center;
+  margin-right: 4px;
+}
+.theorem-panel.theorem-pass .theorem-icon { color: var(--green); }
+.theorem-panel.theorem-fail .theorem-icon { color: var(--red); }
+.theorem-body { color: var(--subtext0); line-height: 1.5; }
+.theorem-message { margin-top: 4px; color: var(--text); font-style: italic; }
+
+/* Table inputs (for discrete data points) */
+.input-group-table { grid-column: 1 / -1; flex: 1 1 100%; }
+.data-input-table {
+  border-collapse: collapse;
+  width: auto;
+  margin-top: 4px;
+  background: var(--crust);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+.data-input-table th {
+  background: var(--surface0);
+  color: var(--subtext1);
+  font-size: 0.78rem;
+  padding: 6px 10px;
+  text-align: left;
+  font-weight: 600;
+}
+.data-input-table td {
+  padding: 4px 6px;
+  border-top: 1px solid var(--surface0);
+}
+.table-cell-input {
+  background: transparent;
+  border: 1px solid var(--surface0);
+  border-radius: 4px;
+  color: var(--text);
+  padding: 4px 8px;
+  width: 90px;
+  font-family: Consolas, monospace;
+  font-size: 0.86rem;
+}
+.table-cell-input:focus {
+  outline: none;
+  border-color: var(--blue);
+}
+.table-input-actions { margin-top: 6px; }
+.btn-mini {
+  background: var(--surface0);
+  color: var(--text);
+  border: none;
+  border-radius: 4px;
+  padding: 4px 10px;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: var(--transition);
+}
+.btn-mini:hover { background: var(--surface1); }
+.btn-mini-danger {
+  background: transparent;
+  color: var(--red);
+  padding: 2px 8px;
+  font-weight: 700;
+}
+.btn-mini-danger:hover { background: var(--surface0); }
+
+/* Precision selector */
+.precision-select-label {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 0.72rem;
+  color: var(--subtext0);
+  margin-left: auto;
+}
+.precision-select-label select {
+  background: var(--surface0);
+  color: var(--text);
+  border: 1px solid var(--surface1);
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-size: 0.82rem;
+  cursor: pointer;
+}
+
+/* Null cell in iteration tables */
+.td-null { color: var(--overlay0); text-align: center; font-style: italic; }
+
+/* Highlighted rows in iteration tables */
+.iter-table tr.row-highlight-target td {
+  background: rgba(137, 180, 250, 0.18);
+  border-top: 1px solid rgba(137, 180, 250, 0.5);
+  border-bottom: 1px solid rgba(137, 180, 250, 0.5);
+}
+.iter-table tr.row-highlight-target td:first-child {
+  border-left: 3px solid var(--blue);
+}
+.iter-table tr.row-highlight-verify td {
+  background: rgba(249, 226, 175, 0.14);
+  border-top: 1px solid rgba(249, 226, 175, 0.5);
+  border-bottom: 1px solid rgba(249, 226, 175, 0.5);
+}
+.iter-table tr.row-highlight-verify td:first-child {
+  border-left: 3px solid var(--yellow);
+}
+.iter-table tr.row-highlight-target.row-highlight-verify td {
+  background: rgba(166, 227, 161, 0.2);
+}
+.iter-table tr.row-highlight-target.row-highlight-verify td:first-child {
+  border-left: 3px solid var(--green);
 }

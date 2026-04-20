@@ -1,5 +1,6 @@
 import type { MethodDefinition, MethodResult, ChartData } from '../types';
 import { parseExpression, linspace } from '../../parser';
+import { checkBolzano, renderBolzanoPanel } from '../../theorems';
 
 export const bisection: MethodDefinition = {
   id: 'bisection',
@@ -21,6 +22,14 @@ export const bisection: MethodDefinition = {
     { key: 'c', label: 'c' },
     { key: 'fc', label: 'f(c)' },
     { key: 'error', label: 'Error' },
+  ],
+  steps: [
+    'Escribe <code>f(x)</code> en el primer campo.',
+    'Define el intervalo <code>[a, b]</code>. <b>Verifica Bolzano</b>: <code>f(a)·f(b) &lt; 0</code>. Si no se cumple, este metodo no garantiza raiz — cambia el intervalo. La app muestra un panel con el chequeo automatico.',
+    'Configura tolerancia (ej. <code>1e-6</code>) y maximo de iteraciones.',
+    'Pulsa <b>Resolver</b>. En cada iteracion: <code>c = (a+b)/2</code>, evalua <code>f(c)</code>, y reduce el intervalo conservando el subintervalo donde sigue el cambio de signo.',
+    'Es un metodo <em>lento pero seguro</em> — convergencia lineal: el error se divide por 2 en cada iteracion. Para 6 decimales hacen falta ~20 iteraciones.',
+    'Bueno para usar como <b>arranque seguro</b> antes de pasar a Newton-Raphson o Secante, que son mas rapidos pero requieren buena semilla.',
   ],
 
   solve(params) {
@@ -65,7 +74,14 @@ export const bisection: MethodDefinition = {
       }
     }
 
-    return { root: c, iterations, converged, error };
+    const bolzano = checkBolzano(params.fx, parseFloat(params.a), parseFloat(params.b));
+    return {
+      root: c,
+      iterations,
+      converged,
+      error,
+      theoremPanels: [renderBolzanoPanel(bolzano)],
+    };
   },
 
   getCharts(params, result) {

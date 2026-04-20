@@ -60,6 +60,16 @@ export const montecarlo: MethodDefinition = {
     { key: 'ci95Lower', label: 'IC 95% inf' },
     { key: 'ci95Upper', label: 'IC 95% sup' },
   ],
+  steps: [
+    'Escribe <code>f(x)</code> y limites <code>[a, b]</code>. Para el <b>parcial 02/07/2025</b>: <code>exp(x^2)</code> sobre <code>[0, 2]</code>. Para <b>Prueba Evaluativa</b>: la funcion que te pidan.',
+    'Elige <code>N</code> = cantidad de puntos aleatorios. Parcial tipico: <code>N = 1000</code> o <code>N = 10000</code>. <em>Mas N → menor error</em> pero la convergencia es <b>O(1/√N)</b> (lento vs Simpson <code>O(h⁴)</code>).',
+    'Introduce una <b>semilla</b> (numero o texto). Misma semilla → mismos resultados, util para <em>reproducibilidad del informe</em>. Deja vacio para semilla aleatoria.',
+    'Pulsa <b>Resolver</b>. La formula es: <code>I ≈ (b-a)/N · Σᵢ f(x_i)</code>, donde cada <code>x_i</code> es uniforme en <code>[a, b]</code>.',
+    'La tabla muestra la estimacion en <b>lotes</b> (cada N/20 puntos) para visualizar como converge el promedio.',
+    '<b>Desviacion estandar</b> σ(f): variabilidad de los valores muestreados <code>f(x_i)</code>. <b>Error estandar</b> SE = (b-a)·σ(f)/√N — es la incertidumbre de la estimacion.',
+    '<b>Intervalo de confianza 95%</b>: <code>IC = estimacion ± 1.96·SE</code>. El <em>valor verdadero</em> de la integral debe caer en este rango el 95% de las veces. Si te piden K repeticiones, el IC se aproxima mejor con <code>s/√K</code> (usa el metodo <b>Monte Carlo 1D (K reps)</b>).',
+    'Para el informe: reporta (a) estimacion final, (b) σ(f), (c) SE, (d) IC 95%, (e) semilla usada. Compara con Simpson del mismo ejercicio: Simpson sera <em>mucho mas preciso</em> pero Monte Carlo maneja bien dimensiones altas donde Simpson explota.',
+  ],
 
   solve(params) {
     const f = parseExpression(params.fx);

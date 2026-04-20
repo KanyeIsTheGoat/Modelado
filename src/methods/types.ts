@@ -1,11 +1,29 @@
 export interface IterationRow {
-  [key: string]: number | string;
+  [key: string]: number | string | null;
 }
 
 export interface MethodResult {
   root?: number;
   integral?: number;
   derivative?: number;
+  /** User-provided or computed exact reference value, used for error comparison */
+  exact?: number;
+  /** Relative error vs exact, in percent */
+  relativeErrorPercent?: number;
+  /** Theoretical truncation error bound |E| using max|f^(k)| */
+  truncationBound?: number;
+  /** Order k of the derivative used to compute the truncation bound */
+  truncationOrder?: number;
+  /** Max |f^(k)| observed on the interval */
+  maxDerivative?: number;
+  /** x where the max derivative was found (approx ξ) */
+  xiApprox?: number;
+  /** Symbolic expression for the derivative used (when available) */
+  derivativeExpr?: string;
+  /** True when the method auto-retried with a refined n due to error > 1% */
+  retried?: boolean;
+  /** Pre-rendered HTML for theorem verification panels (Bolzano, Lipschitz, etc.) */
+  theoremPanels?: string[];
   iterations: IterationRow[];
   converged: boolean;
   error: number;
@@ -18,7 +36,11 @@ export interface MethodInput {
   placeholder: string;
   hint?: string;
   defaultValue?: string;
-  type?: 'text' | 'number';
+  type?: 'text' | 'number' | 'table';
+  /** For type='table': number of columns (e.g. 2 for (x, y) pairs) */
+  tableColumns?: number;
+  /** For type='table': column headers */
+  tableHeaders?: string[];
 }
 
 export interface ChartData {
@@ -42,11 +64,13 @@ export interface ChartData {
 export interface MethodDefinition {
   id: string;
   name: string;
-  category: 'rootFinding' | 'integration' | 'differentiation';
+  category: 'rootFinding' | 'integration' | 'differentiation' | 'ode' | 'interpolation';
   formula: string;
   description: string;
   inputs: MethodInput[];
   solve: (params: Record<string, string>) => MethodResult;
   getCharts: (params: Record<string, string>, result: MethodResult) => ChartData[];
   tableColumns: { key: string; label: string }[];
+  /** Guia paso a paso (HTML inline permitido: <b>, <code>, <em>). Se muestra en la vista del metodo. */
+  steps?: string[];
 }

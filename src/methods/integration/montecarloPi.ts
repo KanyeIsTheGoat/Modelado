@@ -51,6 +51,17 @@ export const montecarloPi: MethodDefinition = {
     { key: 'ci95Lower', label: 'IC 95% inf' },
     { key: 'ci95Upper', label: 'IC 95% sup' },
   ],
+  steps: [
+    'Este es el ejemplo clasico del <b>parcial Prueba Evaluativa</b>: aproximar <code>π</code> por muestreo por rechazo. <em>No necesita funcion</em> — solo N.',
+    'Elige <code>N</code> (puntos aleatorios). Recomendado: <code>N = 10000</code> como punto inicial. Para precision ~2 decimales, N ≈ 10⁴; para 3 decimales, N ≈ 10⁶.',
+    '<b>Semilla</b>: usa un valor fijo (ej. <code>42</code>) para reproducir la tabla exacta en tu informe.',
+    'Pulsa <b>Resolver</b>. El algoritmo:<br>&nbsp;&nbsp;1. Genera punto aleatorio <code>(x, y)</code> en el cuadrado <code>[-1, 1] × [-1, 1]</code> (lado 2).<br>&nbsp;&nbsp;2. Verifica si cae dentro del circulo unitario: <code>x² + y² ≤ 1</code>.<br>&nbsp;&nbsp;3. Cuenta <code>M</code> = puntos dentro, <code>N</code> = total.<br>&nbsp;&nbsp;4. Ratio <code>p̂ = M/N</code> aproxima <code>π/4</code>.',
+    'Por lo tanto: <code>π ≈ 4 · M/N</code>. La grafica 1 visualiza el cuadrado con circulo y los puntos coloreados (verde = dentro, rojo = fuera).',
+    '<b>Probabilidad</b>: cada punto es Bernoulli con <code>p = π/4 ≈ 0.7854</code>. Varianza <code>p(1-p) ≈ 0.1686</code>. Error estandar de π̂: <code>SE = 4·√(p̂(1-p̂)/N)</code>.',
+    '<b>Intervalo de confianza 95%</b>: <code>π̂ ± 1.96·SE</code>. Deberia contener a <code>π = 3.14159...</code>.',
+    'La convergencia es <code>O(1/√N)</code>: duplicar precision requiere 4× mas puntos. En la grafica 4 veras que <code>|error real|</code> sigue la curva teorica <code>1/√N</code>.',
+    'Para el informe: reporta (a) N, (b) M, (c) p̂, (d) π̂, (e) |error|, (f) SE, (g) IC 95%, (h) semilla. Contrasta el IC con el valor verdadero π.',
+  ],
 
   solve(params) {
     const N = parseInt(params.n) || 10000;

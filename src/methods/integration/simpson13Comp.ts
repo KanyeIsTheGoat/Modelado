@@ -1,5 +1,25 @@
 import type { MethodDefinition, MethodResult, ChartData } from '../types';
 import { parseExpression, linspace } from '../../parser';
+import { simpson13Error, relativeErrorPercent } from '../../integrationHelpers';
+
+function computeSimpson13(f: (x: number) => number, a: number, b: number, n: number): { integral: number; iterations: MethodResult['iterations']; h: number; n: number } {
+  if (n % 2 !== 0) n = n + 1;
+  const h = (b - a) / n;
+  const iterations: MethodResult['iterations'] = [];
+  let sum = 0;
+  for (let i = 0; i <= n; i++) {
+    const xi = a + i * h;
+    const fxi = f(xi);
+    let coeff: number;
+    if (i === 0 || i === n) coeff = 1;
+    else if (i % 2 === 1) coeff = 4;
+    else coeff = 2;
+    const contrib = coeff * fxi;
+    sum += contrib;
+    iterations.push({ i, xi, fxi, coeff, contrib });
+  }
+  return { integral: (h / 3) * sum, iterations, h, n };
+}
 
 export const simpson13Comp: MethodDefinition = {
   id: 'simpson13Comp',
@@ -12,6 +32,7 @@ export const simpson13Comp: MethodDefinition = {
     { id: 'a', label: 'a (limite inferior)', placeholder: '0', type: 'number', defaultValue: '0' },
     { id: 'b', label: 'b (limite superior)', placeholder: '1', type: 'number', defaultValue: '1' },
     { id: 'n', label: 'n (subintervalos, debe ser par)', placeholder: '10', type: 'number', defaultValue: '10' },
+    { id: 'exact', label: 'Valor exacto (opcional)', placeholder: 'p.ej. 0.333333', type: 'number', hint: 'Si se provee, se calcula error relativo y se reintenta con n=20 si supera 1%.' },
   ],
   tableColumns: [
     { key: 'i', label: 'i' },
@@ -20,45 +41,63 @@ export const simpson13Comp: MethodDefinition = {
     { key: 'coeff', label: 'Coeficiente' },
     { key: 'contrib', label: 'Contribucion' },
   ],
+  steps: [
+    'Escribe <code>f(x)</code>. Para el <b>parcial 02/07/2025</b> (parte b): <code>exp(x^2)</code> sobre <code>[0, 2]</code> con <code>n = 10</code>. Para <b>parcial 2025-I</b>: <code>ln(x+1)/x</code> sobre <code>[0, 1]</code> con <code>n = 4</code>.',
+    'Llena <code>a</code>, <code>b</code>, y <code>n</code>. <b>Importante</b>: <code>n</code> debe ser <b>par</b> (la regla ajusta una parabola por cada par de subintervalos). Si pones impar, la app lo incrementa a <code>n+1</code> y lo avisa.',
+    'Paso <code>h = (b - a) / n</code>. Puntos: <code>x_i = a + i·h</code> para <code>i = 0, 1, ..., n</code>.',
+    'Formula compuesta: <code>I ≈ h/3 · [f(x_0) + 4·f(x_1) + 2·f(x_2) + 4·f(x_3) + ... + 4·f(x_{n-1}) + f(x_n)]</code>. Patron de pesos: <b>1, 4, 2, 4, 2, ..., 4, 1</b>. La columna <em>Coeficiente</em> en la tabla te lo confirma.',
+    'Pulsa <b>Resolver</b>. La columna <em>Contribucion = coef · f(x_i)</em>. Suma total × <code>h/3</code> = integral.',
+    '<b>Error de truncamiento</b>: <code>|E| = -(b-a)·h⁴/180 · f⁽⁴⁾(ξ)</code> para algun <code>ξ ∈ (a,b)</code>. Es <code>O(h⁴)</code> — mucho mas preciso que trapecio <code>O(h²)</code>. La app calcula <code>f⁽⁴⁾</code> simbolicamente y su maximo en [a,b].',
+    'Si el parcial te fija <code>ξ</code> especifico, puedes comparar contra la cota reportada (peor caso). Para funciones suaves, Simpson da error <em>casi nulo</em> con n moderado.',
+    'Si diste <b>valor exacto</b>: app calcula error relativo y reintenta con <code>n = 20</code> si > 1%. Usa el exacto de Wolfram o <code>scipy.integrate.quad</code> — para ∫₀² e^(x²) dx: <code>≈ 16.45262776</code>.',
+    '<b>Comparacion vs Trapecio</b> (cierre del parcial): anota (1) integral, (2) error relativo %, (3) cota teorica. Simpson debe ser varios ordenes de magnitud mejor. Menciona en el informe: "Simpson O(h⁴) domina a Trapecio O(h²)".',
+  ],
 
   solve(params) {
     const f = parseExpression(params.fx);
     const a = parseFloat(params.a);
     const b = parseFloat(params.b);
-    let n = parseInt(params.n) || 10;
+    let nReq = parseInt(params.n) || 10;
+    const exactRaw = (params.exact ?? '').trim();
+    const exact = exactRaw === '' ? undefined : parseFloat(exactRaw);
 
     if (isNaN(a) || isNaN(b)) throw new Error('a y b deben ser numeros validos');
     if (a >= b) throw new Error('a debe ser menor que b');
-    if (n < 2) throw new Error('n debe ser >= 2');
-    if (n % 2 !== 0) {
-      n = n + 1; // Force even
-    }
+    if (nReq < 2) throw new Error('n debe ser >= 2');
 
-    const h = (b - a) / n;
-    const iterations: MethodResult['iterations'] = [];
-    let sum = 0;
+    let run = computeSimpson13(f, a, b, nReq);
+    let retried = false;
+    let relErr: number | undefined;
 
-    // Simpson 1/3 composite: h/3 * [f(x0) + 4*f(x1) + 2*f(x2) + 4*f(x3) + ... + f(xn)]
-    for (let i = 0; i <= n; i++) {
-      const xi = a + i * h;
-      const fxi = f(xi);
-      let coeff: number;
-      if (i === 0 || i === n) {
-        coeff = 1;
-      } else if (i % 2 === 1) {
-        coeff = 4;
-      } else {
-        coeff = 2;
+    if (exact !== undefined && !isNaN(exact)) {
+      relErr = relativeErrorPercent(run.integral, exact);
+      if (relErr > 1 && run.n < 20) {
+        run = computeSimpson13(f, a, b, 20);
+        relErr = relativeErrorPercent(run.integral, exact);
+        retried = true;
       }
-      const contrib = coeff * fxi;
-      sum += contrib;
-      iterations.push({ i, xi, fxi, coeff, contrib });
     }
 
-    const integral = (h / 3) * sum;
+    const errInfo = simpson13Error(params.fx, a, b, run.h);
+
+    const msgParts = [`h = ${run.h.toPrecision(6)}, n = ${run.n} (par)`];
+    if (errInfo.derivativeExpr) msgParts.push(`f⁴(x) = ${errInfo.derivativeExpr}`);
+    if (retried) msgParts.push('reintento automatico con n=20 tras error > 1%');
+
     return {
-      integral, iterations, converged: true, error: 0,
-      message: `h = ${h.toPrecision(6)}, n = ${n} (par)`,
+      integral: run.integral,
+      iterations: run.iterations,
+      converged: true,
+      error: errInfo.bound,
+      exact,
+      relativeErrorPercent: relErr,
+      truncationBound: errInfo.bound,
+      truncationOrder: 4,
+      maxDerivative: errInfo.max,
+      xiApprox: errInfo.xAtMax,
+      derivativeExpr: errInfo.derivativeExpr ?? undefined,
+      retried,
+      message: msgParts.join(' · '),
     };
   },
 
@@ -67,6 +106,7 @@ export const simpson13Comp: MethodDefinition = {
     const a = parseFloat(params.a);
     const b = parseFloat(params.b);
     let n = parseInt(params.n) || 10;
+    if (result.retried) n = 20;
     if (n % 2 !== 0) n++;
     const h = (b - a) / n;
 
@@ -74,7 +114,6 @@ export const simpson13Comp: MethodDefinition = {
     const xs = linspace(a - pad, b + pad, 500);
     const ys = xs.map(x => f(x));
 
-    // Parabolas for each pair of subintervals
     const parabolaX: number[] = [];
     const parabolaY: number[] = [];
     for (let i = 0; i < n; i += 2) {
@@ -106,7 +145,6 @@ export const simpson13Comp: MethodDefinition = {
       xLabel: 'x', yLabel: 'f(x)',
     };
 
-    // Evaluation points with coefficients
     const xPts = result.iterations.map(r => r.xi as number);
     const yPts = result.iterations.map(r => r.fxi as number);
     const chart2: ChartData = {
@@ -119,7 +157,6 @@ export const simpson13Comp: MethodDefinition = {
       xLabel: 'x', yLabel: 'f(x)',
     };
 
-    // Coefficients
     const coeffs = result.iterations.map(r => r.coeff as number);
     const chart3: ChartData = {
       title: 'Patron de coeficientes (1-4-2-4-...-1)',
@@ -128,7 +165,6 @@ export const simpson13Comp: MethodDefinition = {
       xLabel: 'x_i', yLabel: 'Coeficiente',
     };
 
-    // Convergence
     const nValues = [2, 4, 6, 8, 10, 20, 50, 100];
     const integrals = nValues.map(nv => {
       const hv = (b - a) / nv;

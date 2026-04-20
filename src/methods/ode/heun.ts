@@ -1,5 +1,6 @@
 import type { MethodDefinition, MethodResult, ChartData } from '../types';
 import { parseExpression, parseExpression2, linspace } from '../../parser';
+import { commonOdeInputs, applyOdeTargetAndVerification, verifyDiffColumn } from '../../odeHelpers';
 
 export const heun: MethodDefinition = {
   id: 'heun',
@@ -14,6 +15,7 @@ export const heun: MethodDefinition = {
     { id: 'xEnd', label: 'x final', placeholder: '2', type: 'number', defaultValue: '2' },
     { id: 'h', label: 'h (paso)', placeholder: '0.1', type: 'number', defaultValue: '0.1' },
     { id: 'exact', label: 'Solucion exacta y(x) (opcional)', placeholder: '2*exp(x) - x - 1', hint: 'Para calcular error' },
+    ...commonOdeInputs,
   ],
   tableColumns: [
     { key: 'step', label: 'Paso n' },
@@ -25,6 +27,17 @@ export const heun: MethodDefinition = {
     { key: 'yNext', label: 'yₙ₊₁' },
     { key: 'exact', label: 'y exacta' },
     { key: 'error', label: '|Error|' },
+    verifyDiffColumn,
+  ],
+  steps: [
+    'Heun (tambien llamado <b>Euler mejorado</b> o <b>RK2</b>) es un <em>predictor-corrector</em>: primero predice con Euler, luego corrige promediando pendientes.',
+    'Formato de entrada: igual que Euler. <code>f(x, y)</code>, <code>x₀</code>, <code>y₀</code>, <code>x_final</code>, <code>h</code>. Recomendado <code>h = 0.1</code>.',
+    'Pulsa <b>Resolver</b>. Por cada paso, Heun ejecuta <b>dos sub-pasos</b>:<br>&nbsp;&nbsp;1. <b>Predictor</b>: <code>ỹ = yₙ + h · f(xₙ, yₙ)</code> — es <em>un paso de Euler</em>.<br>&nbsp;&nbsp;2. <b>Corrector</b>: <code>yₙ₊₁ = yₙ + (h/2)·[f(xₙ, yₙ) + f(xₙ₊₁, ỹ)]</code> — <em>promedio</em> de pendientes en ambos extremos.',
+    'La tabla muestra columnas separadas: <em>ỹ (predictor)</em>, <em>f(xₙ₊₁, ỹ)</em>, <em>yₙ₊₁ (corrector)</em> — para verificar cada sub-calculo a mano en el informe.',
+    '<b>Error global</b>: <code>O(h²)</code> — <em>muchisimo mejor que Euler</em>. Reducir h a la mitad reduce el error a un cuarto. Para la misma precision necesitas ~10× menos pasos que Euler.',
+    'Si das la <b>solucion exacta</b> <code>y(x)</code>, la app calcula error absoluto en cada paso y grafica su evolucion.',
+    'Para el informe: (1) tabla con predictor y corrector; (2) <code>y(x_final)</code>; (3) comparacion con Euler para mismo h — Heun deberia dar error ~10× menor; (4) comparacion con RK4 si pedido.',
+    'Interpretacion geometrica: Euler usa solo la pendiente en <code>(xₙ, yₙ)</code>. Heun promedia la pendiente inicial y la pendiente en el punto predicho — como "mirar adelante" antes de dar el paso.',
   ],
 
   solve(params) {
@@ -83,13 +96,15 @@ export const heun: MethodDefinition = {
       if (n < N) y = yNext;
     }
 
-    return {
+    const result: MethodResult = {
       root: y,
       iterations,
       converged: true,
       error: maxError,
       message: `y(${xEnd}) ≈ ${y.toFixed(8)} | ${N} pasos, h=${h}${maxError > 0 ? ` | Error max = ${maxError.toExponential(4)}` : ''}`,
     };
+    applyOdeTargetAndVerification(result, params);
+    return result;
   },
 
   getCharts(params, result) {

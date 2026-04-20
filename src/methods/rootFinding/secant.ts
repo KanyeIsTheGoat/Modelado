@@ -22,6 +22,14 @@ export const secant: MethodDefinition = {
     { key: 'xn1', label: 'x_{n+1}' },
     { key: 'error', label: 'Error' },
   ],
+  steps: [
+    'Escribe <code>f(x)</code>. No hace falta derivada — ese es el punto.',
+    'Elegi <b>dos semillas</b> <code>x₀</code> y <code>x₁</code> cerca de la raiz. Si podes, que <code>f(x₀)·f(x₁) &lt; 0</code> (signos opuestos).',
+    'Configura tolerancia y maximo de iteraciones.',
+    'Pulsa <b>Resolver</b>. La formula aproxima <code>f\'(x_n)</code> por la pendiente de la secante entre <code>(x_{n-1}, f(x_{n-1}))</code> y <code>(x_n, f(x_n))</code>: <code>x_{n+1} = x_n - f(x_n)(x_n - x_{n-1}) / (f(x_n) - f(x_{n-1}))</code>.',
+    'Convergencia <em>superlineal</em> (orden ≈ 1.618, el numero aureo) — mas rapido que punto fijo crudo y casi tan rapido como Newton, sin necesitar <code>f\'(x)</code>.',
+    'Puede divergir si <code>f(x_n) ≈ f(x_{n-1})</code> (denominador chico) o si las semillas estan muy lejos de la raiz.',
+  ],
 
   solve(params) {
     const f = parseExpression(params.fx);

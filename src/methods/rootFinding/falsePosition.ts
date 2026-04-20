@@ -1,5 +1,6 @@
 import type { MethodDefinition, MethodResult, ChartData } from '../types';
 import { parseExpression, linspace } from '../../parser';
+import { checkBolzano, renderBolzanoPanel } from '../../theorems';
 
 export const falsePosition: MethodDefinition = {
   id: 'falsePosition',
@@ -21,6 +22,13 @@ export const falsePosition: MethodDefinition = {
     { key: 'c', label: 'c' },
     { key: 'fc', label: 'f(c)' },
     { key: 'error', label: 'Error' },
+  ],
+  steps: [
+    'Escribe <code>f(x)</code> y el intervalo <code>[a, b]</code>.',
+    '<b>Verifica Bolzano</b>: <code>f(a)·f(b) &lt; 0</code>. Si no se cumple, no garantiza raiz.',
+    'Pulsa <b>Resolver</b>. En cada paso: <code>c = a - f(a)(b-a) / (f(b) - f(a))</code> — es la interseccion de la <em>secante</em> entre (a, f(a)) y (b, f(b)) con el eje x.',
+    'Se reduce el intervalo conservando el subintervalo donde persiste el cambio de signo, igual que biseccion.',
+    'Convergencia generalmente <em>mas rapida</em> que biseccion porque usa la forma de la funcion, no solo el signo. Pero puede estancarse si la funcion es muy asimetrica (uno de los extremos casi no se mueve).',
   ],
 
   solve(params) {
@@ -70,7 +78,14 @@ export const falsePosition: MethodDefinition = {
       cPrev = c;
     }
 
-    return { root: c, iterations, converged, error };
+    const bolzano = checkBolzano(params.fx, parseFloat(params.a), parseFloat(params.b));
+    return {
+      root: c,
+      iterations,
+      converged,
+      error,
+      theoremPanels: [renderBolzanoPanel(bolzano)],
+    };
   },
 
   getCharts(params, result) {

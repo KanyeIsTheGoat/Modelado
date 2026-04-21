@@ -30,6 +30,7 @@ export const lagrange: MethodDefinition = {
   name: 'Interpolacion de Lagrange',
   category: 'interpolation',
   formula: 'P_n(x) = Σ y_i · L_i(x), L_i(x) = ∏_{j≠i} (x - x_j)/(x_i - x_j)',
+  latexFormula: 'P_n(x) = \\sum_{i=0}^{n} y_i\\,L_i(x), \\quad L_i(x) = \\prod_{\\substack{j=0 \\\\ j \\neq i}}^{n} \\frac{x - x_j}{x_i - x_j}',
   description: 'Construye el polinomio interpolante de grado ≤ n que pasa por n+1 puntos. Si se provee f(x), calcula error local y cota global.',
   inputs: [
     {

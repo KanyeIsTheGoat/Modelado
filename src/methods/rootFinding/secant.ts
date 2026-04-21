@@ -1,18 +1,21 @@
 import type { MethodDefinition, MethodResult, ChartData } from '../types';
 import { parseExpression, linspace } from '../../parser';
+import { parseStop, computeErrors, hasConverged, describeStop, withExactErrors } from '../../stoppingCriteria';
 
 export const secant: MethodDefinition = {
   id: 'secant',
   name: 'Metodo de la Secante',
   category: 'rootFinding',
   formula: 'x_{n+1} = x_n - f(x_n)·(x_n - x_{n-1}) / (f(x_n) - f(x_{n-1}))',
+  latexFormula: 'x_{n+1} = x_n - f(x_n) \\cdot \\frac{x_n - x_{n-1}}{f(x_n) - f(x_{n-1})}',
   description: 'Similar a Newton-Raphson pero no requiere la derivada. Usa dos puntos iniciales.',
   inputs: [
     { id: 'fx', label: 'f(x)', placeholder: 'x^3 - x - 2', defaultValue: 'x^3 - x - 2' },
     { id: 'x0', label: 'x₀', placeholder: '1', type: 'number', defaultValue: '1' },
     { id: 'x1', label: 'x₁', placeholder: '2', type: 'number', defaultValue: '2' },
-    { id: 'tol', label: 'Tolerancia', placeholder: '1e-6', defaultValue: '1e-6' },
+    { id: 'stop', label: 'Criterio de parada', placeholder: '1e-6', type: 'stopCriterion', defaultValue: 'tolerancia:1e-6', hint: 'Elige el criterio que pide el ejercicio: tolerancia, error absoluto/relativo, cifras significativas, etc.' },
     { id: 'maxIter', label: 'Max iteraciones', placeholder: '100', type: 'number', defaultValue: '100' },
+    { id: 'exact', label: 'Valor exacto (opcional)', placeholder: 'p.ej. 1.52138', type: 'number', hint: 'Si se provee, habilita criterios de parada vs exacto.' },
   ],
   tableColumns: [
     { key: 'iter', label: 'n' },
@@ -20,7 +23,9 @@ export const secant: MethodDefinition = {
     { key: 'xn', label: 'x_n' },
     { key: 'fxn', label: 'f(x_n)' },
     { key: 'xn1', label: 'x_{n+1}' },
-    { key: 'error', label: 'Error' },
+    { key: 'errAbs', label: '|Δx| abs' },
+    { key: 'errRel', label: 'Err. rel.' },
+    { key: 'errRelPct', label: 'Err. rel. %' },
   ],
   steps: [
     'Escribe <code>f(x)</code>. No hace falta derivada — ese es el punto.',
@@ -35,8 +40,10 @@ export const secant: MethodDefinition = {
     const f = parseExpression(params.fx);
     let x0 = parseFloat(params.x0);
     let x1 = parseFloat(params.x1);
-    const tol = parseFloat(params.tol) || 1e-6;
+    const stop = parseStop(params.stop);
     const maxIter = parseInt(params.maxIter) || 100;
+    const exactRaw = (params.exact ?? '').trim();
+    const exact = exactRaw === '' ? undefined : parseFloat(exactRaw);
 
     if (isNaN(x0) || isNaN(x1)) throw new Error('x₀ y x₁ deben ser numeros validos');
 
@@ -50,20 +57,22 @@ export const secant: MethodDefinition = {
       const denom = fx1 - fx0;
 
       if (Math.abs(denom) < 1e-14) {
-        iterations.push({ iter: i, xn_1: x0, xn: x1, fxn: fx1, xn1: x1, error });
+        iterations.push({ iter: i, xn_1: x0, xn: x1, fxn: fx1, xn1: x1, errAbs: error, errRel: 0, errRelPct: 0 });
         return { root: x1, iterations, converged: false, error, message: 'f(x_n) - f(x_{n-1}) ≈ 0' };
       }
 
       const x2 = x1 - fx1 * (x1 - x0) / denom;
-      error = Math.abs(x2 - x1);
+      const errs = computeErrors(x1, x2);
+      error = errs.errAbs;
 
-      iterations.push({ iter: i, xn_1: x0, xn: x1, fxn: fx1, xn1: x2, error });
+      iterations.push({ iter: i, xn_1: x0, xn: x1, fxn: fx1, xn1: x2, errAbs: errs.errAbs, errRel: errs.errRel, errRelPct: errs.errRelPct });
 
       if (isNaN(x2) || !isFinite(x2)) {
         return { root: x1, iterations, converged: false, error, message: 'Divergencia detectada' };
       }
 
-      if (error < tol || Math.abs(fx1) < 1e-15) {
+      const errsFull = withExactErrors(errs, x2, exact);
+      if (Math.abs(fx1) < 1e-15 || hasConverged(stop, errsFull)) {
         converged = true;
         x0 = x1;
         x1 = x2;
@@ -74,7 +83,7 @@ export const secant: MethodDefinition = {
       x1 = x2;
     }
 
-    return { root: x1, iterations, converged, error };
+    return { root: x1, iterations, converged, error, message: `Criterio: ${describeStop(stop)}` };
   },
 
   getCharts(params, result) {
@@ -128,7 +137,7 @@ export const secant: MethodDefinition = {
       xLabel: 'Iteracion', yLabel: 'x_n',
     };
 
-    const errors = result.iterations.map(r => r.error as number).filter(e => e > 0);
+    const errors = result.iterations.map(r => r.errAbs as number).filter(e => e > 0);
     const chart4: ChartData = {
       title: 'Convergencia del error',
       type: 'line',

@@ -1,17 +1,19 @@
 import type { MethodDefinition, MethodResult, ChartData } from '../types';
 import { parseExpression, linspace } from '../../parser';
 import { checkLipschitz, renderLipschitzPanel } from '../../theorems';
+import { parseStop, computeErrors, hasConverged, describeStop, withExactErrors } from '../../stoppingCriteria';
 
 export const aitken: MethodDefinition = {
   id: 'aitken',
   name: 'Aceleracion de Aitken (Δ²)',
   category: 'rootFinding',
   formula: 'x̂_n = x_n - (x_{n+1} - x_n)² / (x_{n+2} - 2x_{n+1} + x_n)',
+  latexFormula: '\\hat{x}_n = x_n - \\frac{(x_{n+1} - x_n)^2}{x_{n+2} - 2x_{n+1} + x_n}',
   description: 'Acelera la convergencia de punto fijo usando extrapolacion delta-cuadrado de Aitken.',
   inputs: [
     { id: 'gx', label: 'g(x)', placeholder: '(x + 2/x) / 2', hint: 'Funcion de iteracion x = g(x)', defaultValue: '(x + 2/x) / 2' },
     { id: 'x0', label: 'x₀ (valor inicial)', placeholder: '1', type: 'number', defaultValue: '1' },
-    { id: 'tol', label: 'Tolerancia', placeholder: '1e-6', defaultValue: '1e-6' },
+    { id: 'stop', label: 'Criterio de parada', placeholder: '1e-6', type: 'stopCriterion', defaultValue: 'tolerancia:1e-6', hint: 'Elige el criterio que pide el ejercicio: tolerancia, error absoluto/relativo, cifras significativas, etc.' },
     { id: 'maxIter', label: 'Max iteraciones', placeholder: '100', type: 'number', defaultValue: '100' },
     { id: 'exact', label: 'Valor exacto (opcional)', placeholder: 'p.ej. 1.41421356', type: 'number', hint: 'Si se provee, agrega columna de error relativo %.' },
     { id: 'a', label: 'a (para Lipschitz, opcional)', placeholder: '0.5', type: 'number', hint: 'Extremo inferior para verificar |g\'(x)| < 1.' },
@@ -19,11 +21,17 @@ export const aitken: MethodDefinition = {
   ],
   tableColumns: [
     { key: 'iter', label: 'n' },
-    { key: 'xn', label: 'x_n (plain)' },
+    { key: 'xn', label: 'x_n' },
+    { key: 'xn1', label: 'x_{n+1} = g(x_n)' },
+    { key: 'xn2', label: 'x_{n+2} = g(x_{n+1})' },
     { key: 'xn_aitken', label: 'x̂_n (Aitken)' },
+    { key: 'errAbs', label: '|Δx̂| abs' },
+    { key: 'errRel', label: 'Err. rel.' },
+    { key: 'errRelPct', label: 'Err. rel. %' },
     { key: 'error_plain', label: 'Error plain' },
-    { key: 'error_aitken', label: 'Error Aitken' },
-    { key: 'relErrPct', label: 'Err. rel. %' },
+    { key: 'errAbsExact', label: '|x̂-exacto| abs' },
+    { key: 'errRelExact', label: 'Err. rel. vs exacto' },
+    { key: 'relErrExactPct', label: 'Err. vs exacto %' },
   ],
   steps: [
     'Parti de <code>f(x) = 0</code> y <b>despeja una funcion auxiliar</b> <code>g(x)</code> tal que <code>x = g(x)</code>. Para <code>f(x) = cos(x) - x</code>, la auxiliar directa es <code>g(x) = cos(x)</code>. Para <code>f(x) = eˣ - 3x²</code>, podes usar <code>g(x) = sqrt(exp(x)/3)</code> u otra que converja.',
@@ -39,17 +47,19 @@ export const aitken: MethodDefinition = {
   solve(params) {
     const g = parseExpression(params.gx);
     const x0 = parseFloat(params.x0);
-    const tol = parseFloat(params.tol) || 1e-6;
+    const stop = parseStop(params.stop);
     const maxIter = parseInt(params.maxIter) || 100;
     const exactRaw = (params.exact ?? '').trim();
     const exact = exactRaw === '' ? undefined : parseFloat(exactRaw);
 
     if (isNaN(x0)) throw new Error('x₀ debe ser un numero valido');
 
-    const relErrOf = (val: number): number | null => {
-      if (exact === undefined || isNaN(exact)) return null;
+    const exactErrorsOf = (val: number): { errAbsExact: number | null; errRelExact: number | null; relErrExactPct: number | null } => {
+      if (exact === undefined || isNaN(exact)) return { errAbsExact: null, errRelExact: null, relErrExactPct: null };
+      const diff = Math.abs(val - exact);
       const denom = Math.abs(exact) > 1e-14 ? Math.abs(exact) : 1;
-      return Math.abs(val - exact) / denom * 100;
+      const rel = diff / denom;
+      return { errAbsExact: diff, errRelExact: rel, relErrExactPct: rel * 100 };
     };
 
     const iterations: MethodResult['iterations'] = [];
@@ -82,19 +92,28 @@ export const aitken: MethodDefinition = {
       }
 
       const errorPlain = n > 0 ? Math.abs(plain[n] - plain[n - 1]) : Math.abs(xn1 - xn);
-      const errorAitken = Math.abs(aitkenVal - lastAitken);
-      error = errorAitken;
+      const errs = n === 0
+        ? { errAbs: Math.abs(aitkenVal - x0), errRel: 0, errRelPct: 0 }
+        : computeErrors(lastAitken, aitkenVal);
+      error = errs.errAbs;
 
+      const ex = exactErrorsOf(aitkenVal);
       iterations.push({
         iter: n + 1,
-        xn: plain[n + 1],
+        xn,
+        xn1,
+        xn2,
         xn_aitken: aitkenVal,
+        errAbs: errs.errAbs,
+        errRel: errs.errRel,
+        errRelPct: errs.errRelPct,
         error_plain: errorPlain,
-        error_aitken: errorAitken,
-        relErrPct: relErrOf(aitkenVal),
+        error_aitken: errs.errAbs,
+        ...ex,
       });
 
-      if (errorAitken < tol) {
+      const errsFull = withExactErrors(errs, aitkenVal, exact);
+      if (n > 0 && hasConverged(stop, errsFull)) {
         converged = true;
         lastAitken = aitkenVal;
         break;
@@ -114,7 +133,7 @@ export const aitken: MethodDefinition = {
       }
     }
 
-    const relFinal = relErrOf(lastAitken);
+    const relFinal = exactErrorsOf(lastAitken).relErrExactPct;
     return {
       root: lastAitken,
       iterations,
@@ -122,6 +141,7 @@ export const aitken: MethodDefinition = {
       error,
       exact,
       relativeErrorPercent: relFinal ?? undefined,
+      message: `Criterio: ${describeStop(stop)}`,
       theoremPanels,
     };
   },
@@ -136,16 +156,17 @@ export const aitken: MethodDefinition = {
     const maxX = Math.max(...allX, root) + 1;
     const xs = linspace(minX, maxX, 500);
     const gys = xs.map(x => g(x));
+    const fys = xs.map(x => g(x) - x);
 
     const chart1: ChartData = {
-      title: 'g(x) y y = x',
+      title: 'f(x) = g(x) − x  (raiz ≡ punto fijo)',
       type: 'line',
       datasets: [
-        { label: 'g(x)', x: xs, y: gys, color: '#89b4fa' },
-        { label: 'y = x', x: xs, y: [...xs], color: '#585b70', dashed: true },
-        { label: 'Punto fijo', x: [root], y: [root], color: '#a6e3a1', pointRadius: 6, showLine: false },
+        { label: 'f(x) = g(x) − x', x: xs, y: fys, color: '#89b4fa' },
+        { label: 'y=0', x: [xs[0], xs[xs.length - 1]], y: [0, 0], color: '#585b70', dashed: true },
+        { label: 'Raiz', x: [root], y: [0], color: '#a6e3a1', pointRadius: 6, showLine: false },
       ],
-      xLabel: 'x', yLabel: 'y',
+      xLabel: 'x', yLabel: 'f(x)',
     };
 
     const iters = result.iterations.map(r => r.iter as number);

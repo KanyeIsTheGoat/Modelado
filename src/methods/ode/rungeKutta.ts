@@ -1,12 +1,14 @@
 import type { MethodDefinition, MethodResult, ChartData } from '../types';
 import { parseExpression, parseExpression2, linspace } from '../../parser';
 import { commonOdeInputs, applyOdeTargetAndVerification, verifyDiffColumn } from '../../odeHelpers';
+import { formatFull } from '../../precision';
 
 export const rungeKutta: MethodDefinition = {
   id: 'rungeKutta',
   name: 'Runge-Kutta (RK4)',
   category: 'ode',
   formula: "y_{n+1} = y_n + (h/6)(k₁ + 2k₂ + 2k₃ + k₄)",
+  latexFormula: "\\begin{aligned} k_1 &= f(x_n, y_n) \\\\ k_2 &= f\\!\\left(x_n + \\tfrac{h}{2},\\, y_n + \\tfrac{h}{2}k_1\\right) \\\\ k_3 &= f\\!\\left(x_n + \\tfrac{h}{2},\\, y_n + \\tfrac{h}{2}k_2\\right) \\\\ k_4 &= f(x_n + h,\\, y_n + h\\,k_3) \\\\ y_{n+1} &= y_n + \\tfrac{h}{6}(k_1 + 2k_2 + 2k_3 + k_4) \\end{aligned}",
   description: 'Metodo clasico de Runge-Kutta de orden 4. Resuelve dy/dx = f(x,y) con alta precision usando 4 evaluaciones por paso.',
   inputs: [
     { id: 'fxy', label: "f(x, y) = dy/dx", placeholder: 'x + y', defaultValue: 'x + y' },
@@ -98,7 +100,7 @@ export const rungeKutta: MethodDefinition = {
       iterations,
       converged: true,
       error: maxError,
-      message: `y(${xEnd}) ≈ ${y.toFixed(8)} | ${N} pasos, h=${h}${maxError > 0 ? ` | Error max = ${maxError.toExponential(4)}` : ''}`,
+      message: `y(${xEnd}) ≈ ${y.toFixed(8)} | ${N} pasos, h=${h}${maxError > 0 ? ` | Error max = ${formatFull(maxError)}` : ''}`,
     };
     applyOdeTargetAndVerification(result, params);
     return result;

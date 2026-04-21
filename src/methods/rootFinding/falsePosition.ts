@@ -1,19 +1,22 @@
 import type { MethodDefinition, MethodResult, ChartData } from '../types';
 import { parseExpression, linspace } from '../../parser';
 import { checkBolzano, renderBolzanoPanel } from '../../theorems';
+import { parseStop, computeErrors, hasConverged, describeStop, withExactErrors } from '../../stoppingCriteria';
 
 export const falsePosition: MethodDefinition = {
   id: 'falsePosition',
   name: 'Regula Falsi (Posicion Falsa)',
   category: 'rootFinding',
   formula: 'c = a - f(a)·(b - a) / (f(b) - f(a))',
+  latexFormula: 'c = a - f(a) \\cdot \\frac{b - a}{f(b) - f(a)}',
   description: 'Como biseccion pero usa la interseccion de la secante con el eje x en vez del punto medio.',
   inputs: [
     { id: 'fx', label: 'f(x)', placeholder: 'x^3 - x - 2', defaultValue: 'x^3 - x - 2' },
     { id: 'a', label: 'a (limite inferior)', placeholder: '1', type: 'number', defaultValue: '1' },
     { id: 'b', label: 'b (limite superior)', placeholder: '2', type: 'number', defaultValue: '2' },
-    { id: 'tol', label: 'Tolerancia', placeholder: '1e-6', defaultValue: '1e-6' },
+    { id: 'stop', label: 'Criterio de parada', placeholder: '1e-6', type: 'stopCriterion', defaultValue: 'tolerancia:1e-6', hint: 'Elige el criterio que pide el ejercicio: tolerancia, error absoluto/relativo, cifras significativas, etc.' },
     { id: 'maxIter', label: 'Max iteraciones', placeholder: '100', type: 'number', defaultValue: '100' },
+    { id: 'exact', label: 'Valor exacto (opcional)', placeholder: 'p.ej. 1.52138', type: 'number', hint: 'Si se provee, habilita criterios de parada vs exacto.' },
   ],
   tableColumns: [
     { key: 'iter', label: 'n' },
@@ -21,7 +24,9 @@ export const falsePosition: MethodDefinition = {
     { key: 'b', label: 'b' },
     { key: 'c', label: 'c' },
     { key: 'fc', label: 'f(c)' },
-    { key: 'error', label: 'Error' },
+    { key: 'errAbs', label: '|Δx| abs' },
+    { key: 'errRel', label: 'Err. rel.' },
+    { key: 'errRelPct', label: 'Err. rel. %' },
   ],
   steps: [
     'Escribe <code>f(x)</code> y el intervalo <code>[a, b]</code>.',
@@ -35,8 +40,10 @@ export const falsePosition: MethodDefinition = {
     const f = parseExpression(params.fx);
     let a = parseFloat(params.a);
     let b = parseFloat(params.b);
-    const tol = parseFloat(params.tol) || 1e-6;
+    const stop = parseStop(params.stop);
     const maxIter = parseInt(params.maxIter) || 100;
+    const exactRaw = (params.exact ?? '').trim();
+    const exact = exactRaw === '' ? undefined : parseFloat(exactRaw);
 
     if (isNaN(a) || isNaN(b)) throw new Error('a y b deben ser numeros validos');
     if (a >= b) throw new Error('a debe ser menor que b');
@@ -59,11 +66,15 @@ export const falsePosition: MethodDefinition = {
 
       c = a - fa * (b - a) / denom;
       const fc = f(c);
-      error = i === 1 ? Math.abs(b - a) : Math.abs(c - cPrev);
+      const errs = i === 1
+        ? { errAbs: Math.abs(b - a), errRel: 0, errRelPct: 0 }
+        : computeErrors(cPrev, c);
+      error = errs.errAbs;
 
-      iterations.push({ iter: i, a, b, c, fc, error });
+      iterations.push({ iter: i, a, b, c, fc, errAbs: errs.errAbs, errRel: errs.errRel, errRelPct: errs.errRelPct });
 
-      if (Math.abs(fc) < 1e-15 || error < tol) {
+      const errsFull = withExactErrors(errs, c, exact);
+      if (Math.abs(fc) < 1e-15 || (i > 1 && hasConverged(stop, errsFull))) {
         converged = true;
         break;
       }
@@ -84,6 +95,7 @@ export const falsePosition: MethodDefinition = {
       iterations,
       converged,
       error,
+      message: `Criterio: ${describeStop(stop)}`,
       theoremPanels: [renderBolzanoPanel(bolzano)],
     };
   },
@@ -129,7 +141,7 @@ export const falsePosition: MethodDefinition = {
       xLabel: 'Iteracion', yLabel: 'c',
     };
 
-    const errors = result.iterations.map(r => r.error as number).filter(e => e > 0);
+    const errors = result.iterations.map(r => r.errAbs as number).filter(e => e > 0);
     const chart4: ChartData = {
       title: 'Convergencia del error',
       type: 'line',

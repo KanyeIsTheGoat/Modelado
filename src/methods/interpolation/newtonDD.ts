@@ -37,6 +37,7 @@ export const newtonDD: MethodDefinition = {
   name: 'Diferencias Divididas de Newton',
   category: 'interpolation',
   formula: 'P_n(x) = f[x_0] + f[x_0,x_1](x-x_0) + ... + f[x_0,...,x_n]∏(x-x_i)',
+  latexFormula: 'P_n(x) = f[x_0] + \\sum_{k=1}^{n} f[x_0, x_1, \\ldots, x_k]\\,\\prod_{i=0}^{k-1}(x - x_i)',
   description: 'Construye el polinomio interpolante de Newton con diferencias divididas. Tabla triangular con f[x_i,...,x_{i+k}] como coeficientes.',
   inputs: [
     {

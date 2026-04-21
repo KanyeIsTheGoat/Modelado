@@ -1,12 +1,14 @@
 import type { MethodDefinition, MethodResult, ChartData } from '../types';
 import { parseExpression, parseExpression2, linspace } from '../../parser';
 import { commonOdeInputs, applyOdeTargetAndVerification, verifyDiffColumn } from '../../odeHelpers';
+import { formatFull } from '../../precision';
 
 export const heun: MethodDefinition = {
   id: 'heun',
   name: 'Metodo de Heun (RK2)',
   category: 'ode',
   formula: "y_{n+1} = y_n + (h/2)[f(x_n, y_n) + f(x_{n+1}, ỹ_{n+1})]",
+  latexFormula: "\\begin{aligned} \\tilde{y}_{n+1} &= y_n + h \\cdot f(x_n, y_n) \\\\ y_{n+1} &= y_n + \\frac{h}{2}\\left[f(x_n, y_n) + f(x_{n+1}, \\tilde{y}_{n+1})\\right] \\end{aligned}",
   description: 'Metodo predictor-corrector de orden 2. Predice con Euler, corrige promediando pendientes en ambos extremos.',
   inputs: [
     { id: 'fxy', label: "f(x, y) = dy/dx", placeholder: 'x + y', defaultValue: 'x + y' },
@@ -101,7 +103,7 @@ export const heun: MethodDefinition = {
       iterations,
       converged: true,
       error: maxError,
-      message: `y(${xEnd}) ≈ ${y.toFixed(8)} | ${N} pasos, h=${h}${maxError > 0 ? ` | Error max = ${maxError.toExponential(4)}` : ''}`,
+      message: `y(${xEnd}) ≈ ${y.toFixed(8)} | ${N} pasos, h=${h}${maxError > 0 ? ` | Error max = ${formatFull(maxError)}` : ''}`,
     };
     applyOdeTargetAndVerification(result, params);
     return result;

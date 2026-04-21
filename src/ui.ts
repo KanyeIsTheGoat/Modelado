@@ -1,8 +1,44 @@
 import type { MethodResult, MethodDefinition, MethodInput } from './methods/types';
-import { texInline, texBlock, renderNumber, FORMULAS } from './latex';
-import { formatNum, getPrecisionMode, setPrecisionMode, ALL_PRECISION_MODES, precisionModeLabel, PrecisionMode } from './precision';
+import { texInline, texBlock, renderNumber } from './latex';
+import { formatNum, formatFull, getPrecisionMode, setPrecisionMode, ALL_PRECISION_MODES, precisionModeLabel, PrecisionMode } from './precision';
+import { STOP_CRITERION_LABELS, STOP_CRITERION_HINTS, parseStop, StopCriterionKind } from './stoppingCriteria';
+
+function renderStopRow(selectedKind: StopCriterionKind, value: string | number, placeholder: string): string {
+  const options = (Object.keys(STOP_CRITERION_LABELS) as StopCriterionKind[]).map(k =>
+    `<option value="${k}" ${k === selectedKind ? 'selected' : ''}>${STOP_CRITERION_LABELS[k]}</option>`
+  ).join('');
+  return `
+    <div class="stop-criterion-row" data-stop-row>
+      <select class="stop-kind-select" data-stop-kind>${options}</select>
+      <input
+        type="text"
+        placeholder="${placeholder}"
+        value="${value}"
+        data-stop-value
+        autocomplete="off"
+        spellcheck="false"
+      >
+      <button type="button" class="btn-mini btn-mini-danger" data-stop-remove title="Quitar criterio">×</button>
+      <div class="hint stop-row-hint" data-stop-row-hint>${STOP_CRITERION_HINTS[selectedKind]}</div>
+    </div>
+  `;
+}
 
 function renderSingleInput(inp: MethodInput): string {
+  if (inp.type === 'stopCriterion') {
+    const parsed = parseStop(inp.defaultValue);
+    const rowsHtml = parsed.map(cfg => renderStopRow(cfg.kind, cfg.value, inp.placeholder)).join('');
+    return `
+      <div class="input-group input-group-stop" data-stop-input="${inp.id}">
+        <label>${inp.label}</label>
+        <div class="stop-rows" data-stop-rows>${rowsHtml}</div>
+        <div class="stop-actions">
+          <button type="button" class="btn-mini" data-stop-add>+ criterio</button>
+          <span class="hint stop-combine-hint">Se detiene cuando se cumplen <b>todos</b> los criterios.</span>
+        </div>
+      </div>
+    `;
+  }
   if (inp.type === 'table') {
     const cols = inp.tableColumns || 2;
     const headers = inp.tableHeaders || Array.from({ length: cols }, (_, i) => `col${i + 1}`);
@@ -42,9 +78,8 @@ export function createInputForm(method: MethodDefinition): string {
   const inputs = method.inputs.map(renderSingleInput).join('');
 
   // Use LaTeX formula if available, otherwise plain text
-  const latexFormula = FORMULAS[method.id];
-  const formulaHtml = latexFormula
-    ? texBlock(latexFormula)
+  const formulaHtml = method.latexFormula
+    ? texBlock(method.latexFormula)
     : `<div class="method-formula-plain">${method.formula}</div>`;
 
   const currentMode = getPrecisionMode();
@@ -113,6 +148,47 @@ export function initTableInputs(method: MethodDefinition): void {
       document.dispatchEvent(new CustomEvent('precision-changed'));
     });
   }
+
+  // Wire stop criterion groups (add / remove / per-row hint)
+  document.querySelectorAll('[data-stop-input]').forEach(groupEl => {
+    wireStopGroup(groupEl as HTMLElement);
+  });
+}
+
+function wireStopRow(rowEl: HTMLElement): void {
+  const sel = rowEl.querySelector('select[data-stop-kind]') as HTMLSelectElement | null;
+  const hint = rowEl.querySelector('[data-stop-row-hint]') as HTMLElement | null;
+  const removeBtn = rowEl.querySelector('[data-stop-remove]') as HTMLButtonElement | null;
+  if (sel && hint) {
+    sel.addEventListener('change', () => {
+      hint.textContent = STOP_CRITERION_HINTS[sel.value as StopCriterionKind] || '';
+    });
+  }
+  if (removeBtn) {
+    removeBtn.addEventListener('click', () => {
+      const group = rowEl.closest('[data-stop-input]');
+      const rows = group?.querySelectorAll('[data-stop-row]') ?? [];
+      if (rows.length > 1) rowEl.remove();
+    });
+  }
+}
+
+function wireStopGroup(groupEl: HTMLElement): void {
+  groupEl.querySelectorAll('[data-stop-row]').forEach(row => wireStopRow(row as HTMLElement));
+  const addBtn = groupEl.querySelector('[data-stop-add]') as HTMLButtonElement | null;
+  const rowsContainer = groupEl.querySelector('[data-stop-rows]') as HTMLElement | null;
+  if (addBtn && rowsContainer) {
+    addBtn.addEventListener('click', () => {
+      const placeholder = '1e-6';
+      const wrapper = document.createElement('div');
+      wrapper.innerHTML = renderStopRow('err_abs', '1e-6', placeholder).trim();
+      const newRow = wrapper.firstElementChild as HTMLElement;
+      if (newRow) {
+        rowsContainer.appendChild(newRow);
+        wireStopRow(newRow);
+      }
+    });
+  }
 }
 
 function addTableRow(tbody: HTMLTableSectionElement, cols: number, values: string[]): void {
@@ -158,6 +234,21 @@ export function setInputValues(method: MethodDefinition, values: Record<string, 
       const rows = parsed.length > 0 ? parsed : [Array(cols).fill('')];
       tbody.innerHTML = '';
       for (const r of rows) addTableRow(tbody, cols, r);
+    } else if (inp.type === 'stopCriterion') {
+      const parsed = parseStop(raw);
+      const group = document.querySelector(`[data-stop-input="${inp.id}"]`) as HTMLElement | null;
+      const rowsContainer = group?.querySelector('[data-stop-rows]') as HTMLElement | null;
+      if (!rowsContainer) continue;
+      rowsContainer.innerHTML = '';
+      for (const cfg of parsed) {
+        const wrapper = document.createElement('div');
+        wrapper.innerHTML = renderStopRow(cfg.kind, cfg.value, inp.placeholder).trim();
+        const row = wrapper.firstElementChild as HTMLElement | null;
+        if (row) {
+          rowsContainer.appendChild(row);
+          wireStopRow(row);
+        }
+      }
     } else {
       const el = document.getElementById(`input-${inp.id}`) as HTMLInputElement;
       if (el) el.value = raw;
@@ -177,6 +268,18 @@ export function getInputValues(method: MethodDefinition): Record<string, string>
         if (cells.some(c => c !== '')) rows.push(cells.join(','));
       });
       values[inp.id] = rows.join(';');
+    } else if (inp.type === 'stopCriterion') {
+      const group = document.querySelector(`[data-stop-input="${inp.id}"]`) as HTMLElement | null;
+      const rows = Array.from(group?.querySelectorAll('[data-stop-row]') ?? []) as HTMLElement[];
+      const parts: string[] = [];
+      for (const row of rows) {
+        const kindEl = row.querySelector('select[data-stop-kind]') as HTMLSelectElement | null;
+        const valEl = row.querySelector('input[data-stop-value]') as HTMLInputElement | null;
+        const kind = kindEl?.value ?? 'tolerancia';
+        const val = (valEl?.value ?? '').trim();
+        if (val !== '') parts.push(`${kind}:${val}`);
+      }
+      values[inp.id] = parts.join(';');
     } else {
       const el = document.getElementById(`input-${inp.id}`) as HTMLInputElement;
       values[inp.id] = el?.value ?? '';
@@ -228,13 +331,8 @@ export function renderResultSummary(result: MethodResult): string {
 
   items.push(`<div class="result-item"><span class="label">Iteraciones</span><span class="value">${texInline(String(result.iterations.length))}</span></div>`);
 
-  // Error in scientific notation with LaTeX
-  const errExp = Math.floor(Math.log10(Math.abs(result.error)));
-  const errMant = result.error / Math.pow(10, errExp);
-  const errTex = result.error === 0
-    ? texInline('0')
-    : texInline(`${errMant.toFixed(4)} \\times 10^{${errExp}}`);
-  items.push(`<div class="result-item"><span class="label">Error</span><span class="value">${errTex}</span></div>`);
+  const errFull = formatFull(result.error);
+  items.push(`<div class="result-item"><span class="label">Error</span><span class="value" title="${errFull}">${formatNum(result.error)}</span></div>`);
 
   items.push(`<div class="result-item"><span class="label">Estado</span><span class="value ${result.converged ? '' : 'error'}">${result.converged ? 'Convergido' : 'No convergido'}</span></div>`);
 
@@ -251,7 +349,10 @@ export function renderIterationTable(result: MethodResult, columns: { key: strin
     const cells = columns.map(c => {
       const v = row[c.key];
       if (v === null || v === undefined) return `<td class="td-null">—</td>`;
-      if (typeof v === 'number') return `<td>${formatNum(v)}</td>`;
+      if (typeof v === 'number') {
+        const full = formatFull(v);
+        return `<td title="${full}" data-full="${full}">${formatNum(v)}</td>`;
+      }
       return `<td>${v}</td>`;
     }).join('');
     const highlight = typeof row._highlight === 'string' ? row._highlight : '';

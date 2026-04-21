@@ -1,17 +1,19 @@
 import type { MethodDefinition, MethodResult, ChartData } from '../types';
 import { parseExpression, linspace, numericalDerivative } from '../../parser';
+import { parseStop, computeErrors, hasConverged, describeStop, withExactErrors } from '../../stoppingCriteria';
 
 export const newtonRaphson: MethodDefinition = {
   id: 'newtonRaphson',
   name: 'Newton-Raphson',
   category: 'rootFinding',
   formula: 'x_{n+1} = x_n - f(x_n) / f\'(x_n)',
+  latexFormula: "x_{n+1} = x_n - \\frac{f(x_n)}{f'(x_n)}",
   description: 'Metodo de la tangente. Convergencia cuadratica cerca de la raiz. Requiere f\'(x).',
   inputs: [
     { id: 'fx', label: 'f(x)', placeholder: 'x^3 - x - 2', defaultValue: 'x^3 - x - 2' },
     { id: 'dfx', label: "f'(x) (dejar vacio para derivada numerica)", placeholder: '3*x^2 - 1', hint: 'Derivada analitica. Si se deja vacio se usa derivada numerica central.', defaultValue: '3*x^2 - 1' },
     { id: 'x0', label: 'x₀ (valor inicial)', placeholder: '2', type: 'number', defaultValue: '2' },
-    { id: 'tol', label: 'Tolerancia', placeholder: '1e-6', defaultValue: '1e-6' },
+    { id: 'stop', label: 'Criterio de parada', placeholder: '1e-6', type: 'stopCriterion', defaultValue: 'tolerancia:1e-6', hint: 'Elige el criterio que pide el ejercicio: tolerancia, error absoluto/relativo, cifras significativas, etc.' },
     { id: 'maxIter', label: 'Max iteraciones', placeholder: '100', type: 'number', defaultValue: '100' },
     { id: 'exact', label: 'Valor exacto (opcional)', placeholder: 'p.ej. 1.52138', type: 'number', hint: 'Si se provee, agrega columna de error relativo %.' },
   ],
@@ -20,8 +22,13 @@ export const newtonRaphson: MethodDefinition = {
     { key: 'xn', label: 'x_n' },
     { key: 'fxn', label: 'f(x_n)' },
     { key: 'dfxn', label: "f'(x_n)" },
-    { key: 'error', label: '|x_{n+1}-x_n|' },
-    { key: 'relErrPct', label: 'Err. rel. %' },
+    { key: 'xNext', label: 'x_{n+1}' },
+    { key: 'errAbs', label: '|Δx| abs' },
+    { key: 'errRel', label: 'Err. rel.' },
+    { key: 'errRelPct', label: 'Err. rel. %' },
+    { key: 'errAbsExact', label: '|x-exacto| abs' },
+    { key: 'errRelExact', label: 'Err. rel. vs exacto' },
+    { key: 'relErrExactPct', label: 'Err. vs exacto %' },
   ],
   steps: [
     'Escribi la funcion <code>f(x)</code> en el primer campo. Ej: <code>x^3 - 3x - 4</code>.',
@@ -40,7 +47,7 @@ export const newtonRaphson: MethodDefinition = {
     const df = dfExpr ? parseExpression(dfExpr) : (x: number) => numericalDerivative(f, x);
 
     let x = parseFloat(params.x0);
-    const tol = parseFloat(params.tol) || 1e-6;
+    const stop = parseStop(params.stop);
     const maxIter = parseInt(params.maxIter) || 100;
     const exactRaw = (params.exact ?? '').trim();
     const exact = exactRaw === '' ? undefined : parseFloat(exactRaw);
@@ -51,10 +58,12 @@ export const newtonRaphson: MethodDefinition = {
     let converged = false;
     let error = Infinity;
 
-    const relErrOf = (val: number): number | null => {
-      if (exact === undefined || isNaN(exact)) return null;
+    const exactErrorsOf = (val: number): { errAbsExact: number | null; errRelExact: number | null; relErrExactPct: number | null } => {
+      if (exact === undefined || isNaN(exact)) return { errAbsExact: null, errRelExact: null, relErrExactPct: null };
+      const diff = Math.abs(val - exact);
       const denom = Math.abs(exact) > 1e-14 ? Math.abs(exact) : 1;
-      return Math.abs(val - exact) / denom * 100;
+      const rel = diff / denom;
+      return { errAbsExact: diff, errRelExact: rel, relErrExactPct: rel * 100 };
     };
 
     for (let i = 1; i <= maxIter; i++) {
@@ -62,20 +71,26 @@ export const newtonRaphson: MethodDefinition = {
       const dfxn = df(x);
 
       if (Math.abs(dfxn) < 1e-14) {
-        iterations.push({ iter: i, xn: x, fxn, dfxn, error, relErrPct: relErrOf(x) });
+        const ex = exactErrorsOf(x);
+        iterations.push({ iter: i, xn: x, fxn, dfxn, xNext: null, errAbs: error, errRel: 0, errRelPct: 0, ...ex });
         return { root: x, iterations, converged: false, error, exact, message: "f'(x) ≈ 0, division por cero" };
       }
 
       const xNew = x - fxn / dfxn;
-      error = Math.abs(xNew - x);
+      const errs = i === 1
+        ? { errAbs: Math.abs(xNew - x), errRel: 0, errRelPct: 0 }
+        : computeErrors(x, xNew);
+      error = errs.errAbs;
 
-      iterations.push({ iter: i, xn: x, fxn, dfxn, error, relErrPct: relErrOf(xNew) });
+      const ex = exactErrorsOf(xNew);
+      iterations.push({ iter: i, xn: x, fxn, dfxn, xNext: xNew, errAbs: errs.errAbs, errRel: errs.errRel, errRelPct: errs.errRelPct, ...ex });
 
       if (isNaN(xNew) || !isFinite(xNew)) {
         return { root: x, iterations, converged: false, error, exact, message: 'Divergencia detectada' };
       }
 
-      if (error < tol || Math.abs(fxn) < 1e-15) {
+      const errsFull = withExactErrors(errs, xNew, exact);
+      if (Math.abs(fxn) < 1e-15 || (i > 1 && hasConverged(stop, errsFull))) {
         converged = true;
         x = xNew;
         break;
@@ -83,7 +98,7 @@ export const newtonRaphson: MethodDefinition = {
       x = xNew;
     }
 
-    const relFinal = relErrOf(x);
+    const relFinal = exactErrorsOf(x).relErrExactPct;
     return {
       root: x,
       iterations,
@@ -91,6 +106,7 @@ export const newtonRaphson: MethodDefinition = {
       error,
       exact,
       relativeErrorPercent: relFinal ?? undefined,
+      message: `Criterio: ${describeStop(stop)}`,
     };
   },
 
@@ -159,7 +175,7 @@ export const newtonRaphson: MethodDefinition = {
     };
 
     // Chart 4: Error
-    const errors = result.iterations.map(r => r.error as number).filter(e => e > 0);
+    const errors = result.iterations.map(r => r.errAbs as number).filter(e => e > 0);
     const chart4: ChartData = {
       title: 'Convergencia del error',
       type: 'line',

@@ -21,6 +21,7 @@ export const midpoint: MethodDefinition = {
   name: 'Regla del Rectangulo (Punto Medio)',
   category: 'integration',
   formula: '∫f(x)dx ≈ (b-a) · f((a+b)/2)',
+  latexFormula: '\\int_a^b f(x)\\,dx \\approx (b-a) \\cdot f\\!\\left(\\frac{a+b}{2}\\right)',
   description: 'Aproxima la integral usando el valor de f en el punto medio del intervalo.',
   inputs: [
     { id: 'fx', label: 'f(x)', placeholder: 'x^2', defaultValue: 'x^2' },

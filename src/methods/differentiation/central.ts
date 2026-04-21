@@ -6,6 +6,7 @@ export const central: MethodDefinition = {
   name: 'Diferencia Central',
   category: 'differentiation',
   formula: "f'(x) ≈ (f(x+h) - f(x-h)) / 2h",
+  latexFormula: "f'(x) \\approx \\frac{f(x+h) - f(x-h)}{2h} \\quad \\mathcal{O}(h^2)",
   description: 'Aproximacion de segundo orden O(h²) de la derivada. Mas precisa que forward/backward.',
   inputs: [
     { id: 'fx', label: 'f(x)', placeholder: 'sin(x)', defaultValue: 'sin(x)' },

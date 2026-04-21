@@ -6,6 +6,7 @@ export const trapezoidal: MethodDefinition = {
   name: 'Regla del Trapecio (Simple)',
   category: 'integration',
   formula: '∫f(x)dx ≈ (b-a)/2 · [f(a) + f(b)]',
+  latexFormula: '\\int_a^b f(x)\\,dx \\approx \\frac{b-a}{2}\\left[f(a) + f(b)\\right]',
   description: 'Aproxima el area bajo la curva con un solo trapecio entre a y b.',
   inputs: [
     { id: 'fx', label: 'f(x)', placeholder: 'x^2', defaultValue: 'x^2' },

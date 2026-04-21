@@ -1,17 +1,19 @@
 import type { MethodDefinition, MethodResult, ChartData } from '../types';
 import { parseExpression, linspace } from '../../parser';
 import { checkLipschitz, renderLipschitzPanel } from '../../theorems';
+import { parseStop, computeErrors, hasConverged, describeStop, withExactErrors } from '../../stoppingCriteria';
 
 export const steffensen: MethodDefinition = {
   id: 'steffensen',
   name: 'Steffensen (aceleracion Δ² en cada iteracion)',
   category: 'rootFinding',
   formula: 'p_{n+1} = p_n - (g(p_n) - p_n)² / (g(g(p_n)) - 2g(p_n) + p_n)',
+  latexFormula: 'p_{n+1} = p_n - \\frac{\\left(g(p_n) - p_n\\right)^2}{g(g(p_n)) - 2g(p_n) + p_n}',
   description: 'Aplica la extrapolacion delta-cuadrado de Aitken dentro de cada iteracion de punto fijo, alcanzando convergencia cuadratica cuando g es C² cerca del punto fijo.',
   inputs: [
     { id: 'gx', label: 'g(x)', placeholder: '(x + 2/x) / 2', hint: 'Funcion de iteracion x = g(x)', defaultValue: '(x + 2/x) / 2' },
     { id: 'x0', label: 'p₀ (valor inicial)', placeholder: '1', type: 'number', defaultValue: '1' },
-    { id: 'tol', label: 'Tolerancia', placeholder: '1e-8', defaultValue: '1e-8' },
+    { id: 'stop', label: 'Criterio de parada', placeholder: '1e-8', type: 'stopCriterion', defaultValue: 'tolerancia:1e-8', hint: 'Elige el criterio que pide el ejercicio: tolerancia, error absoluto/relativo, cifras significativas, etc.' },
     { id: 'maxIter', label: 'Max iteraciones', placeholder: '50', type: 'number', defaultValue: '50' },
     { id: 'exact', label: 'Valor exacto (opcional)', placeholder: 'p.ej. 1.41421356', type: 'number', hint: 'Si se provee, agrega columna de error relativo %.' },
     { id: 'a', label: 'a (para Lipschitz, opcional)', placeholder: '0.5', type: 'number', hint: 'Extremo inferior para verificar |g\'(x)| < 1.' },
@@ -23,8 +25,12 @@ export const steffensen: MethodDefinition = {
     { key: 'gp', label: 'g(p_n)' },
     { key: 'ggp', label: 'g(g(p_n))' },
     { key: 'pNext', label: 'p_{n+1}' },
-    { key: 'error', label: '|p_{n+1} − p_n|' },
-    { key: 'relErrPct', label: 'Err. rel. %' },
+    { key: 'errAbs', label: '|Δp| abs' },
+    { key: 'errRel', label: 'Err. rel.' },
+    { key: 'errRelPct', label: 'Err. rel. %' },
+    { key: 'errAbsExact', label: '|p-exacto| abs' },
+    { key: 'errRelExact', label: 'Err. rel. vs exacto' },
+    { key: 'relErrExactPct', label: 'Err. vs exacto %' },
   ],
   steps: [
     'Primero verifica <b>Bolzano</b>: el parcial suele pedir "demostrar que existe al menos una raiz en [a, b]". Evalua <code>f(a)</code> y <code>f(b)</code> — si tienen signos opuestos (<code>f(a)·f(b) &lt; 0</code>) y <code>f</code> es continua, hay raiz. Para <code>f(x) = x³ - sin(x) - 5</code> en [0, 2]: <code>f(0) = -5</code>, <code>f(2) = 8 - sin(2) - 5 ≈ 2.09</code>. Signos opuestos → Bolzano OK.',
@@ -41,7 +47,7 @@ export const steffensen: MethodDefinition = {
   solve(params) {
     const g = parseExpression(params.gx);
     let p = parseFloat(params.x0);
-    const tol = parseFloat(params.tol) || 1e-8;
+    const stop = parseStop(params.stop);
     const maxIter = parseInt(params.maxIter) || 50;
     const exactRaw = (params.exact ?? '').trim();
     const exact = exactRaw === '' ? undefined : parseFloat(exactRaw);
@@ -66,19 +72,27 @@ export const steffensen: MethodDefinition = {
         pNext = p - Math.pow(gp - p, 2) / denom;
       }
 
-      error = Math.abs(pNext - p);
-      const relErrPct: number | null = exact !== undefined && !isNaN(exact) && exact !== 0
-        ? Math.abs(pNext - exact) / Math.abs(exact) * 100
-        : null;
+      const errs = computeErrors(p, pNext);
+      error = errs.errAbs;
+      let errAbsExact: number | null = null;
+      let errRelExact: number | null = null;
+      let relErrExactPct: number | null = null;
+      if (exact !== undefined && !isNaN(exact)) {
+        errAbsExact = Math.abs(pNext - exact);
+        const denom = Math.abs(exact) > 1e-14 ? Math.abs(exact) : 1;
+        errRelExact = errAbsExact / denom;
+        relErrExactPct = errRelExact * 100;
+      }
 
-      iterations.push({ iter: i, p, gp, ggp, pNext, error, relErrPct });
+      iterations.push({ iter: i, p, gp, ggp, pNext, errAbs: errs.errAbs, errRel: errs.errRel, errRelPct: errs.errRelPct, errAbsExact, errRelExact, relErrExactPct });
 
       if (!isFinite(pNext)) {
         return { root: p, iterations, converged: false, error, message: 'Divergencia detectada' };
       }
 
       p = pNext;
-      if (error < tol) {
+      const errsFull = withExactErrors(errs, pNext, exact);
+      if (hasConverged(stop, errsFull)) {
         converged = true;
         break;
       }
@@ -107,7 +121,7 @@ export const steffensen: MethodDefinition = {
         ? (exact !== 0 ? Math.abs(p - exact) / Math.abs(exact) * 100 : Math.abs(p - exact) * 100)
         : undefined,
       theoremPanels,
-      message,
+      message: message ?? `Criterio: ${describeStop(stop)}`,
     };
   },
 
@@ -122,15 +136,16 @@ export const steffensen: MethodDefinition = {
     const xs = linspace(minX, maxX, 500);
     const gys = xs.map(x => g(x));
 
+    const fys = xs.map(x => g(x) - x);
     const chart1: ChartData = {
-      title: 'g(x) y y = x',
+      title: 'f(x) = g(x) − x  (raiz ≡ punto fijo)',
       type: 'line',
       datasets: [
-        { label: 'g(x)', x: xs, y: gys, color: '#89b4fa' },
-        { label: 'y = x', x: xs, y: [...xs], color: '#585b70', dashed: true },
-        { label: 'p*', x: [root], y: [root], color: '#a6e3a1', pointRadius: 6, showLine: false },
+        { label: 'f(x) = g(x) − x', x: xs, y: fys, color: '#89b4fa' },
+        { label: 'y=0', x: [xs[0], xs[xs.length - 1]], y: [0, 0], color: '#585b70', dashed: true },
+        { label: 'Raiz', x: [root], y: [0], color: '#a6e3a1', pointRadius: 6, showLine: false },
       ],
-      xLabel: 'x', yLabel: 'y',
+      xLabel: 'x', yLabel: 'f(x)',
     };
 
     const iters = result.iterations.map(r => r.iter as number);
@@ -147,7 +162,7 @@ export const steffensen: MethodDefinition = {
       xLabel: 'Iteracion', yLabel: 'Valor',
     };
 
-    const errs = result.iterations.map(r => r.error as number).filter(e => e > 0);
+    const errs = result.iterations.map(r => r.errAbs as number).filter(e => e > 0);
     const chart3: ChartData = {
       title: 'Error por iteracion',
       type: 'line',

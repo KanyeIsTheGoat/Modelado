@@ -1,12 +1,11 @@
 import { categories } from '../categories';
-import { texInline, FORMULAS } from '../latex';
+import { texInline } from '../latex';
 
 export function renderHome(onMethodClick: (methodId: string) => void): string {
   const sectionsHtml = categories.map(cat => {
     const cards = cat.methods.map(m => {
-      const latexFormula = FORMULAS[m.id];
-      const formulaHtml = latexFormula
-        ? texInline(latexFormula)
+      const formulaHtml = m.latexFormula
+        ? texInline(m.latexFormula)
         : `<span class="formula-fallback">${m.formula}</span>`;
 
       return `
@@ -75,7 +74,7 @@ export function renderHome(onMethodClick: (methodId: string) => void): string {
     {
       title: 'Cross-cutting',
       items: [
-        'Selector global de precision (decimales / cifras significativas)',
+        'Selector global de precision (decimales)',
         'Teclado matematico, calculadora simbolica, GeoGebra embebido',
         'Exportar reporte Markdown con parametros, tabla y 4 graficos',
         'Ejercicios precargados del parcial en cada metodo',

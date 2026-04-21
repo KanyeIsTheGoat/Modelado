@@ -22,6 +22,7 @@ export const trapezoidalComp: MethodDefinition = {
   name: 'Regla del Trapecio Compuesta',
   category: 'integration',
   formula: '∫f(x)dx ≈ h/2 · [f(a) + 2·Σf(x_i) + f(b)]',
+  latexFormula: '\\int_a^b f(x)\\,dx \\approx \\frac{h}{2}\\left[f(a) + 2\\sum_{i=1}^{n-1} f(x_i) + f(b)\\right], \\quad h = \\frac{b-a}{n}',
   description: 'Divide [a,b] en n subintervalos y aplica la regla del trapecio en cada uno.',
   inputs: [
     { id: 'fx', label: 'f(x)', placeholder: 'x^2', defaultValue: 'x^2' },

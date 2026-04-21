@@ -1,26 +1,31 @@
 import type { MethodDefinition, MethodResult, ChartData } from '../types';
 import { parseExpression, linspace } from '../../parser';
 import { checkLipschitz, renderLipschitzPanel } from '../../theorems';
+import { parseStop, computeErrors, hasConverged, describeStop, withExactErrors } from '../../stoppingCriteria';
 
 export const fixedPoint: MethodDefinition = {
   id: 'fixedPoint',
   name: 'Punto Fijo',
   category: 'rootFinding',
   formula: 'x_{n+1} = g(x_n), converge si |g\'(x)| < 1',
+  latexFormula: "x_{n+1} = g(x_n), \\quad \\text{converge si } |g'(x)| < 1 \\text{ en un entorno del punto fijo}",
   description: 'Iteracion de punto fijo. Reescribir f(x)=0 como x=g(x) y iterar.',
   inputs: [
     { id: 'gx', label: 'g(x)', placeholder: '(x + 2/x) / 2', hint: 'Funcion de iteracion x = g(x)', defaultValue: '(x + 2/x) / 2' },
     { id: 'x0', label: 'x₀ (valor inicial)', placeholder: '1', type: 'number', defaultValue: '1' },
-    { id: 'tol', label: 'Tolerancia', placeholder: '1e-6', defaultValue: '1e-6' },
+    { id: 'stop', label: 'Criterio de parada', placeholder: '1e-6', type: 'stopCriterion', defaultValue: 'tolerancia:1e-6', hint: 'Elige el criterio que pide el ejercicio: tolerancia, error absoluto/relativo, cifras significativas, etc.' },
     { id: 'maxIter', label: 'Max iteraciones', placeholder: '100', type: 'number', defaultValue: '100' },
     { id: 'a', label: 'a (para Lipschitz, opcional)', placeholder: '0.5', type: 'number', hint: 'Extremo inferior para verificar |g\'(x)| < 1.' },
     { id: 'b', label: 'b (para Lipschitz, opcional)', placeholder: '2', type: 'number', hint: 'Extremo superior para verificar |g\'(x)| < 1.' },
+    { id: 'exact', label: 'Valor exacto (opcional)', placeholder: 'p.ej. 1.41421356', type: 'number', hint: 'Si se provee, habilita criterios de parada vs exacto.' },
   ],
   tableColumns: [
     { key: 'iter', label: 'n' },
     { key: 'xn', label: 'x_n' },
     { key: 'gxn', label: 'g(x_n)' },
-    { key: 'error', label: 'Error' },
+    { key: 'errAbs', label: '|Δx| abs' },
+    { key: 'errRel', label: 'Err. rel.' },
+    { key: 'errRelPct', label: 'Err. rel. %' },
   ],
   steps: [
     'Parti de <code>f(x) = 0</code> y <b>despeja</b> una funcion <code>g(x)</code> equivalente: <code>x = g(x)</code>. Para <code>x² = 2</code> → <code>g(x) = (x + 2/x)/2</code>. Casi siempre hay multiples formas validas; conviene la que sea <em>contractiva</em>.',
@@ -35,8 +40,10 @@ export const fixedPoint: MethodDefinition = {
   solve(params) {
     const g = parseExpression(params.gx);
     let x = parseFloat(params.x0);
-    const tol = parseFloat(params.tol) || 1e-6;
+    const stop = parseStop(params.stop);
     const maxIter = parseInt(params.maxIter) || 100;
+    const exactRaw = (params.exact ?? '').trim();
+    const exact = exactRaw === '' ? undefined : parseFloat(exactRaw);
 
     if (isNaN(x)) throw new Error('x₀ debe ser un numero valido');
 
@@ -46,15 +53,17 @@ export const fixedPoint: MethodDefinition = {
 
     for (let i = 1; i <= maxIter; i++) {
       const xNew = g(x);
-      error = Math.abs(xNew - x);
+      const errs = computeErrors(x, xNew);
+      error = errs.errAbs;
 
-      iterations.push({ iter: i, xn: x, gxn: xNew, error });
+      iterations.push({ iter: i, xn: x, gxn: xNew, errAbs: errs.errAbs, errRel: errs.errRel, errRelPct: errs.errRelPct });
 
       if (isNaN(xNew) || !isFinite(xNew)) {
         return { root: x, iterations, converged: false, error, message: 'Divergencia detectada' };
       }
 
-      if (error < tol) {
+      const errsFull = withExactErrors(errs, xNew, exact);
+      if (hasConverged(stop, errsFull)) {
         converged = true;
         x = xNew;
         break;
@@ -73,7 +82,7 @@ export const fixedPoint: MethodDefinition = {
         theoremPanels.push(renderLipschitzPanel(lip));
       }
     }
-    return { root: x, iterations, converged, error, theoremPanels };
+    return { root: x, iterations, converged, error, theoremPanels, message: `Criterio: ${describeStop(stop)}` };
   },
 
   getCharts(params, result) {
@@ -87,9 +96,25 @@ export const fixedPoint: MethodDefinition = {
     const maxX = Math.max(...allX, root) + 1;
     const xs = linspace(minX, maxX, 500);
     const gys = xs.map(x => g(x));
+    const fys = xs.map(x => g(x) - x);
 
-    // Chart 1: g(x) and y=x
+    // Chart 1: f(x) = g(x) - x with root marked
     const chart1: ChartData = {
+      title: 'f(x) = g(x) − x  (raiz ≡ punto fijo)',
+      type: 'line',
+      datasets: [
+        { label: 'f(x) = g(x) − x', x: xs, y: fys, color: '#89b4fa' },
+        { label: 'y=0', x: [xs[0], xs[xs.length - 1]], y: [0, 0], color: '#585b70', dashed: true },
+        ...(result.root !== undefined ? [{
+          label: 'Raiz', x: [root], y: [0], color: '#a6e3a1', pointRadius: 6, showLine: false as const,
+        }] : []),
+      ],
+      xLabel: 'x',
+      yLabel: 'f(x)',
+    };
+
+    // Chart 1b: g(x) and y=x (kept for fixed-point visualization via cobweb chart below)
+    const chartGx: ChartData = {
       title: 'g(x) y y = x',
       type: 'line',
       datasets: [
@@ -144,7 +169,7 @@ export const fixedPoint: MethodDefinition = {
     };
 
     // Chart 4: Error
-    const errors = result.iterations.map(r => r.error as number).filter(e => e > 0);
+    const errors = result.iterations.map(r => r.errAbs as number).filter(e => e > 0);
     const chart4: ChartData = {
       title: 'Convergencia del error',
       type: 'line',
@@ -156,6 +181,6 @@ export const fixedPoint: MethodDefinition = {
       yLog: true,
     };
 
-    return [chart1, chart2, chart3, chart4];
+    return [chart1, chartGx, chart2, chart4];
   },
 };

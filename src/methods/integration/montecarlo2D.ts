@@ -31,6 +31,7 @@ export const montecarlo2D: MethodDefinition = {
   name: 'Monte Carlo 2D (Integral Doble)',
   category: 'integration',
   formula: '∫∫f(x,y)dA ≈ (Area)/N · Σ f(x_i,y_i) — promedio de K repeticiones',
+  latexFormula: '\\iint_R f(x,y)\\,dA \\approx \\frac{(b-a)(d-c)}{N}\\sum_{i=1}^{N} f(x_i, y_i), \\quad (x_i, y_i) \\sim U([a,b]\\times[c,d])',
   description: 'Aproxima ∫∫f(x,y)dA en un rectangulo [a,b]×[c,d]. Ejecuta K repeticiones independientes y promedia para reducir varianza. Convergencia O(1/√N).',
   inputs: [
     { id: 'fxy', label: 'f(x, y)', placeholder: 'x^2 + y^2', defaultValue: 'x^2 + y^2' },

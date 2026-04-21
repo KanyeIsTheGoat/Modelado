@@ -6,6 +6,7 @@ export const simpson13: MethodDefinition = {
   name: 'Simpson 1/3 (Simple)',
   category: 'integration',
   formula: '∫f(x)dx ≈ (b-a)/6 · [f(a) + 4·f(m) + f(b)]',
+  latexFormula: '\\int_a^b f(x)\\,dx \\approx \\frac{b-a}{6}\\left[f(a) + 4f\\!\\left(\\frac{a+b}{2}\\right) + f(b)\\right]',
   description: 'Aproxima la integral usando una parabola que pasa por 3 puntos: a, (a+b)/2, b.',
   inputs: [
     { id: 'fx', label: 'f(x)', placeholder: 'x^2', defaultValue: 'x^2' },

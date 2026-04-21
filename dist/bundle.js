@@ -46305,46 +46305,56 @@
     }
   }
   function isValidMode(v) {
-    return [
-      "decimals-4",
-      "decimals-6",
-      "decimals-8",
-      "decimals-10",
-      "sig-4",
-      "sig-6",
-      "sig-8"
-    ].includes(v);
+    return ["decimals-4", "decimals-6", "decimals-8", "decimals-10"].includes(v);
   }
   function parseMode(mode2) {
     const [kind, nStr] = mode2.split("-");
     return { kind, n: parseInt(nStr, 10) };
   }
+  function stripExponent(s) {
+    if (!/e/i.test(s)) return s;
+    const n = Number(s);
+    if (!isFinite(n) || isNaN(n)) return s;
+    return decimalString(n, 20);
+  }
+  function decimalString(n, maxFrac) {
+    if (n === 0) return "0";
+    const sign5 = n < 0 ? "-" : "";
+    const abs3 = Math.abs(n);
+    const cap = Math.min(Math.max(maxFrac, 1), 100);
+    let s = abs3.toFixed(cap);
+    if (s.indexOf(".") >= 0) {
+      s = s.replace(/0+$/, "").replace(/\.$/, "");
+    }
+    return sign5 + (s === "" || s === "-" ? "0" : s);
+  }
   function formatNum(n, mode2) {
-    if (n === null || n === void 0 || isNaN(n)) return String(n);
+    if (n === null || n === void 0 || Number.isNaN(n)) return String(n);
     if (!isFinite(n)) return n > 0 ? "\u221E" : "-\u221E";
     const m = mode2 ?? getPrecisionMode();
-    const { kind, n: prec } = parseMode(m);
+    const { n: prec } = parseMode(m);
     const abs3 = Math.abs(n);
-    if (kind === "sig") {
-      return n.toPrecision(prec);
+    if (abs3 !== 0 && abs3 < Math.pow(10, -prec)) {
+      const needed = Math.ceil(-Math.log10(abs3)) + prec - 1;
+      return decimalString(n, Math.min(needed, 20));
     }
-    if (abs3 !== 0 && (abs3 < Math.pow(10, -prec) || abs3 >= 1e6)) {
-      return n.toExponential(prec);
-    }
-    return n.toFixed(prec);
+    return decimalString(n, prec);
+  }
+  function formatFull(n) {
+    if (n === null || n === void 0 || Number.isNaN(n)) return String(n);
+    if (!isFinite(n)) return n > 0 ? "\u221E" : "-\u221E";
+    if (n === 0) return "0";
+    return stripExponent(n.toPrecision(17));
   }
   function precisionModeLabel(mode2) {
-    const { kind, n } = parseMode(mode2);
-    return kind === "decimals" ? `${n} decimales` : `${n} cifras sig.`;
+    const { n } = parseMode(mode2);
+    return `${n} decimales`;
   }
   var ALL_PRECISION_MODES = [
     "decimals-4",
     "decimals-6",
     "decimals-8",
-    "decimals-10",
-    "sig-4",
-    "sig-6",
-    "sig-8"
+    "decimals-10"
   ];
 
   // src/theorems.ts
@@ -46411,19 +46421,124 @@
   `;
   }
 
+  // src/stoppingCriteria.ts
+  var STOP_CRITERION_LABELS = {
+    tolerancia: "Tolerancia",
+    err_abs: "Error absoluto",
+    err_rel: "Error relativo (fraccion)",
+    err_rel_pct: "Error relativo %",
+    cifras_sig: "Cifras significativas",
+    err_abs_exact: "Error absoluto vs exacto",
+    err_rel_exact: "Error relativo vs exacto (fraccion)",
+    err_rel_pct_exact: "Error relativo vs exacto %"
+  };
+  var STOP_CRITERION_HINTS = {
+    tolerancia: "Para cuando |x_{n+1} - x_n| < valor. Ej: 1e-6",
+    err_abs: "Para cuando |x_{n+1} - x_n| < valor. Ej: 0.000001",
+    err_rel: "Para cuando |(x_{n+1} - x_n) / x_{n+1}| < valor. Ej: 0.0001",
+    err_rel_pct: "Para cuando el error relativo en % es menor al valor. Ej: 0.5",
+    cifras_sig: "Scarborough: garantiza n cifras. Ej: 4 \u2192 \u03B5_s = 0.005 %",
+    err_abs_exact: 'Para cuando |x_n - exacto| < valor. Requiere cargar el "Valor exacto".',
+    err_rel_exact: 'Para cuando |x_n - exacto| / |exacto| < valor (fraccion). Requiere "Valor exacto".',
+    err_rel_pct_exact: 'Para cuando el error relativo vs exacto en % es menor al valor. Requiere "Valor exacto".'
+  };
+  function parseStop(raw) {
+    const def = [{ kind: "tolerancia", value: 1e-6 }];
+    if (!raw || raw.trim() === "") return def;
+    const parts = raw.split(";").map((s) => s.trim()).filter((s) => s.length > 0);
+    const out = [];
+    for (const part of parts) {
+      const [kindRaw, valRaw] = part.split(":");
+      const kind = (kindRaw || "").trim();
+      if (!STOP_CRITERION_LABELS[kind]) continue;
+      const value = parseFloat((valRaw || "").trim());
+      if (isNaN(value) || value <= 0) continue;
+      out.push({ kind, value });
+    }
+    return out.length > 0 ? out : def;
+  }
+  function computeErrors(prev, curr) {
+    const errAbs = Math.abs(curr - prev);
+    const denom = Math.abs(curr);
+    const errRel = denom > 1e-14 ? errAbs / denom : errAbs;
+    const errRelPct = errRel * 100;
+    return { errAbs, errRel, errRelPct };
+  }
+  function withExactErrors(err, curr, exact) {
+    if (exact === void 0 || isNaN(exact)) return err;
+    const errAbsExact = Math.abs(curr - exact);
+    const denom = Math.abs(exact) > 1e-14 ? Math.abs(exact) : 1;
+    const errRelExact = errAbsExact / denom;
+    const errRelPctExact = errRelExact * 100;
+    return { ...err, errAbsExact, errRelExact, errRelPctExact };
+  }
+  function convergedSingle(cfg, err) {
+    switch (cfg.kind) {
+      case "err_abs":
+      case "tolerancia":
+        return err.errAbs < cfg.value;
+      case "err_rel":
+        return err.errRel < cfg.value;
+      case "err_rel_pct":
+        return err.errRelPct < cfg.value;
+      case "cifras_sig": {
+        const eps_s_pct = 0.5 * Math.pow(10, 2 - cfg.value);
+        return err.errRelPct < eps_s_pct;
+      }
+      case "err_abs_exact":
+        return err.errAbsExact !== void 0 && err.errAbsExact < cfg.value;
+      case "err_rel_exact":
+        return err.errRelExact !== void 0 && err.errRelExact < cfg.value;
+      case "err_rel_pct_exact":
+        return err.errRelPctExact !== void 0 && err.errRelPctExact < cfg.value;
+    }
+  }
+  function hasConverged(cfgs, err) {
+    if (cfgs.length === 0) return false;
+    return cfgs.every((cfg) => convergedSingle(cfg, err));
+  }
+  function describeSingle(cfg) {
+    switch (cfg.kind) {
+      case "tolerancia":
+        return `Tolerancia = ${cfg.value}`;
+      case "err_abs":
+        return `|x_{n+1} - x_n| < ${cfg.value}`;
+      case "err_rel":
+        return `Error relativo (fraccion) < ${cfg.value}`;
+      case "err_rel_pct":
+        return `Error relativo % < ${cfg.value} %`;
+      case "cifras_sig": {
+        const eps = 0.5 * Math.pow(10, 2 - cfg.value);
+        return `${cfg.value} cifras (Scarborough: \u03B5_s = ${eps} %)`;
+      }
+      case "err_abs_exact":
+        return `|x_n - exacto| < ${cfg.value}`;
+      case "err_rel_exact":
+        return `|x_n - exacto| / |exacto| < ${cfg.value}`;
+      case "err_rel_pct_exact":
+        return `Err. vs exacto % < ${cfg.value} %`;
+    }
+  }
+  function describeStop(cfgs) {
+    if (cfgs.length === 0) return "(sin criterio)";
+    return cfgs.map(describeSingle).join(" y ");
+  }
+
   // src/methods/rootFinding/bisection.ts
   var bisection = {
     id: "bisection",
     name: "Metodo de Biseccion",
     category: "rootFinding",
     formula: "c = (a + b) / 2, si f(a)\xB7f(c) < 0 => b=c, sino a=c",
+    latexFormula: "c = \\frac{a + b}{2}, \\quad \\begin{cases} b \\leftarrow c & \\text{si } f(a)\\cdot f(c) < 0 \\\\ a \\leftarrow c & \\text{en caso contrario} \\end{cases}",
     description: "Encuentra raices dividiendo el intervalo a la mitad en cada iteracion. Requiere f(a)\xB7f(b) < 0.",
     inputs: [
       { id: "fx", label: "f(x)", placeholder: "x^3 - x - 2", hint: "Funcion a encontrar raiz", defaultValue: "x^3 - x - 2" },
       { id: "a", label: "a (limite inferior)", placeholder: "1", type: "number", defaultValue: "1" },
       { id: "b", label: "b (limite superior)", placeholder: "2", type: "number", defaultValue: "2" },
-      { id: "tol", label: "Tolerancia", placeholder: "1e-6", defaultValue: "1e-6" },
-      { id: "maxIter", label: "Max iteraciones", placeholder: "100", type: "number", defaultValue: "100" }
+      { id: "stop", label: "Criterio de parada", placeholder: "1e-6", type: "stopCriterion", defaultValue: "tolerancia:1e-6", hint: "Elige el criterio que pide el ejercicio: tolerancia, error absoluto/relativo, cifras significativas, etc." },
+      { id: "maxIter", label: "Max iteraciones", placeholder: "100", type: "number", defaultValue: "100" },
+      { id: "exact", label: "Valor exacto (opcional)", placeholder: "p.ej. 1.52138", type: "number", hint: "Si se provee, habilita criterios de parada vs exacto." }
     ],
     tableColumns: [
       { key: "iter", label: "n" },
@@ -46431,7 +46546,9 @@
       { key: "b", label: "b" },
       { key: "c", label: "c" },
       { key: "fc", label: "f(c)" },
-      { key: "error", label: "Error" }
+      { key: "errAbs", label: "|\u0394x| abs" },
+      { key: "errRel", label: "Err. rel." },
+      { key: "errRelPct", label: "Err. rel. %" }
     ],
     steps: [
       "Escribe <code>f(x)</code> en el primer campo.",
@@ -46445,8 +46562,10 @@
       const f = parseExpression(params.fx);
       let a = parseFloat(params.a);
       let b = parseFloat(params.b);
-      const tol = parseFloat(params.tol) || 1e-6;
+      const stop = parseStop(params.stop);
       const maxIter = parseInt(params.maxIter) || 100;
+      const exactRaw = (params.exact ?? "").trim();
+      const exact = exactRaw === "" ? void 0 : parseFloat(exactRaw);
       if (isNaN(a) || isNaN(b)) throw new Error("a y b deben ser numeros validos");
       if (a >= b) throw new Error("a debe ser menor que b");
       const fa = f(a);
@@ -46454,31 +46573,43 @@
       if (fa * fb > 0) throw new Error("f(a) y f(b) deben tener signos opuestos (f(a)\xB7f(b) < 0)");
       const iterations = [];
       let converged = false;
-      let error = Math.abs(b - a);
       let c = a;
+      let cPrev = a;
+      let errSel = Math.abs(b - a);
       for (let i2 = 1; i2 <= maxIter; i2++) {
         c = (a + b) / 2;
         const fc = f(c);
-        error = Math.abs(b - a) / 2;
-        iterations.push({ iter: i2, a, b, c, fc, error });
-        if (Math.abs(fc) < 1e-15 || error < tol) {
+        const errs = i2 === 1 ? { errAbs: Math.abs(b - a) / 2, errRel: 0, errRelPct: 0 } : computeErrors(cPrev, c);
+        errSel = errs.errAbs;
+        iterations.push({
+          iter: i2,
+          a,
+          b,
+          c,
+          fc,
+          errAbs: errs.errAbs,
+          errRel: errs.errRel,
+          errRelPct: errs.errRelPct
+        });
+        const errsFull = withExactErrors(errs, c, exact);
+        if (Math.abs(fc) < 1e-15 || i2 > 1 && hasConverged(stop, errsFull)) {
           converged = true;
           break;
-        }
-        if (fa * fc < 0) {
         }
         if (f(a) * fc < 0) {
           b = c;
         } else {
           a = c;
         }
+        cPrev = c;
       }
       const bolzano = checkBolzano(params.fx, parseFloat(params.a), parseFloat(params.b));
       return {
         root: c,
         iterations,
         converged,
-        error,
+        error: errSel,
+        message: `Criterio: ${describeStop(stop)}`,
         theoremPanels: [renderBolzanoPanel(bolzano)]
       };
     },
@@ -46530,7 +46661,7 @@
         xLabel: "Iteracion",
         yLabel: "c"
       };
-      const errors = result.iterations.map((r) => r.error).filter((e3) => e3 > 0);
+      const errors = result.iterations.map((r) => r.errAbs).filter((e3) => e3 > 0);
       const errIters = iters.slice(0, errors.length);
       const chart4 = {
         title: "Convergencia del error",
@@ -46552,20 +46683,24 @@
     name: "Punto Fijo",
     category: "rootFinding",
     formula: "x_{n+1} = g(x_n), converge si |g'(x)| < 1",
+    latexFormula: "x_{n+1} = g(x_n), \\quad \\text{converge si } |g'(x)| < 1 \\text{ en un entorno del punto fijo}",
     description: "Iteracion de punto fijo. Reescribir f(x)=0 como x=g(x) y iterar.",
     inputs: [
       { id: "gx", label: "g(x)", placeholder: "(x + 2/x) / 2", hint: "Funcion de iteracion x = g(x)", defaultValue: "(x + 2/x) / 2" },
       { id: "x0", label: "x\u2080 (valor inicial)", placeholder: "1", type: "number", defaultValue: "1" },
-      { id: "tol", label: "Tolerancia", placeholder: "1e-6", defaultValue: "1e-6" },
+      { id: "stop", label: "Criterio de parada", placeholder: "1e-6", type: "stopCriterion", defaultValue: "tolerancia:1e-6", hint: "Elige el criterio que pide el ejercicio: tolerancia, error absoluto/relativo, cifras significativas, etc." },
       { id: "maxIter", label: "Max iteraciones", placeholder: "100", type: "number", defaultValue: "100" },
       { id: "a", label: "a (para Lipschitz, opcional)", placeholder: "0.5", type: "number", hint: "Extremo inferior para verificar |g'(x)| < 1." },
-      { id: "b", label: "b (para Lipschitz, opcional)", placeholder: "2", type: "number", hint: "Extremo superior para verificar |g'(x)| < 1." }
+      { id: "b", label: "b (para Lipschitz, opcional)", placeholder: "2", type: "number", hint: "Extremo superior para verificar |g'(x)| < 1." },
+      { id: "exact", label: "Valor exacto (opcional)", placeholder: "p.ej. 1.41421356", type: "number", hint: "Si se provee, habilita criterios de parada vs exacto." }
     ],
     tableColumns: [
       { key: "iter", label: "n" },
       { key: "xn", label: "x_n" },
       { key: "gxn", label: "g(x_n)" },
-      { key: "error", label: "Error" }
+      { key: "errAbs", label: "|\u0394x| abs" },
+      { key: "errRel", label: "Err. rel." },
+      { key: "errRelPct", label: "Err. rel. %" }
     ],
     steps: [
       "Parti de <code>f(x) = 0</code> y <b>despeja</b> una funcion <code>g(x)</code> equivalente: <code>x = g(x)</code>. Para <code>x\xB2 = 2</code> \u2192 <code>g(x) = (x + 2/x)/2</code>. Casi siempre hay multiples formas validas; conviene la que sea <em>contractiva</em>.",
@@ -46579,20 +46714,24 @@
     solve(params) {
       const g = parseExpression(params.gx);
       let x = parseFloat(params.x0);
-      const tol = parseFloat(params.tol) || 1e-6;
+      const stop = parseStop(params.stop);
       const maxIter = parseInt(params.maxIter) || 100;
+      const exactRaw = (params.exact ?? "").trim();
+      const exact = exactRaw === "" ? void 0 : parseFloat(exactRaw);
       if (isNaN(x)) throw new Error("x\u2080 debe ser un numero valido");
       const iterations = [];
       let converged = false;
       let error = Infinity;
       for (let i2 = 1; i2 <= maxIter; i2++) {
         const xNew = g(x);
-        error = Math.abs(xNew - x);
-        iterations.push({ iter: i2, xn: x, gxn: xNew, error });
+        const errs = computeErrors(x, xNew);
+        error = errs.errAbs;
+        iterations.push({ iter: i2, xn: x, gxn: xNew, errAbs: errs.errAbs, errRel: errs.errRel, errRelPct: errs.errRelPct });
         if (isNaN(xNew) || !isFinite(xNew)) {
           return { root: x, iterations, converged: false, error, message: "Divergencia detectada" };
         }
-        if (error < tol) {
+        const errsFull = withExactErrors(errs, xNew, exact);
+        if (hasConverged(stop, errsFull)) {
           converged = true;
           x = xNew;
           break;
@@ -46610,7 +46749,7 @@
           theoremPanels.push(renderLipschitzPanel(lip));
         }
       }
-      return { root: x, iterations, converged, error, theoremPanels };
+      return { root: x, iterations, converged, error, theoremPanels, message: `Criterio: ${describeStop(stop)}` };
     },
     getCharts(params, result) {
       const g = parseExpression(params.gx);
@@ -46621,7 +46760,26 @@
       const maxX = Math.max(...allX, root) + 1;
       const xs = linspace(minX, maxX, 500);
       const gys = xs.map((x) => g(x));
+      const fys = xs.map((x) => g(x) - x);
       const chart1 = {
+        title: "f(x) = g(x) \u2212 x  (raiz \u2261 punto fijo)",
+        type: "line",
+        datasets: [
+          { label: "f(x) = g(x) \u2212 x", x: xs, y: fys, color: "#89b4fa" },
+          { label: "y=0", x: [xs[0], xs[xs.length - 1]], y: [0, 0], color: "#585b70", dashed: true },
+          ...result.root !== void 0 ? [{
+            label: "Raiz",
+            x: [root],
+            y: [0],
+            color: "#a6e3a1",
+            pointRadius: 6,
+            showLine: false
+          }] : []
+        ],
+        xLabel: "x",
+        yLabel: "f(x)"
+      };
+      const chartGx = {
         title: "g(x) y y = x",
         type: "line",
         datasets: [
@@ -46674,7 +46832,7 @@
         xLabel: "Iteracion",
         yLabel: "x_n"
       };
-      const errors = result.iterations.map((r) => r.error).filter((e3) => e3 > 0);
+      const errors = result.iterations.map((r) => r.errAbs).filter((e3) => e3 > 0);
       const chart4 = {
         title: "Convergencia del error",
         type: "line",
@@ -46685,7 +46843,7 @@
         yLabel: "Error",
         yLog: true
       };
-      return [chart1, chart2, chart3, chart4];
+      return [chart1, chartGx, chart2, chart4];
     }
   };
 
@@ -46695,12 +46853,13 @@
     name: "Newton-Raphson",
     category: "rootFinding",
     formula: "x_{n+1} = x_n - f(x_n) / f'(x_n)",
+    latexFormula: "x_{n+1} = x_n - \\frac{f(x_n)}{f'(x_n)}",
     description: "Metodo de la tangente. Convergencia cuadratica cerca de la raiz. Requiere f'(x).",
     inputs: [
       { id: "fx", label: "f(x)", placeholder: "x^3 - x - 2", defaultValue: "x^3 - x - 2" },
       { id: "dfx", label: "f'(x) (dejar vacio para derivada numerica)", placeholder: "3*x^2 - 1", hint: "Derivada analitica. Si se deja vacio se usa derivada numerica central.", defaultValue: "3*x^2 - 1" },
       { id: "x0", label: "x\u2080 (valor inicial)", placeholder: "2", type: "number", defaultValue: "2" },
-      { id: "tol", label: "Tolerancia", placeholder: "1e-6", defaultValue: "1e-6" },
+      { id: "stop", label: "Criterio de parada", placeholder: "1e-6", type: "stopCriterion", defaultValue: "tolerancia:1e-6", hint: "Elige el criterio que pide el ejercicio: tolerancia, error absoluto/relativo, cifras significativas, etc." },
       { id: "maxIter", label: "Max iteraciones", placeholder: "100", type: "number", defaultValue: "100" },
       { id: "exact", label: "Valor exacto (opcional)", placeholder: "p.ej. 1.52138", type: "number", hint: "Si se provee, agrega columna de error relativo %." }
     ],
@@ -46709,8 +46868,13 @@
       { key: "xn", label: "x_n" },
       { key: "fxn", label: "f(x_n)" },
       { key: "dfxn", label: "f'(x_n)" },
-      { key: "error", label: "|x_{n+1}-x_n|" },
-      { key: "relErrPct", label: "Err. rel. %" }
+      { key: "xNext", label: "x_{n+1}" },
+      { key: "errAbs", label: "|\u0394x| abs" },
+      { key: "errRel", label: "Err. rel." },
+      { key: "errRelPct", label: "Err. rel. %" },
+      { key: "errAbsExact", label: "|x-exacto| abs" },
+      { key: "errRelExact", label: "Err. rel. vs exacto" },
+      { key: "relErrExactPct", label: "Err. vs exacto %" }
     ],
     steps: [
       "Escribi la funcion <code>f(x)</code> en el primer campo. Ej: <code>x^3 - 3x - 4</code>.",
@@ -46727,7 +46891,7 @@
       const dfExpr = params.dfx?.trim();
       const df = dfExpr ? parseExpression(dfExpr) : (x2) => numericalDerivative(f, x2);
       let x = parseFloat(params.x0);
-      const tol = parseFloat(params.tol) || 1e-6;
+      const stop = parseStop(params.stop);
       const maxIter = parseInt(params.maxIter) || 100;
       const exactRaw = (params.exact ?? "").trim();
       const exact = exactRaw === "" ? void 0 : parseFloat(exactRaw);
@@ -46735,39 +46899,46 @@
       const iterations = [];
       let converged = false;
       let error = Infinity;
-      const relErrOf = (val) => {
-        if (exact === void 0 || isNaN(exact)) return null;
+      const exactErrorsOf = (val) => {
+        if (exact === void 0 || isNaN(exact)) return { errAbsExact: null, errRelExact: null, relErrExactPct: null };
+        const diff2 = Math.abs(val - exact);
         const denom = Math.abs(exact) > 1e-14 ? Math.abs(exact) : 1;
-        return Math.abs(val - exact) / denom * 100;
+        const rel2 = diff2 / denom;
+        return { errAbsExact: diff2, errRelExact: rel2, relErrExactPct: rel2 * 100 };
       };
       for (let i2 = 1; i2 <= maxIter; i2++) {
         const fxn = f(x);
         const dfxn = df(x);
         if (Math.abs(dfxn) < 1e-14) {
-          iterations.push({ iter: i2, xn: x, fxn, dfxn, error, relErrPct: relErrOf(x) });
+          const ex2 = exactErrorsOf(x);
+          iterations.push({ iter: i2, xn: x, fxn, dfxn, xNext: null, errAbs: error, errRel: 0, errRelPct: 0, ...ex2 });
           return { root: x, iterations, converged: false, error, exact, message: "f'(x) \u2248 0, division por cero" };
         }
         const xNew = x - fxn / dfxn;
-        error = Math.abs(xNew - x);
-        iterations.push({ iter: i2, xn: x, fxn, dfxn, error, relErrPct: relErrOf(xNew) });
+        const errs = i2 === 1 ? { errAbs: Math.abs(xNew - x), errRel: 0, errRelPct: 0 } : computeErrors(x, xNew);
+        error = errs.errAbs;
+        const ex = exactErrorsOf(xNew);
+        iterations.push({ iter: i2, xn: x, fxn, dfxn, xNext: xNew, errAbs: errs.errAbs, errRel: errs.errRel, errRelPct: errs.errRelPct, ...ex });
         if (isNaN(xNew) || !isFinite(xNew)) {
           return { root: x, iterations, converged: false, error, exact, message: "Divergencia detectada" };
         }
-        if (error < tol || Math.abs(fxn) < 1e-15) {
+        const errsFull = withExactErrors(errs, xNew, exact);
+        if (Math.abs(fxn) < 1e-15 || i2 > 1 && hasConverged(stop, errsFull)) {
           converged = true;
           x = xNew;
           break;
         }
         x = xNew;
       }
-      const relFinal = relErrOf(x);
+      const relFinal = exactErrorsOf(x).relErrExactPct;
       return {
         root: x,
         iterations,
         converged,
         error,
         exact,
-        relativeErrorPercent: relFinal ?? void 0
+        relativeErrorPercent: relFinal ?? void 0,
+        message: `Criterio: ${describeStop(stop)}`
       };
     },
     getCharts(params, result) {
@@ -46828,7 +46999,7 @@
         xLabel: "Iteracion",
         yLabel: "x_n"
       };
-      const errors = result.iterations.map((r) => r.error).filter((e3) => e3 > 0);
+      const errors = result.iterations.map((r) => r.errAbs).filter((e3) => e3 > 0);
       const chart4 = {
         title: "Convergencia del error",
         type: "line",
@@ -46847,13 +47018,15 @@
     name: "Metodo de la Secante",
     category: "rootFinding",
     formula: "x_{n+1} = x_n - f(x_n)\xB7(x_n - x_{n-1}) / (f(x_n) - f(x_{n-1}))",
+    latexFormula: "x_{n+1} = x_n - f(x_n) \\cdot \\frac{x_n - x_{n-1}}{f(x_n) - f(x_{n-1})}",
     description: "Similar a Newton-Raphson pero no requiere la derivada. Usa dos puntos iniciales.",
     inputs: [
       { id: "fx", label: "f(x)", placeholder: "x^3 - x - 2", defaultValue: "x^3 - x - 2" },
       { id: "x0", label: "x\u2080", placeholder: "1", type: "number", defaultValue: "1" },
       { id: "x1", label: "x\u2081", placeholder: "2", type: "number", defaultValue: "2" },
-      { id: "tol", label: "Tolerancia", placeholder: "1e-6", defaultValue: "1e-6" },
-      { id: "maxIter", label: "Max iteraciones", placeholder: "100", type: "number", defaultValue: "100" }
+      { id: "stop", label: "Criterio de parada", placeholder: "1e-6", type: "stopCriterion", defaultValue: "tolerancia:1e-6", hint: "Elige el criterio que pide el ejercicio: tolerancia, error absoluto/relativo, cifras significativas, etc." },
+      { id: "maxIter", label: "Max iteraciones", placeholder: "100", type: "number", defaultValue: "100" },
+      { id: "exact", label: "Valor exacto (opcional)", placeholder: "p.ej. 1.52138", type: "number", hint: "Si se provee, habilita criterios de parada vs exacto." }
     ],
     tableColumns: [
       { key: "iter", label: "n" },
@@ -46861,7 +47034,9 @@
       { key: "xn", label: "x_n" },
       { key: "fxn", label: "f(x_n)" },
       { key: "xn1", label: "x_{n+1}" },
-      { key: "error", label: "Error" }
+      { key: "errAbs", label: "|\u0394x| abs" },
+      { key: "errRel", label: "Err. rel." },
+      { key: "errRelPct", label: "Err. rel. %" }
     ],
     steps: [
       "Escribe <code>f(x)</code>. No hace falta derivada \u2014 ese es el punto.",
@@ -46875,8 +47050,10 @@
       const f = parseExpression(params.fx);
       let x0 = parseFloat(params.x0);
       let x1 = parseFloat(params.x1);
-      const tol = parseFloat(params.tol) || 1e-6;
+      const stop = parseStop(params.stop);
       const maxIter = parseInt(params.maxIter) || 100;
+      const exactRaw = (params.exact ?? "").trim();
+      const exact = exactRaw === "" ? void 0 : parseFloat(exactRaw);
       if (isNaN(x0) || isNaN(x1)) throw new Error("x\u2080 y x\u2081 deben ser numeros validos");
       const iterations = [];
       let converged = false;
@@ -46886,16 +47063,18 @@
         const fx1 = f(x1);
         const denom = fx1 - fx0;
         if (Math.abs(denom) < 1e-14) {
-          iterations.push({ iter: i2, xn_1: x0, xn: x1, fxn: fx1, xn1: x1, error });
+          iterations.push({ iter: i2, xn_1: x0, xn: x1, fxn: fx1, xn1: x1, errAbs: error, errRel: 0, errRelPct: 0 });
           return { root: x1, iterations, converged: false, error, message: "f(x_n) - f(x_{n-1}) \u2248 0" };
         }
         const x2 = x1 - fx1 * (x1 - x0) / denom;
-        error = Math.abs(x2 - x1);
-        iterations.push({ iter: i2, xn_1: x0, xn: x1, fxn: fx1, xn1: x2, error });
+        const errs = computeErrors(x1, x2);
+        error = errs.errAbs;
+        iterations.push({ iter: i2, xn_1: x0, xn: x1, fxn: fx1, xn1: x2, errAbs: errs.errAbs, errRel: errs.errRel, errRelPct: errs.errRelPct });
         if (isNaN(x2) || !isFinite(x2)) {
           return { root: x1, iterations, converged: false, error, message: "Divergencia detectada" };
         }
-        if (error < tol || Math.abs(fx1) < 1e-15) {
+        const errsFull = withExactErrors(errs, x2, exact);
+        if (Math.abs(fx1) < 1e-15 || hasConverged(stop, errsFull)) {
           converged = true;
           x0 = x1;
           x1 = x2;
@@ -46904,7 +47083,7 @@
         x0 = x1;
         x1 = x2;
       }
-      return { root: x1, iterations, converged, error };
+      return { root: x1, iterations, converged, error, message: `Criterio: ${describeStop(stop)}` };
     },
     getCharts(params, result) {
       const f = parseExpression(params.fx);
@@ -46954,7 +47133,7 @@
         xLabel: "Iteracion",
         yLabel: "x_n"
       };
-      const errors = result.iterations.map((r) => r.error).filter((e3) => e3 > 0);
+      const errors = result.iterations.map((r) => r.errAbs).filter((e3) => e3 > 0);
       const chart4 = {
         title: "Convergencia del error",
         type: "line",
@@ -46973,13 +47152,15 @@
     name: "Regula Falsi (Posicion Falsa)",
     category: "rootFinding",
     formula: "c = a - f(a)\xB7(b - a) / (f(b) - f(a))",
+    latexFormula: "c = a - f(a) \\cdot \\frac{b - a}{f(b) - f(a)}",
     description: "Como biseccion pero usa la interseccion de la secante con el eje x en vez del punto medio.",
     inputs: [
       { id: "fx", label: "f(x)", placeholder: "x^3 - x - 2", defaultValue: "x^3 - x - 2" },
       { id: "a", label: "a (limite inferior)", placeholder: "1", type: "number", defaultValue: "1" },
       { id: "b", label: "b (limite superior)", placeholder: "2", type: "number", defaultValue: "2" },
-      { id: "tol", label: "Tolerancia", placeholder: "1e-6", defaultValue: "1e-6" },
-      { id: "maxIter", label: "Max iteraciones", placeholder: "100", type: "number", defaultValue: "100" }
+      { id: "stop", label: "Criterio de parada", placeholder: "1e-6", type: "stopCriterion", defaultValue: "tolerancia:1e-6", hint: "Elige el criterio que pide el ejercicio: tolerancia, error absoluto/relativo, cifras significativas, etc." },
+      { id: "maxIter", label: "Max iteraciones", placeholder: "100", type: "number", defaultValue: "100" },
+      { id: "exact", label: "Valor exacto (opcional)", placeholder: "p.ej. 1.52138", type: "number", hint: "Si se provee, habilita criterios de parada vs exacto." }
     ],
     tableColumns: [
       { key: "iter", label: "n" },
@@ -46987,7 +47168,9 @@
       { key: "b", label: "b" },
       { key: "c", label: "c" },
       { key: "fc", label: "f(c)" },
-      { key: "error", label: "Error" }
+      { key: "errAbs", label: "|\u0394x| abs" },
+      { key: "errRel", label: "Err. rel." },
+      { key: "errRelPct", label: "Err. rel. %" }
     ],
     steps: [
       "Escribe <code>f(x)</code> y el intervalo <code>[a, b]</code>.",
@@ -47000,8 +47183,10 @@
       const f = parseExpression(params.fx);
       let a = parseFloat(params.a);
       let b = parseFloat(params.b);
-      const tol = parseFloat(params.tol) || 1e-6;
+      const stop = parseStop(params.stop);
       const maxIter = parseInt(params.maxIter) || 100;
+      const exactRaw = (params.exact ?? "").trim();
+      const exact = exactRaw === "" ? void 0 : parseFloat(exactRaw);
       if (isNaN(a) || isNaN(b)) throw new Error("a y b deben ser numeros validos");
       if (a >= b) throw new Error("a debe ser menor que b");
       let fa = f(a);
@@ -47019,9 +47204,11 @@
         }
         c = a - fa * (b - a) / denom;
         const fc = f(c);
-        error = i2 === 1 ? Math.abs(b - a) : Math.abs(c - cPrev);
-        iterations.push({ iter: i2, a, b, c, fc, error });
-        if (Math.abs(fc) < 1e-15 || error < tol) {
+        const errs = i2 === 1 ? { errAbs: Math.abs(b - a), errRel: 0, errRelPct: 0 } : computeErrors(cPrev, c);
+        error = errs.errAbs;
+        iterations.push({ iter: i2, a, b, c, fc, errAbs: errs.errAbs, errRel: errs.errRel, errRelPct: errs.errRelPct });
+        const errsFull = withExactErrors(errs, c, exact);
+        if (Math.abs(fc) < 1e-15 || i2 > 1 && hasConverged(stop, errsFull)) {
           converged = true;
           break;
         }
@@ -47040,6 +47227,7 @@
         iterations,
         converged,
         error,
+        message: `Criterio: ${describeStop(stop)}`,
         theoremPanels: [renderBolzanoPanel(bolzano)]
       };
     },
@@ -47083,7 +47271,7 @@
         xLabel: "Iteracion",
         yLabel: "c"
       };
-      const errors = result.iterations.map((r) => r.error).filter((e3) => e3 > 0);
+      const errors = result.iterations.map((r) => r.errAbs).filter((e3) => e3 > 0);
       const chart4 = {
         title: "Convergencia del error",
         type: "line",
@@ -47102,11 +47290,12 @@
     name: "Aceleracion de Aitken (\u0394\xB2)",
     category: "rootFinding",
     formula: "x\u0302_n = x_n - (x_{n+1} - x_n)\xB2 / (x_{n+2} - 2x_{n+1} + x_n)",
+    latexFormula: "\\hat{x}_n = x_n - \\frac{(x_{n+1} - x_n)^2}{x_{n+2} - 2x_{n+1} + x_n}",
     description: "Acelera la convergencia de punto fijo usando extrapolacion delta-cuadrado de Aitken.",
     inputs: [
       { id: "gx", label: "g(x)", placeholder: "(x + 2/x) / 2", hint: "Funcion de iteracion x = g(x)", defaultValue: "(x + 2/x) / 2" },
       { id: "x0", label: "x\u2080 (valor inicial)", placeholder: "1", type: "number", defaultValue: "1" },
-      { id: "tol", label: "Tolerancia", placeholder: "1e-6", defaultValue: "1e-6" },
+      { id: "stop", label: "Criterio de parada", placeholder: "1e-6", type: "stopCriterion", defaultValue: "tolerancia:1e-6", hint: "Elige el criterio que pide el ejercicio: tolerancia, error absoluto/relativo, cifras significativas, etc." },
       { id: "maxIter", label: "Max iteraciones", placeholder: "100", type: "number", defaultValue: "100" },
       { id: "exact", label: "Valor exacto (opcional)", placeholder: "p.ej. 1.41421356", type: "number", hint: "Si se provee, agrega columna de error relativo %." },
       { id: "a", label: "a (para Lipschitz, opcional)", placeholder: "0.5", type: "number", hint: "Extremo inferior para verificar |g'(x)| < 1." },
@@ -47114,11 +47303,17 @@
     ],
     tableColumns: [
       { key: "iter", label: "n" },
-      { key: "xn", label: "x_n (plain)" },
+      { key: "xn", label: "x_n" },
+      { key: "xn1", label: "x_{n+1} = g(x_n)" },
+      { key: "xn2", label: "x_{n+2} = g(x_{n+1})" },
       { key: "xn_aitken", label: "x\u0302_n (Aitken)" },
+      { key: "errAbs", label: "|\u0394x\u0302| abs" },
+      { key: "errRel", label: "Err. rel." },
+      { key: "errRelPct", label: "Err. rel. %" },
       { key: "error_plain", label: "Error plain" },
-      { key: "error_aitken", label: "Error Aitken" },
-      { key: "relErrPct", label: "Err. rel. %" }
+      { key: "errAbsExact", label: "|x\u0302-exacto| abs" },
+      { key: "errRelExact", label: "Err. rel. vs exacto" },
+      { key: "relErrExactPct", label: "Err. vs exacto %" }
     ],
     steps: [
       "Parti de <code>f(x) = 0</code> y <b>despeja una funcion auxiliar</b> <code>g(x)</code> tal que <code>x = g(x)</code>. Para <code>f(x) = cos(x) - x</code>, la auxiliar directa es <code>g(x) = cos(x)</code>. Para <code>f(x) = e\u02E3 - 3x\xB2</code>, podes usar <code>g(x) = sqrt(exp(x)/3)</code> u otra que converja.",
@@ -47133,15 +47328,17 @@
     solve(params) {
       const g = parseExpression(params.gx);
       const x0 = parseFloat(params.x0);
-      const tol = parseFloat(params.tol) || 1e-6;
+      const stop = parseStop(params.stop);
       const maxIter = parseInt(params.maxIter) || 100;
       const exactRaw = (params.exact ?? "").trim();
       const exact = exactRaw === "" ? void 0 : parseFloat(exactRaw);
       if (isNaN(x0)) throw new Error("x\u2080 debe ser un numero valido");
-      const relErrOf = (val) => {
-        if (exact === void 0 || isNaN(exact)) return null;
+      const exactErrorsOf = (val) => {
+        if (exact === void 0 || isNaN(exact)) return { errAbsExact: null, errRelExact: null, relErrExactPct: null };
+        const diff2 = Math.abs(val - exact);
         const denom = Math.abs(exact) > 1e-14 ? Math.abs(exact) : 1;
-        return Math.abs(val - exact) / denom * 100;
+        const rel2 = diff2 / denom;
+        return { errAbsExact: diff2, errRelExact: rel2, relErrExactPct: rel2 * 100 };
       };
       const iterations = [];
       let converged = false;
@@ -47166,17 +47363,24 @@
           aitkenVal = xn - (xn1 - xn) ** 2 / denom;
         }
         const errorPlain = n > 0 ? Math.abs(plain[n] - plain[n - 1]) : Math.abs(xn1 - xn);
-        const errorAitken = Math.abs(aitkenVal - lastAitken);
-        error = errorAitken;
+        const errs = n === 0 ? { errAbs: Math.abs(aitkenVal - x0), errRel: 0, errRelPct: 0 } : computeErrors(lastAitken, aitkenVal);
+        error = errs.errAbs;
+        const ex = exactErrorsOf(aitkenVal);
         iterations.push({
           iter: n + 1,
-          xn: plain[n + 1],
+          xn,
+          xn1,
+          xn2,
           xn_aitken: aitkenVal,
+          errAbs: errs.errAbs,
+          errRel: errs.errRel,
+          errRelPct: errs.errRelPct,
           error_plain: errorPlain,
-          error_aitken: errorAitken,
-          relErrPct: relErrOf(aitkenVal)
+          error_aitken: errs.errAbs,
+          ...ex
         });
-        if (errorAitken < tol) {
+        const errsFull = withExactErrors(errs, aitkenVal, exact);
+        if (n > 0 && hasConverged(stop, errsFull)) {
           converged = true;
           lastAitken = aitkenVal;
           break;
@@ -47194,7 +47398,7 @@
           theoremPanels.push(renderLipschitzPanel(lip));
         }
       }
-      const relFinal = relErrOf(lastAitken);
+      const relFinal = exactErrorsOf(lastAitken).relErrExactPct;
       return {
         root: lastAitken,
         iterations,
@@ -47202,6 +47406,7 @@
         error,
         exact,
         relativeErrorPercent: relFinal ?? void 0,
+        message: `Criterio: ${describeStop(stop)}`,
         theoremPanels
       };
     },
@@ -47214,16 +47419,17 @@
       const maxX = Math.max(...allX, root) + 1;
       const xs = linspace(minX, maxX, 500);
       const gys = xs.map((x) => g(x));
+      const fys = xs.map((x) => g(x) - x);
       const chart1 = {
-        title: "g(x) y y = x",
+        title: "f(x) = g(x) \u2212 x  (raiz \u2261 punto fijo)",
         type: "line",
         datasets: [
-          { label: "g(x)", x: xs, y: gys, color: "#89b4fa" },
-          { label: "y = x", x: xs, y: [...xs], color: "#585b70", dashed: true },
-          { label: "Punto fijo", x: [root], y: [root], color: "#a6e3a1", pointRadius: 6, showLine: false }
+          { label: "f(x) = g(x) \u2212 x", x: xs, y: fys, color: "#89b4fa" },
+          { label: "y=0", x: [xs[0], xs[xs.length - 1]], y: [0, 0], color: "#585b70", dashed: true },
+          { label: "Raiz", x: [root], y: [0], color: "#a6e3a1", pointRadius: 6, showLine: false }
         ],
         xLabel: "x",
-        yLabel: "y"
+        yLabel: "f(x)"
       };
       const iters = result.iterations.map((r) => r.iter);
       const plainVals = result.iterations.map((r) => r.xn);
@@ -47269,11 +47475,12 @@
     name: "Steffensen (aceleracion \u0394\xB2 en cada iteracion)",
     category: "rootFinding",
     formula: "p_{n+1} = p_n - (g(p_n) - p_n)\xB2 / (g(g(p_n)) - 2g(p_n) + p_n)",
+    latexFormula: "p_{n+1} = p_n - \\frac{\\left(g(p_n) - p_n\\right)^2}{g(g(p_n)) - 2g(p_n) + p_n}",
     description: "Aplica la extrapolacion delta-cuadrado de Aitken dentro de cada iteracion de punto fijo, alcanzando convergencia cuadratica cuando g es C\xB2 cerca del punto fijo.",
     inputs: [
       { id: "gx", label: "g(x)", placeholder: "(x + 2/x) / 2", hint: "Funcion de iteracion x = g(x)", defaultValue: "(x + 2/x) / 2" },
       { id: "x0", label: "p\u2080 (valor inicial)", placeholder: "1", type: "number", defaultValue: "1" },
-      { id: "tol", label: "Tolerancia", placeholder: "1e-8", defaultValue: "1e-8" },
+      { id: "stop", label: "Criterio de parada", placeholder: "1e-8", type: "stopCriterion", defaultValue: "tolerancia:1e-8", hint: "Elige el criterio que pide el ejercicio: tolerancia, error absoluto/relativo, cifras significativas, etc." },
       { id: "maxIter", label: "Max iteraciones", placeholder: "50", type: "number", defaultValue: "50" },
       { id: "exact", label: "Valor exacto (opcional)", placeholder: "p.ej. 1.41421356", type: "number", hint: "Si se provee, agrega columna de error relativo %." },
       { id: "a", label: "a (para Lipschitz, opcional)", placeholder: "0.5", type: "number", hint: "Extremo inferior para verificar |g'(x)| < 1." },
@@ -47285,8 +47492,12 @@
       { key: "gp", label: "g(p_n)" },
       { key: "ggp", label: "g(g(p_n))" },
       { key: "pNext", label: "p_{n+1}" },
-      { key: "error", label: "|p_{n+1} \u2212 p_n|" },
-      { key: "relErrPct", label: "Err. rel. %" }
+      { key: "errAbs", label: "|\u0394p| abs" },
+      { key: "errRel", label: "Err. rel." },
+      { key: "errRelPct", label: "Err. rel. %" },
+      { key: "errAbsExact", label: "|p-exacto| abs" },
+      { key: "errRelExact", label: "Err. rel. vs exacto" },
+      { key: "relErrExactPct", label: "Err. vs exacto %" }
     ],
     steps: [
       'Primero verifica <b>Bolzano</b>: el parcial suele pedir "demostrar que existe al menos una raiz en [a, b]". Evalua <code>f(a)</code> y <code>f(b)</code> \u2014 si tienen signos opuestos (<code>f(a)\xB7f(b) &lt; 0</code>) y <code>f</code> es continua, hay raiz. Para <code>f(x) = x\xB3 - sin(x) - 5</code> en [0, 2]: <code>f(0) = -5</code>, <code>f(2) = 8 - sin(2) - 5 \u2248 2.09</code>. Signos opuestos \u2192 Bolzano OK.',
@@ -47302,7 +47513,7 @@
     solve(params) {
       const g = parseExpression(params.gx);
       let p = parseFloat(params.x0);
-      const tol = parseFloat(params.tol) || 1e-8;
+      const stop = parseStop(params.stop);
       const maxIter = parseInt(params.maxIter) || 50;
       const exactRaw = (params.exact ?? "").trim();
       const exact = exactRaw === "" ? void 0 : parseFloat(exactRaw);
@@ -47322,14 +47533,24 @@
         } else {
           pNext = p - Math.pow(gp - p, 2) / denom;
         }
-        error = Math.abs(pNext - p);
-        const relErrPct = exact !== void 0 && !isNaN(exact) && exact !== 0 ? Math.abs(pNext - exact) / Math.abs(exact) * 100 : null;
-        iterations.push({ iter: i2, p, gp, ggp, pNext, error, relErrPct });
+        const errs = computeErrors(p, pNext);
+        error = errs.errAbs;
+        let errAbsExact = null;
+        let errRelExact = null;
+        let relErrExactPct = null;
+        if (exact !== void 0 && !isNaN(exact)) {
+          errAbsExact = Math.abs(pNext - exact);
+          const denom2 = Math.abs(exact) > 1e-14 ? Math.abs(exact) : 1;
+          errRelExact = errAbsExact / denom2;
+          relErrExactPct = errRelExact * 100;
+        }
+        iterations.push({ iter: i2, p, gp, ggp, pNext, errAbs: errs.errAbs, errRel: errs.errRel, errRelPct: errs.errRelPct, errAbsExact, errRelExact, relErrExactPct });
         if (!isFinite(pNext)) {
           return { root: p, iterations, converged: false, error, message: "Divergencia detectada" };
         }
         p = pNext;
-        if (error < tol) {
+        const errsFull = withExactErrors(errs, pNext, exact);
+        if (hasConverged(stop, errsFull)) {
           converged = true;
           break;
         }
@@ -47353,7 +47574,7 @@
         exact,
         relativeErrorPercent: exact !== void 0 && !isNaN(exact) ? exact !== 0 ? Math.abs(p - exact) / Math.abs(exact) * 100 : Math.abs(p - exact) * 100 : void 0,
         theoremPanels,
-        message
+        message: message ?? `Criterio: ${describeStop(stop)}`
       };
     },
     getCharts(params, result) {
@@ -47365,16 +47586,17 @@
       const maxX = Math.max(...ps, root) + 1;
       const xs = linspace(minX, maxX, 500);
       const gys = xs.map((x) => g(x));
+      const fys = xs.map((x) => g(x) - x);
       const chart1 = {
-        title: "g(x) y y = x",
+        title: "f(x) = g(x) \u2212 x  (raiz \u2261 punto fijo)",
         type: "line",
         datasets: [
-          { label: "g(x)", x: xs, y: gys, color: "#89b4fa" },
-          { label: "y = x", x: xs, y: [...xs], color: "#585b70", dashed: true },
-          { label: "p*", x: [root], y: [root], color: "#a6e3a1", pointRadius: 6, showLine: false }
+          { label: "f(x) = g(x) \u2212 x", x: xs, y: fys, color: "#89b4fa" },
+          { label: "y=0", x: [xs[0], xs[xs.length - 1]], y: [0, 0], color: "#585b70", dashed: true },
+          { label: "Raiz", x: [root], y: [0], color: "#a6e3a1", pointRadius: 6, showLine: false }
         ],
         xLabel: "x",
-        yLabel: "y"
+        yLabel: "f(x)"
       };
       const iters = result.iterations.map((r) => r.iter);
       const pVals = result.iterations.map((r) => r.p);
@@ -47389,7 +47611,7 @@
         xLabel: "Iteracion",
         yLabel: "Valor"
       };
-      const errs = result.iterations.map((r) => r.error).filter((e3) => e3 > 0);
+      const errs = result.iterations.map((r) => r.errAbs).filter((e3) => e3 > 0);
       const chart3 = {
         title: "Error por iteracion",
         type: "line",
@@ -47511,6 +47733,7 @@
     name: "Regla del Rectangulo (Punto Medio)",
     category: "integration",
     formula: "\u222Bf(x)dx \u2248 (b-a) \xB7 f((a+b)/2)",
+    latexFormula: "\\int_a^b f(x)\\,dx \\approx (b-a) \\cdot f\\!\\left(\\frac{a+b}{2}\\right)",
     description: "Aproxima la integral usando el valor de f en el punto medio del intervalo.",
     inputs: [
       { id: "fx", label: "f(x)", placeholder: "x^2", defaultValue: "x^2" },
@@ -47657,6 +47880,7 @@
     name: "Regla del Trapecio (Simple)",
     category: "integration",
     formula: "\u222Bf(x)dx \u2248 (b-a)/2 \xB7 [f(a) + f(b)]",
+    latexFormula: "\\int_a^b f(x)\\,dx \\approx \\frac{b-a}{2}\\left[f(a) + f(b)\\right]",
     description: "Aproxima el area bajo la curva con un solo trapecio entre a y b.",
     inputs: [
       { id: "fx", label: "f(x)", placeholder: "x^2", defaultValue: "x^2" },
@@ -47768,6 +47992,7 @@
     name: "Regla del Trapecio Compuesta",
     category: "integration",
     formula: "\u222Bf(x)dx \u2248 h/2 \xB7 [f(a) + 2\xB7\u03A3f(x_i) + f(b)]",
+    latexFormula: "\\int_a^b f(x)\\,dx \\approx \\frac{h}{2}\\left[f(a) + 2\\sum_{i=1}^{n-1} f(x_i) + f(b)\\right], \\quad h = \\frac{b-a}{n}",
     description: "Divide [a,b] en n subintervalos y aplica la regla del trapecio en cada uno.",
     inputs: [
       { id: "fx", label: "f(x)", placeholder: "x^2", defaultValue: "x^2" },
@@ -47915,6 +48140,7 @@
     name: "Simpson 1/3 (Simple)",
     category: "integration",
     formula: "\u222Bf(x)dx \u2248 (b-a)/6 \xB7 [f(a) + 4\xB7f(m) + f(b)]",
+    latexFormula: "\\int_a^b f(x)\\,dx \\approx \\frac{b-a}{6}\\left[f(a) + 4f\\!\\left(\\frac{a+b}{2}\\right) + f(b)\\right]",
     description: "Aproxima la integral usando una parabola que pasa por 3 puntos: a, (a+b)/2, b.",
     inputs: [
       { id: "fx", label: "f(x)", placeholder: "x^2", defaultValue: "x^2" },
@@ -48045,6 +48271,7 @@
     name: "Simpson 1/3 Compuesta",
     category: "integration",
     formula: "\u222Bf(x)dx \u2248 h/3 \xB7 [f(x\u2080) + 4f(x\u2081) + 2f(x\u2082) + 4f(x\u2083) + ... + f(x\u2099)]",
+    latexFormula: "\\int_a^b f(x)\\,dx \\approx \\frac{h}{3}\\left[f(x_0) + 4\\!\\!\\!\\sum_{i\\,\\text{impar}}\\!\\!\\! f(x_i) + 2\\!\\!\\!\\sum_{i\\,\\text{par}}\\!\\!\\! f(x_i) + f(x_n)\\right], \\quad h = \\frac{b-a}{n}",
     description: "Aplica Simpson 1/3 en cada par de subintervalos. Requiere n par.",
     inputs: [
       { id: "fx", label: "f(x)", placeholder: "x^2", defaultValue: "x^2" },
@@ -48197,6 +48424,7 @@
     name: "Simpson 3/8 (Simple)",
     category: "integration",
     formula: "\u222Bf(x)dx \u2248 (b-a)/8 \xB7 [f(a) + 3f(x\u2081) + 3f(x\u2082) + f(b)]",
+    latexFormula: "\\int_a^b f(x)\\,dx \\approx \\frac{b-a}{8}\\left[f(a) + 3f(x_1) + 3f(x_2) + f(b)\\right], \\quad x_i = a + i\\cdot\\frac{b-a}{3}",
     description: "Aproxima la integral usando un polinomio cubico que pasa por 4 puntos equiespaciados.",
     inputs: [
       { id: "fx", label: "f(x)", placeholder: "x^2", defaultValue: "x^2" },
@@ -48344,6 +48572,7 @@
     name: "Simpson 3/8 Compuesta",
     category: "integration",
     formula: "\u222Bf(x)dx \u2248 3h/8 \xB7 [f(x\u2080) + 3f(x\u2081) + 3f(x\u2082) + 2f(x\u2083) + 3f(x\u2084) + ...]",
+    latexFormula: "\\int_a^b f(x)\\,dx \\approx \\frac{3h}{8}\\left[f(x_0) + 3f(x_1) + 3f(x_2) + 2f(x_3) + 3f(x_4) + 3f(x_5) + \\cdots + f(x_n)\\right], \\quad h = \\frac{b-a}{n}",
     description: "Aplica Simpson 3/8 en cada grupo de 3 subintervalos. Requiere n multiplo de 3.",
     inputs: [
       { id: "fx", label: "f(x)", placeholder: "x^2", defaultValue: "x^2" },
@@ -48515,6 +48744,7 @@
     name: "Monte Carlo",
     category: "integration",
     formula: "\u222Bf(x)dx \u2248 (b-a)/N \xB7 \u03A3 f(x_i), x_i aleatorio en [a,b]",
+    latexFormula: "\\int_a^b f(x)\\,dx \\approx \\frac{b-a}{N} \\sum_{i=1}^{N} f(x_i), \\quad x_i \\sim U(a,b)",
     description: "Aproxima la integral usando puntos aleatorios uniformes. Convergencia O(1/\u221AN). Semilla opcional para reproducibilidad.",
     inputs: [
       { id: "fx", label: "f(x)", placeholder: "x^2", defaultValue: "x^2" },
@@ -48722,6 +48952,7 @@
     name: "Monte Carlo \u2014 Aproximacion de \u03C0",
     category: "integration",
     formula: "\u03C0 \u2248 4 \xB7 (puntos en circulo) / (puntos totales)",
+    latexFormula: "\\pi \\approx 4 \\cdot \\frac{\\#\\{(x_i, y_i) : x_i^2 + y_i^2 \\le 1\\}}{N}, \\quad (x_i, y_i) \\sim U([-1,1]^2)",
     description: "Aproxima \u03C0 por muestreo por rechazo: puntos aleatorios en un cuadrado de lado 2, se cuentan los que caen dentro del circulo unitario.",
     inputs: [
       { id: "n", label: "N (puntos aleatorios)", placeholder: "10000", type: "number", defaultValue: "10000" },
@@ -48922,6 +49153,7 @@
     name: "Monte Carlo 2D (Integral Doble)",
     category: "integration",
     formula: "\u222B\u222Bf(x,y)dA \u2248 (Area)/N \xB7 \u03A3 f(x_i,y_i) \u2014 promedio de K repeticiones",
+    latexFormula: "\\iint_R f(x,y)\\,dA \\approx \\frac{(b-a)(d-c)}{N}\\sum_{i=1}^{N} f(x_i, y_i), \\quad (x_i, y_i) \\sim U([a,b]\\times[c,d])",
     description: "Aproxima \u222B\u222Bf(x,y)dA en un rectangulo [a,b]\xD7[c,d]. Ejecuta K repeticiones independientes y promedia para reducir varianza. Convergencia O(1/\u221AN).",
     inputs: [
       { id: "fxy", label: "f(x, y)", placeholder: "x^2 + y^2", defaultValue: "x^2 + y^2" },
@@ -49137,6 +49369,7 @@
     name: "Monte Carlo \u2014 Area entre curvas",
     category: "integration",
     formula: "A = \u222B_a^b (f(x) - g(x)) dx \u2014 Hit-or-Miss sobre rectangulo circunscrito",
+    latexFormula: "A = \\int_a^b \\bigl(f(x) - g(x)\\bigr)\\,dx \\approx A_{\\text{rect}} \\cdot \\frac{\\#\\{\\text{puntos dentro}\\}}{N}",
     description: "Estima el area entre f(x) y g(x) sobre [a,b] lanzando puntos aleatorios y contando cuantos caen en la region. Promedia K repeticiones.",
     inputs: [
       { id: "fx", label: "f(x) (curva superior)", placeholder: "x^2", defaultValue: "x^2" },
@@ -63678,41 +63911,57 @@
   function renderNumber(n, precision = 10) {
     if (!isFinite(n)) return texInline(n > 0 ? "\\infty" : "-\\infty");
     if (isNaN(n)) return texInline("\\text{NaN}");
-    if (Math.abs(n) < 1e-4 && n !== 0 || Math.abs(n) >= 1e6) {
-      const exp3 = Math.floor(Math.log10(Math.abs(n)));
-      const mantissa = n / Math.pow(10, exp3);
-      return texInline(`${mantissa.toPrecision(6)} \\times 10^{${exp3}}`);
+    if (n === 0) return texInline("0");
+    const abs3 = Math.abs(n);
+    const sign5 = n < 0 ? "-" : "";
+    let s;
+    if (abs3 < Math.pow(10, -precision)) {
+      const needed = Math.ceil(-Math.log10(abs3)) + precision - 1;
+      s = abs3.toFixed(Math.min(needed, 20));
+    } else {
+      s = abs3.toPrecision(precision);
+      if (/e/i.test(s)) s = abs3.toFixed(20);
     }
-    return texInline(n.toPrecision(precision));
+    if (s.indexOf(".") >= 0) s = s.replace(/0+$/, "").replace(/\.$/, "");
+    return texInline(sign5 + s);
   }
-  var FORMULAS = {
-    bisection: "c = \\frac{a + b}{2}",
-    fixedPoint: "x_{n+1} = g(x_n)",
-    newtonRaphson: "x_{n+1} = x_n - \\frac{f(x_n)}{f'(x_n)}",
-    secant: "x_{n+1} = x_n - f(x_n) \\cdot \\frac{x_n - x_{n-1}}{f(x_n) - f(x_{n-1})}",
-    falsePosition: "c = a - f(a) \\cdot \\frac{b - a}{f(b) - f(a)}",
-    aitken: "\\hat{x}_n = x_n - \\frac{(x_{n+1} - x_n)^2}{x_{n+2} - 2x_{n+1} + x_n}",
-    midpoint: "\\int_a^b f(x)\\,dx \\approx (b-a) \\cdot f\\!\\left(\\frac{a+b}{2}\\right)",
-    trapezoidal: "\\int_a^b f(x)\\,dx \\approx \\frac{b-a}{2}\\left[f(a) + f(b)\\right]",
-    trapezoidalComp: "\\int_a^b f(x)\\,dx \\approx \\frac{h}{2}\\left[f(a) + 2\\sum f(x_i) + f(b)\\right]",
-    simpson13: "\\int_a^b f(x)\\,dx \\approx \\frac{b-a}{6}\\left[f(a) + 4f(m) + f(b)\\right]",
-    simpson13Comp: "\\int_a^b f(x)\\,dx \\approx \\frac{h}{3}\\left[f(x_0) + 4f(x_1) + 2f(x_2) + \\cdots + f(x_n)\\right]",
-    simpson38: "\\int_a^b f(x)\\,dx \\approx \\frac{b-a}{8}\\left[f(a) + 3f(x_1) + 3f(x_2) + f(b)\\right]",
-    simpson38Comp: "\\int_a^b f(x)\\,dx \\approx \\frac{3h}{8}\\left[f(x_0) + 3f(x_1) + 3f(x_2) + 2f(x_3) + \\cdots\\right]",
-    montecarlo: "\\int_a^b f(x)\\,dx \\approx \\frac{b-a}{N} \\sum_{i=1}^{N} f(x_i), \\quad x_i \\sim U(a,b)",
-    montecarloPi: "\\pi \\approx 4 \\cdot \\frac{\\#\\{x^2+y^2 \\le 1\\}}{N}, \\quad (x,y) \\sim U([-1,1]^2)",
-    euler: "y_{n+1} = y_n + h \\cdot f(x_n, y_n)",
-    heun: "y_{n+1} = y_n + \\frac{h}{2}\\left[f(x_n, y_n) + f(x_{n+1}, \\tilde{y}_{n+1})\\right]",
-    rungeKutta: "y_{n+1} = y_n + \\frac{h}{6}(k_1 + 2k_2 + 2k_3 + k_4)",
-    forward: "f'(x) \\approx \\frac{f(x+h) - f(x)}{h}",
-    backward: "f'(x) \\approx \\frac{f(x) - f(x-h)}{h}",
-    central: "f'(x) \\approx \\frac{f(x+h) - f(x-h)}{2h}",
-    secondDerivative: "f''(x) \\approx \\frac{f(x+h) - 2f(x) + f(x-h)}{h^2}",
-    richardson: "D = \\frac{4D(h/2) - D(h)}{3}"
-  };
 
   // src/ui.ts
+  function renderStopRow(selectedKind, value, placeholder) {
+    const options = Object.keys(STOP_CRITERION_LABELS).map(
+      (k) => `<option value="${k}" ${k === selectedKind ? "selected" : ""}>${STOP_CRITERION_LABELS[k]}</option>`
+    ).join("");
+    return `
+    <div class="stop-criterion-row" data-stop-row>
+      <select class="stop-kind-select" data-stop-kind>${options}</select>
+      <input
+        type="text"
+        placeholder="${placeholder}"
+        value="${value}"
+        data-stop-value
+        autocomplete="off"
+        spellcheck="false"
+      >
+      <button type="button" class="btn-mini btn-mini-danger" data-stop-remove title="Quitar criterio">\xD7</button>
+      <div class="hint stop-row-hint" data-stop-row-hint>${STOP_CRITERION_HINTS[selectedKind]}</div>
+    </div>
+  `;
+  }
   function renderSingleInput(inp) {
+    if (inp.type === "stopCriterion") {
+      const parsed = parseStop(inp.defaultValue);
+      const rowsHtml = parsed.map((cfg) => renderStopRow(cfg.kind, cfg.value, inp.placeholder)).join("");
+      return `
+      <div class="input-group input-group-stop" data-stop-input="${inp.id}">
+        <label>${inp.label}</label>
+        <div class="stop-rows" data-stop-rows>${rowsHtml}</div>
+        <div class="stop-actions">
+          <button type="button" class="btn-mini" data-stop-add>+ criterio</button>
+          <span class="hint stop-combine-hint">Se detiene cuando se cumplen <b>todos</b> los criterios.</span>
+        </div>
+      </div>
+    `;
+    }
     if (inp.type === "table") {
       const cols = inp.tableColumns || 2;
       const headers = inp.tableHeaders || Array.from({ length: cols }, (_, i2) => `col${i2 + 1}`);
@@ -63749,8 +63998,7 @@
   }
   function createInputForm(method) {
     const inputs = method.inputs.map(renderSingleInput).join("");
-    const latexFormula = FORMULAS[method.id];
-    const formulaHtml = latexFormula ? texBlock(latexFormula) : `<div class="method-formula-plain">${method.formula}</div>`;
+    const formulaHtml = method.latexFormula ? texBlock(method.latexFormula) : `<div class="method-formula-plain">${method.formula}</div>`;
     const currentMode = getPrecisionMode();
     const precisionOptions = ALL_PRECISION_MODES.map(
       (m) => `<option value="${m}" ${m === currentMode ? "selected" : ""}>${precisionModeLabel(m)}</option>`
@@ -63806,6 +64054,43 @@
         document.dispatchEvent(new CustomEvent("precision-changed"));
       });
     }
+    document.querySelectorAll("[data-stop-input]").forEach((groupEl) => {
+      wireStopGroup(groupEl);
+    });
+  }
+  function wireStopRow(rowEl) {
+    const sel = rowEl.querySelector("select[data-stop-kind]");
+    const hint = rowEl.querySelector("[data-stop-row-hint]");
+    const removeBtn = rowEl.querySelector("[data-stop-remove]");
+    if (sel && hint) {
+      sel.addEventListener("change", () => {
+        hint.textContent = STOP_CRITERION_HINTS[sel.value] || "";
+      });
+    }
+    if (removeBtn) {
+      removeBtn.addEventListener("click", () => {
+        const group = rowEl.closest("[data-stop-input]");
+        const rows = group?.querySelectorAll("[data-stop-row]") ?? [];
+        if (rows.length > 1) rowEl.remove();
+      });
+    }
+  }
+  function wireStopGroup(groupEl) {
+    groupEl.querySelectorAll("[data-stop-row]").forEach((row2) => wireStopRow(row2));
+    const addBtn = groupEl.querySelector("[data-stop-add]");
+    const rowsContainer = groupEl.querySelector("[data-stop-rows]");
+    if (addBtn && rowsContainer) {
+      addBtn.addEventListener("click", () => {
+        const placeholder = "1e-6";
+        const wrapper = document.createElement("div");
+        wrapper.innerHTML = renderStopRow("err_abs", "1e-6", placeholder).trim();
+        const newRow = wrapper.firstElementChild;
+        if (newRow) {
+          rowsContainer.appendChild(newRow);
+          wireStopRow(newRow);
+        }
+      });
+    }
   }
   function addTableRow(tbody, cols, values) {
     const tr = document.createElement("tr");
@@ -63848,6 +64133,21 @@
         const rows = parsed.length > 0 ? parsed : [Array(cols).fill("")];
         tbody.innerHTML = "";
         for (const r of rows) addTableRow(tbody, cols, r);
+      } else if (inp.type === "stopCriterion") {
+        const parsed = parseStop(raw);
+        const group = document.querySelector(`[data-stop-input="${inp.id}"]`);
+        const rowsContainer = group?.querySelector("[data-stop-rows]");
+        if (!rowsContainer) continue;
+        rowsContainer.innerHTML = "";
+        for (const cfg of parsed) {
+          const wrapper = document.createElement("div");
+          wrapper.innerHTML = renderStopRow(cfg.kind, cfg.value, inp.placeholder).trim();
+          const row2 = wrapper.firstElementChild;
+          if (row2) {
+            rowsContainer.appendChild(row2);
+            wireStopRow(row2);
+          }
+        }
       } else {
         const el = document.getElementById(`input-${inp.id}`);
         if (el) el.value = raw;
@@ -63869,6 +64169,18 @@
           if (cells.some((c) => c !== "")) rows.push(cells.join(","));
         });
         values[inp.id] = rows.join(";");
+      } else if (inp.type === "stopCriterion") {
+        const group = document.querySelector(`[data-stop-input="${inp.id}"]`);
+        const rows = Array.from(group?.querySelectorAll("[data-stop-row]") ?? []);
+        const parts = [];
+        for (const row2 of rows) {
+          const kindEl = row2.querySelector("select[data-stop-kind]");
+          const valEl = row2.querySelector("input[data-stop-value]");
+          const kind = kindEl?.value ?? "tolerancia";
+          const val = (valEl?.value ?? "").trim();
+          if (val !== "") parts.push(`${kind}:${val}`);
+        }
+        values[inp.id] = parts.join(";");
       } else {
         const el = document.getElementById(`input-${inp.id}`);
         values[inp.id] = el?.value ?? "";
@@ -63912,10 +64224,8 @@
       items.push(`<div class="result-item"><span class="label">Derivada aproximada</span><span class="value">${renderNumber(result.derivative)}</span></div>`);
     }
     items.push(`<div class="result-item"><span class="label">Iteraciones</span><span class="value">${texInline(String(result.iterations.length))}</span></div>`);
-    const errExp = Math.floor(Math.log10(Math.abs(result.error)));
-    const errMant = result.error / Math.pow(10, errExp);
-    const errTex = result.error === 0 ? texInline("0") : texInline(`${errMant.toFixed(4)} \\times 10^{${errExp}}`);
-    items.push(`<div class="result-item"><span class="label">Error</span><span class="value">${errTex}</span></div>`);
+    const errFull = formatFull(result.error);
+    items.push(`<div class="result-item"><span class="label">Error</span><span class="value" title="${errFull}">${formatNum(result.error)}</span></div>`);
     items.push(`<div class="result-item"><span class="label">Estado</span><span class="value ${result.converged ? "" : "error"}">${result.converged ? "Convergido" : "No convergido"}</span></div>`);
     if (result.message) {
       items.push(`<div class="result-item"><span class="label">Nota</span><span class="value" style="font-size:0.85rem;color:var(--subtext0)">${result.message}</span></div>`);
@@ -63928,7 +64238,10 @@
       const cells = columns.map((c) => {
         const v = row2[c.key];
         if (v === null || v === void 0) return `<td class="td-null">\u2014</td>`;
-        if (typeof v === "number") return `<td>${formatNum(v)}</td>`;
+        if (typeof v === "number") {
+          const full = formatFull(v);
+          return `<td title="${full}" data-full="${full}">${formatNum(v)}</td>`;
+        }
         return `<td>${v}</td>`;
       }).join("");
       const highlight = typeof row2._highlight === "string" ? row2._highlight : "";
@@ -63987,6 +64300,7 @@
     name: "Interpolacion de Lagrange",
     category: "interpolation",
     formula: "P_n(x) = \u03A3 y_i \xB7 L_i(x), L_i(x) = \u220F_{j\u2260i} (x - x_j)/(x_i - x_j)",
+    latexFormula: "P_n(x) = \\sum_{i=0}^{n} y_i\\,L_i(x), \\quad L_i(x) = \\prod_{\\substack{j=0 \\\\ j \\neq i}}^{n} \\frac{x - x_j}{x_i - x_j}",
     description: "Construye el polinomio interpolante de grado \u2264 n que pasa por n+1 puntos. Si se provee f(x), calcula error local y cota global.",
     inputs: [
       {
@@ -64205,6 +64519,7 @@
     name: "Diferencias Divididas de Newton",
     category: "interpolation",
     formula: "P_n(x) = f[x_0] + f[x_0,x_1](x-x_0) + ... + f[x_0,...,x_n]\u220F(x-x_i)",
+    latexFormula: "P_n(x) = f[x_0] + \\sum_{k=1}^{n} f[x_0, x_1, \\ldots, x_k]\\,\\prod_{i=0}^{k-1}(x - x_i)",
     description: "Construye el polinomio interpolante de Newton con diferencias divididas. Tabla triangular con f[x_i,...,x_{i+k}] como coeficientes.",
     inputs: [
       {
@@ -64460,6 +64775,7 @@
     name: "Metodo de Euler",
     category: "ode",
     formula: "y_{n+1} = y_n + h \xB7 f(x_n, y_n)",
+    latexFormula: "y_{n+1} = y_n + h \\cdot f(x_n, y_n)",
     description: "Resuelve EDOs de primer orden dy/dx = f(x,y) con condicion inicial. Metodo explicito de orden 1.",
     inputs: [
       { id: "fxy", label: "f(x, y) = dy/dx", placeholder: "x + y", defaultValue: "x + y" },
@@ -64534,7 +64850,7 @@
         iterations,
         converged: true,
         error: maxError,
-        message: `y(${xEnd}) \u2248 ${y.toFixed(8)} | ${N} pasos, h=${h}${maxError > 0 ? ` | Error max = ${maxError.toExponential(4)}` : ""}`
+        message: `y(${xEnd}) \u2248 ${y.toFixed(8)} | ${N} pasos, h=${h}${maxError > 0 ? ` | Error max = ${formatFull(maxError)}` : ""}`
       };
       applyOdeTargetAndVerification(result, params);
       return result;
@@ -64646,6 +64962,7 @@
     name: "Metodo de Heun (RK2)",
     category: "ode",
     formula: "y_{n+1} = y_n + (h/2)[f(x_n, y_n) + f(x_{n+1}, \u1EF9_{n+1})]",
+    latexFormula: "\\begin{aligned} \\tilde{y}_{n+1} &= y_n + h \\cdot f(x_n, y_n) \\\\ y_{n+1} &= y_n + \\frac{h}{2}\\left[f(x_n, y_n) + f(x_{n+1}, \\tilde{y}_{n+1})\\right] \\end{aligned}",
     description: "Metodo predictor-corrector de orden 2. Predice con Euler, corrige promediando pendientes en ambos extremos.",
     inputs: [
       { id: "fxy", label: "f(x, y) = dy/dx", placeholder: "x + y", defaultValue: "x + y" },
@@ -64727,7 +65044,7 @@
         iterations,
         converged: true,
         error: maxError,
-        message: `y(${xEnd}) \u2248 ${y.toFixed(8)} | ${N} pasos, h=${h}${maxError > 0 ? ` | Error max = ${maxError.toExponential(4)}` : ""}`
+        message: `y(${xEnd}) \u2248 ${y.toFixed(8)} | ${N} pasos, h=${h}${maxError > 0 ? ` | Error max = ${formatFull(maxError)}` : ""}`
       };
       applyOdeTargetAndVerification(result, params);
       return result;
@@ -64840,6 +65157,7 @@
     name: "Runge-Kutta (RK4)",
     category: "ode",
     formula: "y_{n+1} = y_n + (h/6)(k\u2081 + 2k\u2082 + 2k\u2083 + k\u2084)",
+    latexFormula: "\\begin{aligned} k_1 &= f(x_n, y_n) \\\\ k_2 &= f\\!\\left(x_n + \\tfrac{h}{2},\\, y_n + \\tfrac{h}{2}k_1\\right) \\\\ k_3 &= f\\!\\left(x_n + \\tfrac{h}{2},\\, y_n + \\tfrac{h}{2}k_2\\right) \\\\ k_4 &= f(x_n + h,\\, y_n + h\\,k_3) \\\\ y_{n+1} &= y_n + \\tfrac{h}{6}(k_1 + 2k_2 + 2k_3 + k_4) \\end{aligned}",
     description: "Metodo clasico de Runge-Kutta de orden 4. Resuelve dy/dx = f(x,y) con alta precision usando 4 evaluaciones por paso.",
     inputs: [
       { id: "fxy", label: "f(x, y) = dy/dx", placeholder: "x + y", defaultValue: "x + y" },
@@ -64924,7 +65242,7 @@
         iterations,
         converged: true,
         error: maxError,
-        message: `y(${xEnd}) \u2248 ${y.toFixed(8)} | ${N} pasos, h=${h}${maxError > 0 ? ` | Error max = ${maxError.toExponential(4)}` : ""}`
+        message: `y(${xEnd}) \u2248 ${y.toFixed(8)} | ${N} pasos, h=${h}${maxError > 0 ? ` | Error max = ${formatFull(maxError)}` : ""}`
       };
       applyOdeTargetAndVerification(result, params);
       return result;
@@ -65042,6 +65360,7 @@
     name: "Diferencia Hacia Adelante",
     category: "differentiation",
     formula: "f'(x) \u2248 (f(x+h) - f(x)) / h",
+    latexFormula: "f'(x) \\approx \\frac{f(x+h) - f(x)}{h} \\quad \\mathcal{O}(h)",
     description: "Aproximacion de primer orden O(h) de la derivada usando diferencia hacia adelante.",
     inputs: [
       { id: "fx", label: "f(x)", placeholder: "sin(x)", defaultValue: "sin(x)" },
@@ -65151,6 +65470,7 @@
     name: "Diferencia Hacia Atras",
     category: "differentiation",
     formula: "f'(x) \u2248 (f(x) - f(x-h)) / h",
+    latexFormula: "f'(x) \\approx \\frac{f(x) - f(x-h)}{h} \\quad \\mathcal{O}(h)",
     description: "Aproximacion de primer orden O(h) de la derivada usando diferencia hacia atras.",
     inputs: [
       { id: "fx", label: "f(x)", placeholder: "sin(x)", defaultValue: "sin(x)" },
@@ -65260,6 +65580,7 @@
     name: "Diferencia Central",
     category: "differentiation",
     formula: "f'(x) \u2248 (f(x+h) - f(x-h)) / 2h",
+    latexFormula: "f'(x) \\approx \\frac{f(x+h) - f(x-h)}{2h} \\quad \\mathcal{O}(h^2)",
     description: "Aproximacion de segundo orden O(h\xB2) de la derivada. Mas precisa que forward/backward.",
     inputs: [
       { id: "fx", label: "f(x)", placeholder: "sin(x)", defaultValue: "sin(x)" },
@@ -65370,6 +65691,7 @@
     name: "Segunda Derivada (Central)",
     category: "differentiation",
     formula: "f''(x) \u2248 (f(x+h) - 2f(x) + f(x-h)) / h\xB2",
+    latexFormula: "f''(x) \\approx \\frac{f(x+h) - 2f(x) + f(x-h)}{h^2} \\quad \\mathcal{O}(h^2)",
     description: "Aproximacion de segundo orden O(h\xB2) de la segunda derivada usando diferencia central.",
     inputs: [
       { id: "fx", label: "f(x)", placeholder: "sin(x)", defaultValue: "sin(x)" },
@@ -65476,6 +65798,7 @@
     name: "Extrapolacion de Richardson",
     category: "differentiation",
     formula: "D = (4\xB7D(h/2) - D(h)) / 3, mejora O(h\xB2) a O(h\u2074)",
+    latexFormula: "D = \\frac{4\\,D(h/2) - D(h)}{3}, \\quad \\mathcal{O}(h^2) \\to \\mathcal{O}(h^4)",
     description: "Combina aproximaciones con diferentes h para obtener mayor precision. Usa diferencia central como base.",
     inputs: [
       { id: "fx", label: "f(x)", placeholder: "sin(x)", defaultValue: "sin(x)" },
@@ -65645,8 +65968,7 @@
   function renderHome(onMethodClick) {
     const sectionsHtml = categories.map((cat) => {
       const cards = cat.methods.map((m) => {
-        const latexFormula = FORMULAS[m.id];
-        const formulaHtml = latexFormula ? texInline(latexFormula) : `<span class="formula-fallback">${m.formula}</span>`;
+        const formulaHtml = m.latexFormula ? texInline(m.latexFormula) : `<span class="formula-fallback">${m.formula}</span>`;
         return `
         <div class="method-card ${cat.cssClass}" data-method="${m.id}">
           <h3>${m.name}</h3>
@@ -65711,7 +66033,7 @@
       {
         title: "Cross-cutting",
         items: [
-          "Selector global de precision (decimales / cifras significativas)",
+          "Selector global de precision (decimales)",
           "Teclado matematico, calculadora simbolica, GeoGebra embebido",
           "Exportar reporte Markdown con parametros, tabla y 4 graficos",
           "Ejercicios precargados del parcial en cada metodo"
@@ -80544,9 +80866,7 @@
     if (v === null || v === void 0) return "\u2014";
     if (typeof v === "number") {
       if (!isFinite(v)) return String(v);
-      const abs3 = Math.abs(v);
-      if (abs3 !== 0 && (abs3 < 1e-4 || abs3 >= 1e10)) return v.toExponential(6);
-      return v.toPrecision(8).replace(/\.?0+$/, "");
+      return formatFull(v);
     }
     return String(v);
   }
@@ -81327,103 +81647,193 @@ ${blocks.join("\n\n")}`;
 
   // src/symbolic.ts
   var math6 = create(all);
-  function symbolicDerivative(expr, variable = "x") {
+  function symbolicDerivativeSteps(expr, variable = "x") {
     try {
       const node = math6.parse(expr);
-      const derived = math6.derivative(node, variable);
-      return math6.simplify(derived).toString();
+      const steps2 = [];
+      const derived = deriveStep(node, variable, steps2);
+      const simplified = math6.simplify(derived);
+      const derivedStr = derived.toString();
+      const simpStr = simplified.toString();
+      if (simpStr !== derivedStr) {
+        steps2.push({
+          rule: "Simplificar",
+          explanation: "Agrupamos t\xE9rminos semejantes y reducimos la expresi\xF3n.",
+          latex: `${toTex(derived)} \\;=\\; ${toTex(simplified)}`
+        });
+      }
+      return {
+        result: simpStr,
+        resultTex: toTex(simplified),
+        steps: steps2
+      };
     } catch (e3) {
       throw new Error(`No se pudo derivar: ${e3.message}`);
     }
   }
-  function symbolicIntegral(expr, variable = "x") {
-    try {
-      const node = math6.parse(expr);
-      const result = integrateNode(node, variable);
-      const simplified = math6.simplify(result).toString();
-      return simplified + " + C";
-    } catch (e3) {
-      throw new Error(`No se pudo integrar: ${e3.message}`);
-    }
-  }
-  function integrateNode(node, v) {
+  function deriveStep(node, v, steps2) {
     if (!containsVariable(node, v)) {
-      return new OperatorNode("*", "multiply", [node, new SymbolNode(v)]);
+      const result = new ConstantNode(0);
+      steps2.push({
+        rule: "Derivada de una constante",
+        explanation: `La derivada de cualquier constante respecto de ${v} es 0.`,
+        latex: `\\frac{d}{d${v}}\\left[${toTex(node)}\\right] = 0`
+      });
+      return result;
     }
     if (isSymbol(node, v)) {
-      return new OperatorNode("/", "divide", [
-        new OperatorNode("^", "pow", [new SymbolNode(v), new ConstantNode(2)]),
-        new ConstantNode(2)
-      ]);
+      const result = new ConstantNode(1);
+      steps2.push({
+        rule: "Derivada de la variable",
+        explanation: `La derivada de la variable respecto de s\xED misma es 1.`,
+        latex: `\\frac{d}{d${v}}\\left[${v}\\right] = 1`
+      });
+      return result;
     }
-    if (isOperator(node, "+")) {
+    if (isOperator(node, "+") || isOperator(node, "-")) {
       const op2 = node;
-      return new OperatorNode("+", "add", [
-        integrateNode(op2.args[0], v),
-        integrateNode(op2.args[1], v)
-      ]);
-    }
-    if (isOperator(node, "-")) {
-      const op2 = node;
-      if (op2.args.length === 1) {
-        return new OperatorNode("-", "unaryMinus", [integrateNode(op2.args[0], v)]);
+      if (op2.args.length === 2) {
+        const sign5 = op2.op;
+        const opName = sign5 === "+" ? "add" : "subtract";
+        steps2.push({
+          rule: sign5 === "+" ? "Regla de la suma" : "Regla de la resta",
+          explanation: `La derivada de una ${sign5 === "+" ? "suma" : "resta"} es la ${sign5 === "+" ? "suma" : "resta"} de las derivadas.`,
+          latex: `\\frac{d}{d${v}}\\left[${toTex(op2.args[0])} ${sign5} ${toTex(op2.args[1])}\\right] = \\frac{d}{d${v}}\\left[${toTex(op2.args[0])}\\right] ${sign5} \\frac{d}{d${v}}\\left[${toTex(op2.args[1])}\\right]`
+        });
+        const a = deriveStep(op2.args[0], v, steps2);
+        const b = deriveStep(op2.args[1], v, steps2);
+        return new OperatorNode(sign5, opName, [a, b]);
       }
-      return new OperatorNode("-", "subtract", [
-        integrateNode(op2.args[0], v),
-        integrateNode(op2.args[1], v)
-      ]);
+      if (op2.args.length === 1) {
+        steps2.push({
+          rule: "Signo negativo",
+          explanation: "Una constante (\u22121) sale de la derivada.",
+          latex: `\\frac{d}{d${v}}\\left[-${toTex(op2.args[0])}\\right] = -\\frac{d}{d${v}}\\left[${toTex(op2.args[0])}\\right]`
+        });
+        const a = deriveStep(op2.args[0], v, steps2);
+        return new OperatorNode("-", "unaryMinus", [a]);
+      }
     }
     if (isOperator(node, "*")) {
       const op2 = node;
       if (!containsVariable(op2.args[0], v)) {
-        return new OperatorNode("*", "multiply", [op2.args[0], integrateNode(op2.args[1], v)]);
+        steps2.push({
+          rule: "M\xFAltiplo constante",
+          explanation: "Una constante sale de la derivada multiplicando.",
+          latex: `\\frac{d}{d${v}}\\left[${toTex(op2.args[0])} \\cdot ${toTex(op2.args[1])}\\right] = ${toTex(op2.args[0])} \\cdot \\frac{d}{d${v}}\\left[${toTex(op2.args[1])}\\right]`
+        });
+        const inner2 = deriveStep(op2.args[1], v, steps2);
+        return new OperatorNode("*", "multiply", [op2.args[0], inner2]);
       }
       if (!containsVariable(op2.args[1], v)) {
-        return new OperatorNode("*", "multiply", [op2.args[1], integrateNode(op2.args[0], v)]);
+        steps2.push({
+          rule: "M\xFAltiplo constante",
+          explanation: "Una constante sale de la derivada multiplicando.",
+          latex: `\\frac{d}{d${v}}\\left[${toTex(op2.args[0])} \\cdot ${toTex(op2.args[1])}\\right] = ${toTex(op2.args[1])} \\cdot \\frac{d}{d${v}}\\left[${toTex(op2.args[0])}\\right]`
+        });
+        const inner2 = deriveStep(op2.args[0], v, steps2);
+        return new OperatorNode("*", "multiply", [op2.args[1], inner2]);
       }
-      return tryProductIntegration(op2, v);
+      steps2.push({
+        rule: "Regla del producto",
+        explanation: `Aplicamos (f\xB7g)' = f'\xB7g + f\xB7g'.`,
+        latex: `\\frac{d}{d${v}}\\left[${toTex(op2.args[0])} \\cdot ${toTex(op2.args[1])}\\right] = \\frac{d}{d${v}}\\left[${toTex(op2.args[0])}\\right]\\cdot ${toTex(op2.args[1])} + ${toTex(op2.args[0])}\\cdot\\frac{d}{d${v}}\\left[${toTex(op2.args[1])}\\right]`
+      });
+      const df = deriveStep(op2.args[0], v, steps2);
+      const dg = deriveStep(op2.args[1], v, steps2);
+      return new OperatorNode("+", "add", [
+        new OperatorNode("*", "multiply", [df, op2.args[1]]),
+        new OperatorNode("*", "multiply", [op2.args[0], dg])
+      ]);
     }
     if (isOperator(node, "/")) {
       const op2 = node;
       if (!containsVariable(op2.args[1], v)) {
-        return new OperatorNode("/", "divide", [integrateNode(op2.args[0], v), op2.args[1]]);
+        steps2.push({
+          rule: "Divisi\xF3n por constante",
+          explanation: "La constante del denominador sale multiplicando por su rec\xEDproco.",
+          latex: `\\frac{d}{d${v}}\\left[\\frac{${toTex(op2.args[0])}}{${toTex(op2.args[1])}}\\right] = \\frac{1}{${toTex(op2.args[1])}}\\cdot\\frac{d}{d${v}}\\left[${toTex(op2.args[0])}\\right]`
+        });
+        const inner2 = deriveStep(op2.args[0], v, steps2);
+        return new OperatorNode("/", "divide", [inner2, op2.args[1]]);
       }
-      if (!containsVariable(op2.args[0], v) && isSymbol(op2.args[1], v)) {
-        return new OperatorNode("*", "multiply", [
-          op2.args[0],
-          new FunctionNode(new SymbolNode("log"), [new FunctionNode(new SymbolNode("abs"), [new SymbolNode(v)])])
-        ]);
-      }
-      if (isConstantValue(op2.args[0], 1) && isSymbol(op2.args[1], v)) {
-        return new FunctionNode(new SymbolNode("log"), [new FunctionNode(new SymbolNode("abs"), [new SymbolNode(v)])]);
-      }
-      if (isConstantValue(op2.args[0], 1) && isPower(op2.args[1], v)) {
-        const powNode = op2.args[1];
-        const negExp = new OperatorNode("-", "unaryMinus", [powNode.args[1]]);
-        const asPow = new OperatorNode("^", "pow", [new SymbolNode(v), negExp]);
-        return integrateNode(asPow, v);
-      }
+      steps2.push({
+        rule: "Regla del cociente",
+        explanation: `(f/g)' = (f'\xB7g \u2212 f\xB7g') / g\xB2`,
+        latex: `\\frac{d}{d${v}}\\left[\\frac{${toTex(op2.args[0])}}{${toTex(op2.args[1])}}\\right] = \\frac{\\frac{d}{d${v}}\\left[${toTex(op2.args[0])}\\right]\\cdot ${toTex(op2.args[1])} - ${toTex(op2.args[0])}\\cdot\\frac{d}{d${v}}\\left[${toTex(op2.args[1])}\\right]}{${toTex(op2.args[1])}^2}`
+      });
+      const df = deriveStep(op2.args[0], v, steps2);
+      const dg = deriveStep(op2.args[1], v, steps2);
+      return new OperatorNode("/", "divide", [
+        new OperatorNode("-", "subtract", [
+          new OperatorNode("*", "multiply", [df, op2.args[1]]),
+          new OperatorNode("*", "multiply", [op2.args[0], dg])
+        ]),
+        new OperatorNode("^", "pow", [op2.args[1], new ConstantNode(2)])
+      ]);
     }
     if (isOperator(node, "^")) {
       const op2 = node;
-      if (isSymbol(op2.args[0], v) && !containsVariable(op2.args[1], v)) {
-        const n = op2.args[1];
-        if (isConstantValue(n, -1)) {
-          return new FunctionNode(new SymbolNode("log"), [new FunctionNode(new SymbolNode("abs"), [new SymbolNode(v)])]);
-        }
-        const nPlus1 = new OperatorNode("+", "add", [n, new ConstantNode(1)]);
-        return new OperatorNode("/", "divide", [
-          new OperatorNode("^", "pow", [new SymbolNode(v), nPlus1]),
-          nPlus1
+      const base = op2.args[0];
+      const exp3 = op2.args[1];
+      if (isSymbol(base, v) && !containsVariable(exp3, v)) {
+        steps2.push({
+          rule: "Regla de la potencia",
+          explanation: `(${v}^n)' = n\xB7${v}^(n\u22121).`,
+          latex: `\\frac{d}{d${v}}\\left[${v}^{${toTex(exp3)}}\\right] = ${toTex(exp3)}\\cdot ${v}^{${toTex(exp3)}-1}`
+        });
+        return new OperatorNode("*", "multiply", [
+          exp3,
+          new OperatorNode("^", "pow", [new SymbolNode(v), new OperatorNode("-", "subtract", [exp3, new ConstantNode(1)])])
         ]);
       }
-      if (isSymbolNamed(op2.args[0], "e") && isSymbol(op2.args[1], v)) {
-        return new OperatorNode("^", "pow", [new SymbolNode("e"), new SymbolNode(v)]);
+      if (containsVariable(base, v) && !containsVariable(exp3, v)) {
+        steps2.push({
+          rule: "Potencia con regla de la cadena",
+          explanation: `(f^n)' = n\xB7f^(n\u22121)\xB7f'.`,
+          latex: `\\frac{d}{d${v}}\\left[\\left(${toTex(base)}\\right)^{${toTex(exp3)}}\\right] = ${toTex(exp3)}\\cdot\\left(${toTex(base)}\\right)^{${toTex(exp3)}-1}\\cdot\\frac{d}{d${v}}\\left[${toTex(base)}\\right]`
+        });
+        const db = deriveStep(base, v, steps2);
+        return new OperatorNode("*", "multiply", [
+          new OperatorNode("*", "multiply", [
+            exp3,
+            new OperatorNode("^", "pow", [base, new OperatorNode("-", "subtract", [exp3, new ConstantNode(1)])])
+          ]),
+          db
+        ]);
       }
-      if (!containsVariable(op2.args[0], v) && isSymbol(op2.args[1], v)) {
-        return new OperatorNode("/", "divide", [
-          node,
-          new FunctionNode(new SymbolNode("log"), [op2.args[0]])
+      if (!containsVariable(base, v) && isSymbol(exp3, v)) {
+        if (isSymbolNamed(base, "e")) {
+          steps2.push({
+            rule: "Exponencial natural",
+            explanation: `(e^${v})' = e^${v}.`,
+            latex: `\\frac{d}{d${v}}\\left[e^{${v}}\\right] = e^{${v}}`
+          });
+          return node.cloneDeep();
+        }
+        steps2.push({
+          rule: "Exponencial general",
+          explanation: `(a^${v})' = a^${v}\xB7ln(a).`,
+          latex: `\\frac{d}{d${v}}\\left[${toTex(base)}^{${v}}\\right] = ${toTex(base)}^{${v}}\\cdot\\ln\\left(${toTex(base)}\\right)`
+        });
+        return new OperatorNode("*", "multiply", [
+          node.cloneDeep(),
+          new FunctionNode(new SymbolNode("log"), [base.cloneDeep()])
+        ]);
+      }
+      if (!containsVariable(base, v) && containsVariable(exp3, v)) {
+        steps2.push({
+          rule: "Exponencial con cadena",
+          explanation: `(a^f)' = a^f\xB7ln(a)\xB7f'.`,
+          latex: `\\frac{d}{d${v}}\\left[${toTex(base)}^{${toTex(exp3)}}\\right] = ${toTex(base)}^{${toTex(exp3)}}\\cdot\\ln\\left(${toTex(base)}\\right)\\cdot\\frac{d}{d${v}}\\left[${toTex(exp3)}\\right]`
+        });
+        const de = deriveStep(exp3, v, steps2);
+        return new OperatorNode("*", "multiply", [
+          new OperatorNode("*", "multiply", [
+            node.cloneDeep(),
+            new FunctionNode(new SymbolNode("log"), [base.cloneDeep()])
+          ]),
+          de
         ]);
       }
     }
@@ -81431,60 +81841,636 @@ ${blocks.join("\n\n")}`;
       const fn = node;
       const fnName = fn.fn.toString();
       const arg2 = fn.args[0];
+      const rule = elementaryDerivative(fnName, arg2, v);
+      if (rule) {
+        if (isSymbol(arg2, v)) {
+          steps2.push({
+            rule: rule.ruleName,
+            explanation: rule.explanation,
+            latex: rule.latexDirect
+          });
+          return rule.result;
+        }
+        steps2.push({
+          rule: `${rule.ruleName} \xB7 regla de la cadena`,
+          explanation: `Derivamos la funci\xF3n externa y multiplicamos por la derivada de la interna (regla de la cadena).`,
+          latex: rule.latexChain
+        });
+        const dArg = deriveStep(arg2, v, steps2);
+        return new OperatorNode("*", "multiply", [rule.result, dArg]);
+      }
+    }
+    if (node.type === "ParenthesisNode") {
+      return deriveStep(node.content, v, steps2);
+    }
+    const fallback = math6.derivative(node, v);
+    steps2.push({
+      rule: "Derivada directa",
+      explanation: "Aplicamos la regla est\xE1ndar de math.js para esta expresi\xF3n.",
+      latex: `\\frac{d}{d${v}}\\left[${toTex(node)}\\right] = ${toTex(fallback)}`
+    });
+    return fallback;
+  }
+  function elementaryDerivative(fnName, arg2, v) {
+    const argTex = toTex(arg2);
+    switch (fnName) {
+      case "sin":
+        return {
+          ruleName: "Derivada del seno",
+          explanation: `(sin u)' = cos u \xB7 u'.`,
+          result: new FunctionNode(new SymbolNode("cos"), [arg2.cloneDeep()]),
+          latexDirect: `\\frac{d}{d${v}}\\left[\\sin(${v})\\right] = \\cos(${v})`,
+          latexChain: `\\frac{d}{d${v}}\\left[\\sin(${argTex})\\right] = \\cos(${argTex})\\cdot\\frac{d}{d${v}}\\left[${argTex}\\right]`
+        };
+      case "cos":
+        return {
+          ruleName: "Derivada del coseno",
+          explanation: `(cos u)' = -sin u \xB7 u'.`,
+          result: new OperatorNode("-", "unaryMinus", [new FunctionNode(new SymbolNode("sin"), [arg2.cloneDeep()])]),
+          latexDirect: `\\frac{d}{d${v}}\\left[\\cos(${v})\\right] = -\\sin(${v})`,
+          latexChain: `\\frac{d}{d${v}}\\left[\\cos(${argTex})\\right] = -\\sin(${argTex})\\cdot\\frac{d}{d${v}}\\left[${argTex}\\right]`
+        };
+      case "tan":
+        return {
+          ruleName: "Derivada de la tangente",
+          explanation: `(tan u)' = sec\xB2(u) \xB7 u'.`,
+          result: new OperatorNode("^", "pow", [new FunctionNode(new SymbolNode("sec"), [arg2.cloneDeep()]), new ConstantNode(2)]),
+          latexDirect: `\\frac{d}{d${v}}\\left[\\tan(${v})\\right] = \\sec^{2}(${v})`,
+          latexChain: `\\frac{d}{d${v}}\\left[\\tan(${argTex})\\right] = \\sec^{2}(${argTex})\\cdot\\frac{d}{d${v}}\\left[${argTex}\\right]`
+        };
+      case "exp":
+        return {
+          ruleName: "Derivada de exp",
+          explanation: `(e^u)' = e^u \xB7 u'.`,
+          result: new FunctionNode(new SymbolNode("exp"), [arg2.cloneDeep()]),
+          latexDirect: `\\frac{d}{d${v}}\\left[e^{${v}}\\right] = e^{${v}}`,
+          latexChain: `\\frac{d}{d${v}}\\left[e^{${argTex}}\\right] = e^{${argTex}}\\cdot\\frac{d}{d${v}}\\left[${argTex}\\right]`
+        };
+      case "log":
+      case "ln":
+        return {
+          ruleName: "Derivada de ln",
+          explanation: `(ln u)' = u'/u.`,
+          result: new OperatorNode("/", "divide", [new ConstantNode(1), arg2.cloneDeep()]),
+          latexDirect: `\\frac{d}{d${v}}\\left[\\ln(${v})\\right] = \\frac{1}{${v}}`,
+          latexChain: `\\frac{d}{d${v}}\\left[\\ln(${argTex})\\right] = \\frac{1}{${argTex}}\\cdot\\frac{d}{d${v}}\\left[${argTex}\\right]`
+        };
+      case "sqrt":
+        return {
+          ruleName: "Derivada de \u221A",
+          explanation: `(\u221Au)' = u'/(2\u221Au).`,
+          result: new OperatorNode("/", "divide", [
+            new ConstantNode(1),
+            new OperatorNode("*", "multiply", [new ConstantNode(2), new FunctionNode(new SymbolNode("sqrt"), [arg2.cloneDeep()])])
+          ]),
+          latexDirect: `\\frac{d}{d${v}}\\left[\\sqrt{${v}}\\right] = \\frac{1}{2\\sqrt{${v}}}`,
+          latexChain: `\\frac{d}{d${v}}\\left[\\sqrt{${argTex}}\\right] = \\frac{1}{2\\sqrt{${argTex}}}\\cdot\\frac{d}{d${v}}\\left[${argTex}\\right]`
+        };
+      case "cbrt":
+        return {
+          ruleName: "Derivada de \u221B",
+          explanation: `(\u221Bu)' = u'/(3\xB7\u221B(u\xB2)).  Nota: usamos \u221B(u\xB2) en lugar de u^(2/3) para obtener siempre el valor real (cuando u<0, u^(2/3) seria complejo).`,
+          result: new OperatorNode("/", "divide", [
+            new ConstantNode(1),
+            new OperatorNode("*", "multiply", [
+              new ConstantNode(3),
+              new FunctionNode(new SymbolNode("cbrt"), [
+                new OperatorNode("^", "pow", [arg2.cloneDeep(), new ConstantNode(2)])
+              ])
+            ])
+          ]),
+          latexDirect: `\\frac{d}{d${v}}\\left[\\sqrt[3]{${v}}\\right] = \\frac{1}{3\\,\\sqrt[3]{${v}^{2}}}`,
+          latexChain: `\\frac{d}{d${v}}\\left[\\sqrt[3]{${argTex}}\\right] = \\frac{1}{3\\,\\sqrt[3]{\\left(${argTex}\\right)^{2}}}\\cdot\\frac{d}{d${v}}\\left[${argTex}\\right]`
+        };
+      case "asin":
+        return {
+          ruleName: "Derivada de arcsin",
+          explanation: `(arcsin u)' = u'/\u221A(1 \u2212 u\xB2).`,
+          result: new OperatorNode("/", "divide", [
+            new ConstantNode(1),
+            new FunctionNode(new SymbolNode("sqrt"), [
+              new OperatorNode("-", "subtract", [new ConstantNode(1), new OperatorNode("^", "pow", [arg2.cloneDeep(), new ConstantNode(2)])])
+            ])
+          ]),
+          latexDirect: `\\frac{d}{d${v}}\\left[\\arcsin(${v})\\right] = \\frac{1}{\\sqrt{1 - ${v}^2}}`,
+          latexChain: `\\frac{d}{d${v}}\\left[\\arcsin(${argTex})\\right] = \\frac{1}{\\sqrt{1 - (${argTex})^2}}\\cdot\\frac{d}{d${v}}\\left[${argTex}\\right]`
+        };
+      case "acos":
+        return {
+          ruleName: "Derivada de arccos",
+          explanation: `(arccos u)' = -u'/\u221A(1 \u2212 u\xB2).`,
+          result: new OperatorNode("/", "divide", [
+            new ConstantNode(-1),
+            new FunctionNode(new SymbolNode("sqrt"), [
+              new OperatorNode("-", "subtract", [new ConstantNode(1), new OperatorNode("^", "pow", [arg2.cloneDeep(), new ConstantNode(2)])])
+            ])
+          ]),
+          latexDirect: `\\frac{d}{d${v}}\\left[\\arccos(${v})\\right] = -\\frac{1}{\\sqrt{1 - ${v}^2}}`,
+          latexChain: `\\frac{d}{d${v}}\\left[\\arccos(${argTex})\\right] = -\\frac{1}{\\sqrt{1 - (${argTex})^2}}\\cdot\\frac{d}{d${v}}\\left[${argTex}\\right]`
+        };
+      case "atan":
+        return {
+          ruleName: "Derivada de arctan",
+          explanation: `(arctan u)' = u'/(1 + u\xB2).`,
+          result: new OperatorNode("/", "divide", [
+            new ConstantNode(1),
+            new OperatorNode("+", "add", [new ConstantNode(1), new OperatorNode("^", "pow", [arg2.cloneDeep(), new ConstantNode(2)])])
+          ]),
+          latexDirect: `\\frac{d}{d${v}}\\left[\\arctan(${v})\\right] = \\frac{1}{1 + ${v}^2}`,
+          latexChain: `\\frac{d}{d${v}}\\left[\\arctan(${argTex})\\right] = \\frac{1}{1 + (${argTex})^2}\\cdot\\frac{d}{d${v}}\\left[${argTex}\\right]`
+        };
+      case "sinh":
+        return {
+          ruleName: "Derivada de sinh",
+          explanation: `(sinh u)' = cosh(u)\xB7u'.`,
+          result: new FunctionNode(new SymbolNode("cosh"), [arg2.cloneDeep()]),
+          latexDirect: `\\frac{d}{d${v}}\\left[\\sinh(${v})\\right] = \\cosh(${v})`,
+          latexChain: `\\frac{d}{d${v}}\\left[\\sinh(${argTex})\\right] = \\cosh(${argTex})\\cdot\\frac{d}{d${v}}\\left[${argTex}\\right]`
+        };
+      case "cosh":
+        return {
+          ruleName: "Derivada de cosh",
+          explanation: `(cosh u)' = sinh(u)\xB7u'.`,
+          result: new FunctionNode(new SymbolNode("sinh"), [arg2.cloneDeep()]),
+          latexDirect: `\\frac{d}{d${v}}\\left[\\cosh(${v})\\right] = \\sinh(${v})`,
+          latexChain: `\\frac{d}{d${v}}\\left[\\cosh(${argTex})\\right] = \\sinh(${argTex})\\cdot\\frac{d}{d${v}}\\left[${argTex}\\right]`
+        };
+      case "tanh":
+        return {
+          ruleName: "Derivada de tanh",
+          explanation: `(tanh u)' = sech\xB2(u)\xB7u' = (1 \u2212 tanh\xB2u)\xB7u'.`,
+          result: new OperatorNode("-", "subtract", [
+            new ConstantNode(1),
+            new OperatorNode("^", "pow", [new FunctionNode(new SymbolNode("tanh"), [arg2.cloneDeep()]), new ConstantNode(2)])
+          ]),
+          latexDirect: `\\frac{d}{d${v}}\\left[\\tanh(${v})\\right] = 1 - \\tanh^{2}(${v})`,
+          latexChain: `\\frac{d}{d${v}}\\left[\\tanh(${argTex})\\right] = \\left(1 - \\tanh^{2}(${argTex})\\right)\\cdot\\frac{d}{d${v}}\\left[${argTex}\\right]`
+        };
+      default:
+        return null;
+    }
+  }
+  function symbolicIntegralSteps(expr, variable = "x") {
+    try {
+      const node = math6.parse(expr);
+      const steps2 = [];
+      const integrated = integrateWithSteps(node, variable, steps2);
+      const simplified = math6.simplify(integrated);
+      if (simplified.toString() !== integrated.toString()) {
+        steps2.push({
+          rule: "Simplificar",
+          explanation: "Reducimos el resultado a su forma m\xE1s compacta.",
+          latex: `${toTex(integrated)} \\;=\\; ${toTex(simplified)}`
+        });
+      }
+      return {
+        result: simplified.toString() + " + C",
+        resultTex: `${toTex(simplified)} + C`,
+        steps: steps2
+      };
+    } catch (e3) {
+      throw new Error(`No se pudo integrar: ${e3.message}`);
+    }
+  }
+  function integrateWithSteps(node, v, steps2) {
+    if (!containsVariable(node, v)) {
+      const result = new OperatorNode("*", "multiply", [node, new SymbolNode(v)]);
+      steps2.push({
+        rule: "Integral de una constante",
+        explanation: `\u222Bc d${v} = c\xB7${v}.`,
+        latex: `\\int ${toTex(node)}\\, d${v} = ${toTex(node)}\\cdot ${v}`
+      });
+      return result;
+    }
+    if (isSymbol(node, v)) {
+      const result = new OperatorNode("/", "divide", [
+        new OperatorNode("^", "pow", [new SymbolNode(v), new ConstantNode(2)]),
+        new ConstantNode(2)
+      ]);
+      steps2.push({
+        rule: "Regla de la potencia",
+        explanation: `\u222B${v} d${v} = ${v}\xB2/2.`,
+        latex: `\\int ${v}\\, d${v} = \\frac{${v}^{2}}{2}`
+      });
+      return result;
+    }
+    if (isOperator(node, "+")) {
+      const op2 = node;
+      steps2.push({
+        rule: "Regla de la suma",
+        explanation: "La integral de una suma es la suma de las integrales.",
+        latex: `\\int \\left[${toTex(op2.args[0])} + ${toTex(op2.args[1])}\\right] d${v} = \\int ${toTex(op2.args[0])}\\, d${v} + \\int ${toTex(op2.args[1])}\\, d${v}`
+      });
+      const a = integrateWithSteps(op2.args[0], v, steps2);
+      const b = integrateWithSteps(op2.args[1], v, steps2);
+      return new OperatorNode("+", "add", [a, b]);
+    }
+    if (isOperator(node, "-")) {
+      const op2 = node;
+      if (op2.args.length === 1) {
+        steps2.push({
+          rule: "Signo negativo",
+          explanation: "\u222B(\u2212f) = \u2212\u222Bf.",
+          latex: `\\int -${toTex(op2.args[0])}\\, d${v} = -\\int ${toTex(op2.args[0])}\\, d${v}`
+        });
+        const a2 = integrateWithSteps(op2.args[0], v, steps2);
+        return new OperatorNode("-", "unaryMinus", [a2]);
+      }
+      steps2.push({
+        rule: "Regla de la resta",
+        explanation: "La integral de una resta es la resta de las integrales.",
+        latex: `\\int \\left[${toTex(op2.args[0])} - ${toTex(op2.args[1])}\\right] d${v} = \\int ${toTex(op2.args[0])}\\, d${v} - \\int ${toTex(op2.args[1])}\\, d${v}`
+      });
+      const a = integrateWithSteps(op2.args[0], v, steps2);
+      const b = integrateWithSteps(op2.args[1], v, steps2);
+      return new OperatorNode("-", "subtract", [a, b]);
+    }
+    if (isOperator(node, "*")) {
+      const op2 = node;
+      if (!containsVariable(op2.args[0], v)) {
+        steps2.push({
+          rule: "M\xFAltiplo constante",
+          explanation: "La constante sale de la integral.",
+          latex: `\\int ${toTex(op2.args[0])}\\cdot ${toTex(op2.args[1])}\\, d${v} = ${toTex(op2.args[0])}\\int ${toTex(op2.args[1])}\\, d${v}`
+        });
+        const inner2 = integrateWithSteps(op2.args[1], v, steps2);
+        return new OperatorNode("*", "multiply", [op2.args[0], inner2]);
+      }
+      if (!containsVariable(op2.args[1], v)) {
+        steps2.push({
+          rule: "M\xFAltiplo constante",
+          explanation: "La constante sale de la integral.",
+          latex: `\\int ${toTex(op2.args[0])}\\cdot ${toTex(op2.args[1])}\\, d${v} = ${toTex(op2.args[1])}\\int ${toTex(op2.args[0])}\\, d${v}`
+        });
+        const inner2 = integrateWithSteps(op2.args[0], v, steps2);
+        return new OperatorNode("*", "multiply", [op2.args[1], inner2]);
+      }
+      return tryAdvancedIntegration(op2, v, steps2);
+    }
+    if (isOperator(node, "/")) {
+      const op2 = node;
+      if (!containsVariable(op2.args[1], v)) {
+        steps2.push({
+          rule: "Divisi\xF3n por constante",
+          explanation: "Una constante en el denominador sale multiplicando el rec\xEDproco.",
+          latex: `\\int \\frac{${toTex(op2.args[0])}}{${toTex(op2.args[1])}}\\, d${v} = \\frac{1}{${toTex(op2.args[1])}} \\int ${toTex(op2.args[0])}\\, d${v}`
+        });
+        const inner2 = integrateWithSteps(op2.args[0], v, steps2);
+        return new OperatorNode("/", "divide", [inner2, op2.args[1]]);
+      }
+      if (!containsVariable(op2.args[0], v) && isSymbol(op2.args[1], v)) {
+        const result = new OperatorNode("*", "multiply", [
+          op2.args[0],
+          new FunctionNode(new SymbolNode("log"), [new FunctionNode(new SymbolNode("abs"), [new SymbolNode(v)])])
+        ]);
+        steps2.push({
+          rule: "Integral logar\xEDtmica",
+          explanation: `\u222Bc/${v} d${v} = c\xB7ln|${v}|.`,
+          latex: `\\int \\frac{${toTex(op2.args[0])}}{${v}}\\, d${v} = ${toTex(op2.args[0])}\\,\\ln|${v}|`
+        });
+        return result;
+      }
+      if (isConstantValue(op2.args[0], 1) && isSymbol(op2.args[1], v)) {
+        const result = new FunctionNode(new SymbolNode("log"), [new FunctionNode(new SymbolNode("abs"), [new SymbolNode(v)])]);
+        steps2.push({
+          rule: "Integral logar\xEDtmica",
+          explanation: `\u222B1/${v} d${v} = ln|${v}|.`,
+          latex: `\\int \\frac{1}{${v}}\\, d${v} = \\ln|${v}|`
+        });
+        return result;
+      }
+      if (isConstantValue(op2.args[0], 1) && isPower(op2.args[1], v)) {
+        const powNode = op2.args[1];
+        const negExp = new OperatorNode("-", "unaryMinus", [powNode.args[1]]);
+        const asPow = new OperatorNode("^", "pow", [new SymbolNode(v), negExp]);
+        steps2.push({
+          rule: "Reescribir como potencia negativa",
+          explanation: `Reescribimos 1/${v}^n como ${v}^{-n}.`,
+          latex: `\\frac{1}{${toTex(op2.args[1])}} = ${v}^{-${toTex(powNode.args[1])}}`
+        });
+        return integrateWithSteps(asPow, v, steps2);
+      }
+      const numDeriv = tryMatchDerivative(op2.args[0], op2.args[1], v);
+      if (numDeriv) {
+        steps2.push({
+          rule: "Sustituci\xF3n u = " + op2.args[1].toString(),
+          explanation: `El numerador es la derivada del denominador: u = ${op2.args[1].toString()}, du = ${numDeriv} d${v}, y \u222Bdu/u = ln|u|.`,
+          latex: `\\int \\frac{${toTex(op2.args[0])}}{${toTex(op2.args[1])}}\\, d${v} = \\ln\\left|${toTex(op2.args[1])}\\right|`
+        });
+        return new FunctionNode(new SymbolNode("log"), [new FunctionNode(new SymbolNode("abs"), [op2.args[1].cloneDeep()])]);
+      }
+    }
+    if (isOperator(node, "^")) {
+      const op2 = node;
+      if (isSymbol(op2.args[0], v) && !containsVariable(op2.args[1], v)) {
+        const n = op2.args[1];
+        if (isConstantValue(n, -1)) {
+          const result2 = new FunctionNode(new SymbolNode("log"), [new FunctionNode(new SymbolNode("abs"), [new SymbolNode(v)])]);
+          steps2.push({
+            rule: "Integral logar\xEDtmica",
+            explanation: `\u222B${v}^{-1} d${v} = ln|${v}|.`,
+            latex: `\\int ${v}^{-1}\\, d${v} = \\ln|${v}|`
+          });
+          return result2;
+        }
+        const nPlus1 = new OperatorNode("+", "add", [n, new ConstantNode(1)]);
+        const result = new OperatorNode("/", "divide", [
+          new OperatorNode("^", "pow", [new SymbolNode(v), nPlus1]),
+          nPlus1
+        ]);
+        steps2.push({
+          rule: "Regla de la potencia",
+          explanation: `\u222B${v}^n d${v} = ${v}^{n+1}/(n+1), para n \u2260 \u22121.`,
+          latex: `\\int ${v}^{${toTex(n)}}\\, d${v} = \\frac{${v}^{${toTex(n)}+1}}{${toTex(n)}+1}`
+        });
+        return result;
+      }
+      if (isSymbolNamed(op2.args[0], "e") && isSymbol(op2.args[1], v)) {
+        const result = new OperatorNode("^", "pow", [new SymbolNode("e"), new SymbolNode(v)]);
+        steps2.push({
+          rule: "Integral exponencial",
+          explanation: `\u222Be^${v} d${v} = e^${v}.`,
+          latex: `\\int e^{${v}}\\, d${v} = e^{${v}}`
+        });
+        return result;
+      }
+      if (!containsVariable(op2.args[0], v) && isSymbol(op2.args[1], v)) {
+        const result = new OperatorNode("/", "divide", [
+          node,
+          new FunctionNode(new SymbolNode("log"), [op2.args[0]])
+        ]);
+        steps2.push({
+          rule: "Integral exponencial general",
+          explanation: `\u222Ba^${v} d${v} = a^${v}/ln(a).`,
+          latex: `\\int ${toTex(op2.args[0])}^{${v}}\\, d${v} = \\frac{${toTex(op2.args[0])}^{${v}}}{\\ln(${toTex(op2.args[0])})}`
+        });
+        return result;
+      }
+      if (isSymbolNamed(op2.args[0], "e") && isLinearIn(op2.args[1], v)) {
+        const { a: coeff } = getLinearCoeffs(op2.args[1], v);
+        const result = new OperatorNode("/", "divide", [
+          new OperatorNode("^", "pow", [new SymbolNode("e"), op2.args[1].cloneDeep()]),
+          coeff
+        ]);
+        steps2.push({
+          rule: "Sustituci\xF3n lineal (exponencial)",
+          explanation: `u = ${op2.args[1].toString()}, du = ${coeff.toString()}\xB7d${v}. \u222Be^u du = e^u, luego dividimos por ${coeff.toString()}.`,
+          latex: `\\int e^{${toTex(op2.args[1])}}\\, d${v} = \\frac{e^{${toTex(op2.args[1])}}}{${toTex(coeff)}}`
+        });
+        return result;
+      }
+    }
+    if (node.type === "FunctionNode") {
+      const fn = node;
+      const fnName = fn.fn.toString();
+      const arg2 = fn.args[0];
       if (isSymbol(arg2, v)) {
-        switch (fnName) {
-          case "sin":
-            return new OperatorNode("-", "unaryMinus", [
-              new FunctionNode(new SymbolNode("cos"), [new SymbolNode(v)])
-            ]);
-          case "cos":
-            return new FunctionNode(new SymbolNode("sin"), [new SymbolNode(v)]);
-          case "tan":
-            return new OperatorNode("-", "unaryMinus", [
-              new FunctionNode(new SymbolNode("log"), [
-                new FunctionNode(new SymbolNode("abs"), [
-                  new FunctionNode(new SymbolNode("cos"), [new SymbolNode(v)])
-                ])
-              ])
-            ]);
-          case "exp":
-            return new FunctionNode(new SymbolNode("exp"), [new SymbolNode(v)]);
-          case "log":
-            return new OperatorNode("-", "subtract", [
-              new OperatorNode("*", "multiply", [
-                new SymbolNode(v),
-                new FunctionNode(new SymbolNode("log"), [new SymbolNode(v)])
-              ]),
-              new SymbolNode(v)
-            ]);
-          case "sqrt":
-            return new OperatorNode("*", "multiply", [
-              new OperatorNode("/", "divide", [new ConstantNode(2), new ConstantNode(3)]),
-              new OperatorNode("^", "pow", [
-                new SymbolNode(v),
-                new OperatorNode("/", "divide", [new ConstantNode(3), new ConstantNode(2)])
-              ])
-            ]);
-          case "sec":
-          // ∫sec(x) — not elementary simple, skip
-          case "csc":
-          case "cot":
-            break;
+        const simple = integrateElementary(fnName, v);
+        if (simple) {
+          steps2.push({
+            rule: simple.ruleName,
+            explanation: simple.explanation,
+            latex: simple.latex
+          });
+          return simple.result;
         }
       }
-      if (isLinearIn(arg2, v)) {
+      if (isLinearIn(arg2, v) && !isSymbol(arg2, v)) {
         const { a: coeff } = getLinearCoeffs(arg2, v);
-        const innerResult = integrateSimpleFunc(fnName, v);
-        if (innerResult) {
-          const substituted = replaceVar(innerResult, v, arg2);
-          return new OperatorNode("/", "divide", [substituted, coeff]);
+        const simple = integrateElementary(fnName, v);
+        if (simple) {
+          const substituted = replaceVar(simple.result, v, arg2);
+          const divided = new OperatorNode("/", "divide", [substituted, coeff]);
+          steps2.push({
+            rule: "Sustituci\xF3n lineal u = " + arg2.toString(),
+            explanation: `Hacemos u = ${arg2.toString()}; du = ${coeff.toString()}\xB7d${v}. Aplicamos \u222B${fnName}(u) du y dividimos por ${coeff.toString()}.`,
+            latex: `\\int ${fnName === "log" || fnName === "ln" ? "\\ln" : "\\" + fnName}\\!\\left(${toTex(arg2)}\\right) d${v} = \\frac{1}{${toTex(coeff)}}\\,${toTex(substituted)}`
+          });
+          return divided;
         }
       }
     }
     if (node.type === "ParenthesisNode") {
-      return integrateNode(node.content, v);
+      return integrateWithSteps(node.content, v, steps2);
     }
     throw new Error(`No se puede integrar: ${node.toString()}`);
+  }
+  function integrateElementary(fnName, v) {
+    switch (fnName) {
+      case "sin":
+        return {
+          ruleName: "Integral de sin",
+          explanation: `\u222Bsin(${v}) d${v} = \u2212cos(${v}).`,
+          result: new OperatorNode("-", "unaryMinus", [new FunctionNode(new SymbolNode("cos"), [new SymbolNode(v)])]),
+          latex: `\\int \\sin(${v})\\, d${v} = -\\cos(${v})`
+        };
+      case "cos":
+        return {
+          ruleName: "Integral de cos",
+          explanation: `\u222Bcos(${v}) d${v} = sin(${v}).`,
+          result: new FunctionNode(new SymbolNode("sin"), [new SymbolNode(v)]),
+          latex: `\\int \\cos(${v})\\, d${v} = \\sin(${v})`
+        };
+      case "tan":
+        return {
+          ruleName: "Integral de tan",
+          explanation: `\u222Btan(${v}) d${v} = \u2212ln|cos(${v})|.`,
+          result: new OperatorNode("-", "unaryMinus", [
+            new FunctionNode(new SymbolNode("log"), [new FunctionNode(new SymbolNode("abs"), [new FunctionNode(new SymbolNode("cos"), [new SymbolNode(v)])])])
+          ]),
+          latex: `\\int \\tan(${v})\\, d${v} = -\\ln|\\cos(${v})|`
+        };
+      case "exp":
+        return {
+          ruleName: "Integral de exp",
+          explanation: `\u222Be^${v} d${v} = e^${v}.`,
+          result: new FunctionNode(new SymbolNode("exp"), [new SymbolNode(v)]),
+          latex: `\\int e^{${v}}\\, d${v} = e^{${v}}`
+        };
+      case "log":
+      case "ln":
+        return {
+          ruleName: "Integral de ln (por partes)",
+          explanation: `Integraci\xF3n por partes con u = ln(${v}), dv = d${v} \u2192 \u222Bln(${v}) d${v} = ${v}\xB7ln(${v}) \u2212 ${v}.`,
+          result: new OperatorNode("-", "subtract", [
+            new OperatorNode("*", "multiply", [new SymbolNode(v), new FunctionNode(new SymbolNode("log"), [new SymbolNode(v)])]),
+            new SymbolNode(v)
+          ]),
+          latex: `\\int \\ln(${v})\\, d${v} = ${v}\\ln(${v}) - ${v}`
+        };
+      case "sqrt":
+        return {
+          ruleName: "Integral de \u221A",
+          explanation: `\u222B\u221A${v} d${v} = (2/3)\xB7${v}^(3/2).`,
+          result: new OperatorNode("*", "multiply", [
+            new OperatorNode("/", "divide", [new ConstantNode(2), new ConstantNode(3)]),
+            new OperatorNode("^", "pow", [new SymbolNode(v), new OperatorNode("/", "divide", [new ConstantNode(3), new ConstantNode(2)])])
+          ]),
+          latex: `\\int \\sqrt{${v}}\\, d${v} = \\tfrac{2}{3}\\,${v}^{3/2}`
+        };
+      default:
+        return null;
+    }
+  }
+  function tryAdvancedIntegration(op2, v, steps2) {
+    const str = op2.toString();
+    const simplified = math6.simplify(str);
+    const simpStr = simplified.toString();
+    if (simpStr !== str && !stillMixedProduct(simplified, v)) {
+      steps2.push({
+        rule: "Simplificar el producto",
+        explanation: `Simplificamos antes de integrar: ${str} = ${simpStr}.`,
+        latex: `${toTex(op2)} \\;=\\; ${toTex(simplified)}`
+      });
+      return integrateWithSteps(math6.parse(simpStr), v, steps2);
+    }
+    const uSub = tryUSubstitution(op2, v, steps2);
+    if (uSub) return uSub;
+    const byParts = tryIntegrationByParts(op2, v, steps2);
+    if (byParts) return byParts;
+    throw new Error(`No se puede integrar el producto: ${str}`);
+  }
+  function stillMixedProduct(node, v) {
+    if (isOperator(node, "*")) {
+      const op2 = node;
+      if (containsVariable(op2.args[0], v) && containsVariable(op2.args[1], v)) return true;
+    }
+    let any = false;
+    node.forEach((c) => {
+      if (stillMixedProduct(c, v)) any = true;
+    });
+    return any;
+  }
+  function tryUSubstitution(op2, v, steps2) {
+    const candidates = [];
+    for (const [a, b] of [[op2.args[0], op2.args[1]], [op2.args[1], op2.args[0]]]) {
+      if (a.type === "FunctionNode") {
+        const fn = a;
+        const arg2 = fn.args[0];
+        if (!isSymbol(arg2, v) && containsVariable(arg2, v)) {
+          const d = safeDerivative(arg2, v);
+          if (d && equivalentExprs(d, b)) {
+            candidates.push({ outer: fn, innerDeriv: b });
+          }
+        }
+      }
+      if (isOperator(a, "^")) {
+        const powOp = a;
+        const base = powOp.args[0];
+        if (!isSymbol(base, v) && containsVariable(base, v) && !containsVariable(powOp.args[1], v)) {
+          const d = safeDerivative(base, v);
+          if (d && equivalentExprs(d, b)) {
+            const nPlus1 = new OperatorNode("+", "add", [powOp.args[1], new ConstantNode(1)]);
+            const result = new OperatorNode("/", "divide", [
+              new OperatorNode("^", "pow", [base.cloneDeep(), nPlus1]),
+              nPlus1
+            ]);
+            steps2.push({
+              rule: "Sustituci\xF3n u = " + base.toString(),
+              explanation: `u = ${base.toString()}, du = ${b.toString()} d${v}. Aplicamos \u222Bu^n du = u^{n+1}/(n+1).`,
+              latex: `\\int ${toTex(a)}\\cdot ${toTex(b)}\\, d${v} = \\frac{${toTex(base)}^{${toTex(powOp.args[1])}+1}}{${toTex(powOp.args[1])}+1}`
+            });
+            return result;
+          }
+        }
+      }
+    }
+    if (candidates.length === 0) return null;
+    const cand = candidates[0];
+    const fnName = cand.outer.fn.toString();
+    const innerNode = cand.outer.args[0];
+    const simple = integrateElementary(fnName, v);
+    if (!simple) return null;
+    const substituted = replaceVar(simple.result, v, innerNode);
+    steps2.push({
+      rule: "Sustituci\xF3n u = " + innerNode.toString(),
+      explanation: `u = ${innerNode.toString()}, du = ${cand.innerDeriv.toString()} d${v}. Aplicamos \u222B${fnName}(u) du y volvemos a ${v}.`,
+      latex: `\\int ${toTex(cand.outer)}\\cdot ${toTex(cand.innerDeriv)}\\, d${v} = ${toTex(substituted)}`
+    });
+    return substituted;
+  }
+  function tryIntegrationByParts(op2, v, steps2) {
+    const f1 = op2.args[0];
+    const f2 = op2.args[1];
+    const p1 = liatePriority(f1, v);
+    const p2 = liatePriority(f2, v);
+    if (p1 === null || p2 === null) return null;
+    const [u, dv] = p1 <= p2 ? [f1, f2] : [f2, f1];
+    let du;
+    let vInt;
+    try {
+      const throwaway = [];
+      du = deriveStep(u, v, throwaway);
+      du = math6.simplify(du);
+      const throwaway2 = [];
+      vInt = integrateWithSteps(dv, v, throwaway2);
+    } catch {
+      return null;
+    }
+    steps2.push({
+      rule: "Integraci\xF3n por partes",
+      explanation: `Elegimos u = ${u.toString()} y dv = ${dv.toString()} d${v} (criterio LIATE).`,
+      latex: `\\int u\\, dv = u\\cdot v - \\int v\\, du, \\quad u = ${toTex(u)},\\; dv = ${toTex(dv)}\\, d${v}`
+    });
+    steps2.push({
+      rule: "Calcular du y v",
+      explanation: `Derivamos u e integramos dv.`,
+      latex: `du = ${toTex(du)}\\, d${v}, \\quad v = \\int ${toTex(dv)}\\, d${v} = ${toTex(vInt)}`
+    });
+    const uv = new OperatorNode("*", "multiply", [u.cloneDeep(), vInt.cloneDeep()]);
+    const vDu = new OperatorNode("*", "multiply", [vInt.cloneDeep(), du.cloneDeep()]);
+    steps2.push({
+      rule: "Sustituir en u\xB7v \u2212 \u222Bv du",
+      explanation: "Reemplazamos u, v y du en la f\xF3rmula.",
+      latex: `u\\cdot v - \\int v\\, du \\;=\\; ${toTex(uv)} - \\int ${toTex(vDu)}\\, d${v}`
+    });
+    const remaining = integrateWithSteps(vDu, v, steps2);
+    return new OperatorNode("-", "subtract", [uv, remaining]);
+  }
+  function liatePriority(node, v) {
+    if (!containsVariable(node, v)) return null;
+    if (node.type === "FunctionNode") {
+      const fnName = node.fn.toString();
+      if (fnName === "log" || fnName === "ln") return 1;
+      if (["asin", "acos", "atan"].includes(fnName)) return 2;
+      if (["sin", "cos", "tan"].includes(fnName)) return 4;
+      if (fnName === "exp") return 5;
+    }
+    if (isSymbol(node, v)) return 3;
+    if (isOperator(node, "^")) {
+      const op2 = node;
+      if (isSymbol(op2.args[0], v) && !containsVariable(op2.args[1], v)) return 3;
+      if (isSymbolNamed(op2.args[0], "e") && containsVariable(op2.args[1], v)) return 5;
+      if (!containsVariable(op2.args[0], v) && containsVariable(op2.args[1], v)) return 5;
+    }
+    return null;
+  }
+  function safeDerivative(node, v) {
+    try {
+      return math6.simplify(math6.derivative(node, v));
+    } catch {
+      return null;
+    }
+  }
+  function equivalentExprs(a, b) {
+    try {
+      const diff2 = math6.simplify(new OperatorNode("-", "subtract", [a.cloneDeep(), b.cloneDeep()]));
+      return diff2.toString() === "0";
+    } catch {
+      return false;
+    }
+  }
+  function tryMatchDerivative(num, den, v) {
+    const dDen = safeDerivative(den, v);
+    if (dDen && equivalentExprs(dDen, num)) return dDen.toString();
+    return null;
+  }
+  function toTex(node) {
+    try {
+      return node.toTex({ parenthesis: "auto" });
+    } catch {
+      return node.toString();
+    }
   }
   function containsVariable(node, v) {
     if (node.type === "SymbolNode") return node.name === v;
@@ -81520,23 +82506,28 @@ ${blocks.join("\n\n")}`;
     }
   }
   function getLinearCoeffs(node, v) {
-    if (isSymbol(node, v)) {
-      return { a: new ConstantNode(1), b: new ConstantNode(0) };
-    }
+    if (isSymbol(node, v)) return { a: new ConstantNode(1), b: new ConstantNode(0) };
     if (isOperator(node, "*")) {
       const op2 = node;
-      if (!containsVariable(op2.args[0], v) && isSymbol(op2.args[1], v)) {
-        return { a: op2.args[0], b: new ConstantNode(0) };
-      }
-      if (!containsVariable(op2.args[1], v) && isSymbol(op2.args[0], v)) {
-        return { a: op2.args[1], b: new ConstantNode(0) };
-      }
+      if (!containsVariable(op2.args[0], v) && isSymbol(op2.args[1], v)) return { a: op2.args[0], b: new ConstantNode(0) };
+      if (!containsVariable(op2.args[1], v) && isSymbol(op2.args[0], v)) return { a: op2.args[1], b: new ConstantNode(0) };
     }
     if (isOperator(node, "+")) {
       const op2 = node;
       if (containsVariable(op2.args[0], v) && !containsVariable(op2.args[1], v)) {
         const inner2 = getLinearCoeffs(op2.args[0], v);
         return { a: inner2.a, b: new OperatorNode("+", "add", [inner2.b, op2.args[1]]) };
+      }
+      if (containsVariable(op2.args[1], v) && !containsVariable(op2.args[0], v)) {
+        const inner2 = getLinearCoeffs(op2.args[1], v);
+        return { a: inner2.a, b: new OperatorNode("+", "add", [inner2.b, op2.args[0]]) };
+      }
+    }
+    if (isOperator(node, "-")) {
+      const op2 = node;
+      if (op2.args.length === 2 && containsVariable(op2.args[0], v) && !containsVariable(op2.args[1], v)) {
+        const inner2 = getLinearCoeffs(op2.args[0], v);
+        return { a: inner2.a, b: new OperatorNode("-", "subtract", [inner2.b, op2.args[1]]) };
       }
     }
     throw new Error("Not linear");
@@ -81546,33 +82537,6 @@ ${blocks.join("\n\n")}`;
       if (isSymbol(n, v)) return replacement.cloneDeep();
       return n;
     });
-  }
-  function integrateSimpleFunc(fnName, v) {
-    switch (fnName) {
-      case "sin":
-        return new OperatorNode("-", "unaryMinus", [
-          new FunctionNode(new SymbolNode("cos"), [new SymbolNode(v)])
-        ]);
-      case "cos":
-        return new FunctionNode(new SymbolNode("sin"), [new SymbolNode(v)]);
-      case "exp":
-        return new FunctionNode(new SymbolNode("exp"), [new SymbolNode(v)]);
-      default:
-        return null;
-    }
-  }
-  function tryProductIntegration(op2, v) {
-    const str = op2.toString();
-    const expanded = math6.simplify(str, {}, { exactFractions: false });
-    if (expanded.type === "OperatorNode" && expanded.op === "^") {
-      return integrateNode(expanded, v);
-    }
-    const expandedStr = math6.simplify(str).toString();
-    const reparsed = math6.parse(expandedStr);
-    if (reparsed.toString() !== str) {
-      return integrateNode(reparsed, v);
-    }
-    throw new Error(`No se puede integrar el producto: ${str}`);
   }
 
   // src/views/calculator.ts
@@ -81700,7 +82664,7 @@ ${blocks.join("\n\n")}`;
       const fExpr = document.getElementById("calc-der-fx").value.trim();
       const v = document.getElementById("calc-der-var").value.trim() || "x";
       if (!fExpr) throw new Error("Ingresa una funcion");
-      const result = symbolicDerivative(fExpr, v);
+      const { result, steps: steps2 } = symbolicDerivativeSteps(fExpr, v);
       const inputTex = exprToTex(fExpr);
       const resultTex = exprToTex(result);
       if (resEl) {
@@ -81712,6 +82676,7 @@ ${blocks.join("\n\n")}`;
           </div>
           <div class="calc-result-expr">${result}</div>
         </div>
+        ${renderStepsPanel("Procedimiento paso a paso", steps2)}
       `;
       }
       try {
@@ -81746,6 +82711,28 @@ ${blocks.join("\n\n")}`;
       if (errEl) errEl.innerHTML = `<div class="error-msg">${e3.message}</div>`;
     }
   }
+  function renderStepsPanel(title, steps2) {
+    if (!steps2 || steps2.length === 0) return "";
+    const items = steps2.map((s, i2) => `
+    <div class="calc-step">
+      <div class="calc-step-head">
+        <span class="calc-step-num">${i2 + 1}</span>
+        <span class="calc-step-rule">${escapeHtml(s.rule)}</span>
+      </div>
+      <div class="calc-step-explain">${escapeHtml(s.explanation)}</div>
+      <div class="calc-step-math">${tex(s.latex, true)}</div>
+    </div>
+  `).join("");
+    return `
+    <div class="calc-steps-panel">
+      <div class="calc-steps-title">${escapeHtml(title)}</div>
+      ${items}
+    </div>
+  `;
+  }
+  function escapeHtml(s) {
+    return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  }
   function runIntegral() {
     destroyAllCharts();
     clearEl("calc-int-error");
@@ -81756,7 +82743,7 @@ ${blocks.join("\n\n")}`;
       const fExpr = document.getElementById("calc-int-fx").value.trim();
       const v = document.getElementById("calc-int-var").value.trim() || "x";
       if (!fExpr) throw new Error("Ingresa una funcion");
-      const result = symbolicIntegral(fExpr, v);
+      const { result, steps: steps2 } = symbolicIntegralSteps(fExpr, v);
       const inputTex = exprToTex(fExpr);
       const resultTex = exprToTex(result.replace(/\s*\+\s*C\s*$/, ""));
       if (resEl) {
@@ -81768,6 +82755,7 @@ ${blocks.join("\n\n")}`;
           </div>
           <div class="calc-result-expr">${result}</div>
         </div>
+        ${renderStepsPanel("Procedimiento paso a paso", steps2)}
       `;
       }
       try {

@@ -27,6 +27,7 @@ export const simpson38Comp: MethodDefinition = {
   name: 'Simpson 3/8 Compuesta',
   category: 'integration',
   formula: '∫f(x)dx ≈ 3h/8 · [f(x₀) + 3f(x₁) + 3f(x₂) + 2f(x₃) + 3f(x₄) + ...]',
+  latexFormula: '\\int_a^b f(x)\\,dx \\approx \\frac{3h}{8}\\left[f(x_0) + 3f(x_1) + 3f(x_2) + 2f(x_3) + 3f(x_4) + 3f(x_5) + \\cdots + f(x_n)\\right], \\quad h = \\frac{b-a}{n}',
   description: 'Aplica Simpson 3/8 en cada grupo de 3 subintervalos. Requiere n multiplo de 3.',
   inputs: [
     { id: 'fx', label: 'f(x)', placeholder: 'x^2', defaultValue: 'x^2' },

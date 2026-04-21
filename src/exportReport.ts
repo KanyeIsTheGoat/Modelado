@@ -1,4 +1,5 @@
 import type { MethodDefinition, MethodResult } from './methods/types';
+import { formatFull } from './precision';
 
 const MAX_TABLE_ROWS = 50;
 
@@ -6,9 +7,7 @@ function fmt(v: unknown): string {
   if (v === null || v === undefined) return '—';
   if (typeof v === 'number') {
     if (!isFinite(v)) return String(v);
-    const abs = Math.abs(v);
-    if (abs !== 0 && (abs < 1e-4 || abs >= 1e10)) return v.toExponential(6);
-    return v.toPrecision(8).replace(/\.?0+$/, '');
+    return formatFull(v);
   }
   return String(v);
 }

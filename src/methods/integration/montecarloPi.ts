@@ -33,6 +33,7 @@ export const montecarloPi: MethodDefinition = {
   name: 'Monte Carlo — Aproximacion de π',
   category: 'integration',
   formula: 'π ≈ 4 · (puntos en circulo) / (puntos totales)',
+  latexFormula: '\\pi \\approx 4 \\cdot \\frac{\\#\\{(x_i, y_i) : x_i^2 + y_i^2 \\le 1\\}}{N}, \\quad (x_i, y_i) \\sim U([-1,1]^2)',
   description: 'Aproxima π por muestreo por rechazo: puntos aleatorios en un cuadrado de lado 2, se cuentan los que caen dentro del circulo unitario.',
   inputs: [
     { id: 'n', label: 'N (puntos aleatorios)', placeholder: '10000', type: 'number', defaultValue: '10000' },

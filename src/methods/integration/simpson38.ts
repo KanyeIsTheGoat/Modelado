@@ -6,6 +6,7 @@ export const simpson38: MethodDefinition = {
   name: 'Simpson 3/8 (Simple)',
   category: 'integration',
   formula: '∫f(x)dx ≈ (b-a)/8 · [f(a) + 3f(x₁) + 3f(x₂) + f(b)]',
+  latexFormula: '\\int_a^b f(x)\\,dx \\approx \\frac{b-a}{8}\\left[f(a) + 3f(x_1) + 3f(x_2) + f(b)\\right], \\quad x_i = a + i\\cdot\\frac{b-a}{3}',
   description: 'Aproxima la integral usando un polinomio cubico que pasa por 4 puntos equiespaciados.',
   inputs: [
     { id: 'fx', label: 'f(x)', placeholder: 'x^2', defaultValue: 'x^2' },

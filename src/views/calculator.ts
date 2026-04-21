@@ -1,8 +1,8 @@
 import { parseExpression, linspace } from '../parser';
 import { renderChart, destroyAllCharts } from '../plotter';
 import { mountKeyboard, setupKeyboardListeners } from '../mathKeyboard';
-import { symbolicDerivative, symbolicIntegral } from '../symbolic';
-import { texBlock, exprToTex } from '../latex';
+import { symbolicDerivativeSteps, symbolicIntegralSteps, type SymbolicStep } from '../symbolic';
+import { texBlock, tex, exprToTex } from '../latex';
 
 export function renderCalculator(): string {
   setTimeout(bindCalcEvents, 0);
@@ -141,7 +141,7 @@ function runDerivative(): void {
 
     if (!fExpr) throw new Error('Ingresa una funcion');
 
-    const result = symbolicDerivative(fExpr, v);
+    const { result, steps } = symbolicDerivativeSteps(fExpr, v);
 
     const inputTex = exprToTex(fExpr);
     const resultTex = exprToTex(result);
@@ -155,6 +155,7 @@ function runDerivative(): void {
           </div>
           <div class="calc-result-expr">${result}</div>
         </div>
+        ${renderStepsPanel('Procedimiento paso a paso', steps)}
       `;
     }
 
@@ -194,6 +195,33 @@ function runDerivative(): void {
   }
 }
 
+function renderStepsPanel(title: string, steps: SymbolicStep[]): string {
+  if (!steps || steps.length === 0) return '';
+  const items = steps.map((s, i) => `
+    <div class="calc-step">
+      <div class="calc-step-head">
+        <span class="calc-step-num">${i + 1}</span>
+        <span class="calc-step-rule">${escapeHtml(s.rule)}</span>
+      </div>
+      <div class="calc-step-explain">${escapeHtml(s.explanation)}</div>
+      <div class="calc-step-math">${tex(s.latex, true)}</div>
+    </div>
+  `).join('');
+  return `
+    <div class="calc-steps-panel">
+      <div class="calc-steps-title">${escapeHtml(title)}</div>
+      ${items}
+    </div>
+  `;
+}
+
+function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
 function runIntegral(): void {
   destroyAllCharts();
   clearEl('calc-int-error');
@@ -208,7 +236,7 @@ function runIntegral(): void {
 
     if (!fExpr) throw new Error('Ingresa una funcion');
 
-    const result = symbolicIntegral(fExpr, v);
+    const { result, steps } = symbolicIntegralSteps(fExpr, v);
 
     const inputTex = exprToTex(fExpr);
     const resultTex = exprToTex(result.replace(/\s*\+\s*C\s*$/, ''));
@@ -222,6 +250,7 @@ function runIntegral(): void {
           </div>
           <div class="calc-result-expr">${result}</div>
         </div>
+        ${renderStepsPanel('Procedimiento paso a paso', steps)}
       `;
     }
 

@@ -61,50 +61,28 @@ export function renderExprBlock(expr: string): string {
 }
 
 /**
- * Format a number nicely as LaTeX.
+ * Format a number nicely as LaTeX. Nunca usa notacion cientifica.
  */
 export function renderNumber(n: number, precision: number = 10): string {
   if (!isFinite(n)) return texInline(n > 0 ? '\\infty' : '-\\infty');
   if (isNaN(n)) return texInline('\\text{NaN}');
+  if (n === 0) return texInline('0');
 
-  // Scientific notation for very small/large
-  if (Math.abs(n) < 1e-4 && n !== 0 || Math.abs(n) >= 1e6) {
-    const exp = Math.floor(Math.log10(Math.abs(n)));
-    const mantissa = n / Math.pow(10, exp);
-    return texInline(`${mantissa.toPrecision(6)} \\times 10^{${exp}}`);
+  const abs = Math.abs(n);
+  const sign = n < 0 ? '-' : '';
+
+  // Construye una cadena decimal plana con hasta 20 decimales; recorta ceros.
+  let s: string;
+  if (abs < Math.pow(10, -precision)) {
+    const needed = Math.ceil(-Math.log10(abs)) + precision - 1;
+    s = abs.toFixed(Math.min(needed, 20));
+  } else {
+    s = abs.toPrecision(precision);
+    if (/e/i.test(s)) s = abs.toFixed(20);
   }
-
-  return texInline(n.toPrecision(precision));
+  if (s.indexOf('.') >= 0) s = s.replace(/0+$/, '').replace(/\.$/, '');
+  return texInline(sign + s);
 }
 
-/**
- * Build a LaTeX formula string for common method formulas.
- */
-export const FORMULAS: Record<string, string> = {
-  bisection: 'c = \\frac{a + b}{2}',
-  fixedPoint: 'x_{n+1} = g(x_n)',
-  newtonRaphson: "x_{n+1} = x_n - \\frac{f(x_n)}{f'(x_n)}",
-  secant: 'x_{n+1} = x_n - f(x_n) \\cdot \\frac{x_n - x_{n-1}}{f(x_n) - f(x_{n-1})}',
-  falsePosition: 'c = a - f(a) \\cdot \\frac{b - a}{f(b) - f(a)}',
-  aitken: '\\hat{x}_n = x_n - \\frac{(x_{n+1} - x_n)^2}{x_{n+2} - 2x_{n+1} + x_n}',
-
-  midpoint: '\\int_a^b f(x)\\,dx \\approx (b-a) \\cdot f\\!\\left(\\frac{a+b}{2}\\right)',
-  trapezoidal: '\\int_a^b f(x)\\,dx \\approx \\frac{b-a}{2}\\left[f(a) + f(b)\\right]',
-  trapezoidalComp: '\\int_a^b f(x)\\,dx \\approx \\frac{h}{2}\\left[f(a) + 2\\sum f(x_i) + f(b)\\right]',
-  simpson13: '\\int_a^b f(x)\\,dx \\approx \\frac{b-a}{6}\\left[f(a) + 4f(m) + f(b)\\right]',
-  simpson13Comp: '\\int_a^b f(x)\\,dx \\approx \\frac{h}{3}\\left[f(x_0) + 4f(x_1) + 2f(x_2) + \\cdots + f(x_n)\\right]',
-  simpson38: '\\int_a^b f(x)\\,dx \\approx \\frac{b-a}{8}\\left[f(a) + 3f(x_1) + 3f(x_2) + f(b)\\right]',
-  simpson38Comp: '\\int_a^b f(x)\\,dx \\approx \\frac{3h}{8}\\left[f(x_0) + 3f(x_1) + 3f(x_2) + 2f(x_3) + \\cdots\\right]',
-  montecarlo: '\\int_a^b f(x)\\,dx \\approx \\frac{b-a}{N} \\sum_{i=1}^{N} f(x_i), \\quad x_i \\sim U(a,b)',
-  montecarloPi: '\\pi \\approx 4 \\cdot \\frac{\\#\\{x^2+y^2 \\le 1\\}}{N}, \\quad (x,y) \\sim U([-1,1]^2)',
-
-  euler: 'y_{n+1} = y_n + h \\cdot f(x_n, y_n)',
-  heun: 'y_{n+1} = y_n + \\frac{h}{2}\\left[f(x_n, y_n) + f(x_{n+1}, \\tilde{y}_{n+1})\\right]',
-  rungeKutta: 'y_{n+1} = y_n + \\frac{h}{6}(k_1 + 2k_2 + 2k_3 + k_4)',
-
-  forward: "f'(x) \\approx \\frac{f(x+h) - f(x)}{h}",
-  backward: "f'(x) \\approx \\frac{f(x) - f(x-h)}{h}",
-  central: "f'(x) \\approx \\frac{f(x+h) - f(x-h)}{2h}",
-  secondDerivative: "f''(x) \\approx \\frac{f(x+h) - 2f(x) + f(x-h)}{h^2}",
-  richardson: "D = \\frac{4D(h/2) - D(h)}{3}",
-};
+// Note: LaTeX formulas for each method now live on `MethodDefinition.latexFormula`
+// in each method's own file (see src/methods/**/*.ts).

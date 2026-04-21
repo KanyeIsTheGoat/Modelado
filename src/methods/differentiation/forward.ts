@@ -6,6 +6,7 @@ export const forward: MethodDefinition = {
   name: 'Diferencia Hacia Adelante',
   category: 'differentiation',
   formula: "f'(x) ≈ (f(x+h) - f(x)) / h",
+  latexFormula: "f'(x) \\approx \\frac{f(x+h) - f(x)}{h} \\quad \\mathcal{O}(h)",
   description: 'Aproximacion de primer orden O(h) de la derivada usando diferencia hacia adelante.',
   inputs: [
     { id: 'fx', label: 'f(x)', placeholder: 'sin(x)', defaultValue: 'sin(x)' },

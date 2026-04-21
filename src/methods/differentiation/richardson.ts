@@ -6,6 +6,7 @@ export const richardson: MethodDefinition = {
   name: 'Extrapolacion de Richardson',
   category: 'differentiation',
   formula: "D = (4·D(h/2) - D(h)) / 3, mejora O(h²) a O(h⁴)",
+  latexFormula: "D = \\frac{4\\,D(h/2) - D(h)}{3}, \\quad \\mathcal{O}(h^2) \\to \\mathcal{O}(h^4)",
   description: 'Combina aproximaciones con diferentes h para obtener mayor precision. Usa diferencia central como base.',
   inputs: [
     { id: 'fx', label: 'f(x)', placeholder: 'sin(x)', defaultValue: 'sin(x)' },

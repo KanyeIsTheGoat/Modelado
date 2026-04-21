@@ -36,7 +36,7 @@ export interface MethodInput {
   placeholder: string;
   hint?: string;
   defaultValue?: string;
-  type?: 'text' | 'number' | 'table';
+  type?: 'text' | 'number' | 'table' | 'stopCriterion';
   /** For type='table': number of columns (e.g. 2 for (x, y) pairs) */
   tableColumns?: number;
   /** For type='table': column headers */
@@ -66,6 +66,8 @@ export interface MethodDefinition {
   name: string;
   category: 'rootFinding' | 'integration' | 'differentiation' | 'ode' | 'interpolation';
   formula: string;
+  /** Optional LaTeX version of the formula rendered via KaTeX. Preferred over `formula` when present. */
+  latexFormula?: string;
   description: string;
   inputs: MethodInput[];
   solve: (params: Record<string, string>) => MethodResult;

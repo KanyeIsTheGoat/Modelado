@@ -669,6 +669,79 @@ body {
   border-top: 1px solid var(--surface0);
 }
 
+/* Calculator step-by-step panel */
+.calc-steps-panel {
+  margin-top: 20px;
+  background: var(--mantle);
+  border: 1px solid var(--surface0);
+  border-radius: var(--radius);
+  padding: 20px 24px;
+}
+
+.calc-steps-title {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--yellow);
+  margin-bottom: 16px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.calc-step {
+  padding: 12px 0;
+  border-bottom: 1px dashed var(--surface0);
+}
+.calc-step:last-child { border-bottom: none; }
+
+.calc-step-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 4px;
+}
+
+.calc-step-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--blue);
+  color: var(--base);
+  font-size: 0.78rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.calc-step-rule {
+  font-weight: 600;
+  color: var(--sapphire);
+  font-size: 0.95rem;
+}
+
+.calc-step-explain {
+  color: var(--subtext0);
+  font-size: 0.88rem;
+  margin: 4px 0 8px 34px;
+  line-height: 1.4;
+}
+
+.calc-step-math {
+  margin-left: 34px;
+  overflow-x: auto;
+}
+
+.calc-step-math .katex-display {
+  margin: 4px 0;
+  text-align: left;
+}
+
+.calc-step-math .katex {
+  font-size: 1.05rem;
+  color: var(--text);
+}
+
 /* KaTeX color overrides for dark theme */
 .katex { color: var(--subtext1); }
 .method-card .katex { font-size: 0.9rem; }
@@ -831,6 +904,42 @@ body {
 .theorem-panel.theorem-fail .theorem-icon { color: var(--red); }
 .theorem-body { color: var(--subtext0); line-height: 1.5; }
 .theorem-message { margin-top: 4px; color: var(--text); font-style: italic; }
+
+/* Stop criterion compound input (multiple rows, all must be met) */
+.input-group-stop { grid-column: 1 / -1; flex: 1 1 100%; }
+.stop-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 4px;
+}
+.stop-criterion-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+  grid-template-areas:
+    "select value remove"
+    "hint   hint  hint";
+  gap: 6px 8px;
+  align-items: center;
+  padding: 8px;
+  background: var(--crust);
+  border-radius: var(--radius-sm);
+}
+.stop-criterion-row .stop-kind-select { grid-area: select; min-width: 0; }
+.stop-criterion-row input[data-stop-value] { grid-area: value; min-width: 0; }
+.stop-criterion-row [data-stop-remove] { grid-area: remove; }
+.stop-criterion-row .stop-row-hint { grid-area: hint; margin: 0; }
+.stop-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+.stop-combine-hint { color: var(--subtext0); font-size: 0.8rem; }
+
+/* Iteration table cells — cursor hint for tooltip */
+.iter-table td[data-full] { cursor: help; }
 
 /* Table inputs (for discrete data points) */
 .input-group-table { grid-column: 1 / -1; flex: 1 1 100%; }

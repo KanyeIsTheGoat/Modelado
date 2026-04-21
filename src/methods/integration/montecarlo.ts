@@ -43,6 +43,7 @@ export const montecarlo: MethodDefinition = {
   name: 'Monte Carlo',
   category: 'integration',
   formula: '∫f(x)dx ≈ (b-a)/N · Σ f(x_i), x_i aleatorio en [a,b]',
+  latexFormula: '\\int_a^b f(x)\\,dx \\approx \\frac{b-a}{N} \\sum_{i=1}^{N} f(x_i), \\quad x_i \\sim U(a,b)',
   description: 'Aproxima la integral usando puntos aleatorios uniformes. Convergencia O(1/√N). Semilla opcional para reproducibilidad.',
   inputs: [
     { id: 'fx', label: 'f(x)', placeholder: 'x^2', defaultValue: 'x^2' },

@@ -6,6 +6,7 @@ export const secondDerivative: MethodDefinition = {
   name: 'Segunda Derivada (Central)',
   category: 'differentiation',
   formula: "f''(x) ≈ (f(x+h) - 2f(x) + f(x-h)) / h²",
+  latexFormula: "f''(x) \\approx \\frac{f(x+h) - 2f(x) + f(x-h)}{h^2} \\quad \\mathcal{O}(h^2)",
   description: 'Aproximacion de segundo orden O(h²) de la segunda derivada usando diferencia central.',
   inputs: [
     { id: 'fx', label: 'f(x)', placeholder: 'sin(x)', defaultValue: 'sin(x)' },

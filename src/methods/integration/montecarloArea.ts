@@ -31,6 +31,7 @@ export const montecarloArea: MethodDefinition = {
   name: 'Monte Carlo — Area entre curvas',
   category: 'integration',
   formula: 'A = ∫_a^b (f(x) - g(x)) dx — Hit-or-Miss sobre rectangulo circunscrito',
+  latexFormula: 'A = \\int_a^b \\bigl(f(x) - g(x)\\bigr)\\,dx \\approx A_{\\text{rect}} \\cdot \\frac{\\#\\{\\text{puntos dentro}\\}}{N}',
   description: 'Estima el area entre f(x) y g(x) sobre [a,b] lanzando puntos aleatorios y contando cuantos caen en la region. Promedia K repeticiones.',
   inputs: [
     { id: 'fx', label: 'f(x) (curva superior)', placeholder: 'x^2', defaultValue: 'x^2' },

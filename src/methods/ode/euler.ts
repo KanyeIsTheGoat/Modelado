@@ -1,12 +1,14 @@
 import type { MethodDefinition, MethodResult, ChartData } from '../types';
 import { parseExpression, parseExpression2, linspace } from '../../parser';
 import { commonOdeInputs, applyOdeTargetAndVerification, verifyDiffColumn } from '../../odeHelpers';
+import { formatFull } from '../../precision';
 
 export const euler: MethodDefinition = {
   id: 'euler',
   name: 'Metodo de Euler',
   category: 'ode',
   formula: "y_{n+1} = y_n + h · f(x_n, y_n)",
+  latexFormula: "y_{n+1} = y_n + h \\cdot f(x_n, y_n)",
   description: 'Resuelve EDOs de primer orden dy/dx = f(x,y) con condicion inicial. Metodo explicito de orden 1.',
   inputs: [
     { id: 'fxy', label: "f(x, y) = dy/dx", placeholder: 'x + y', defaultValue: 'x + y' },
@@ -90,7 +92,7 @@ export const euler: MethodDefinition = {
       iterations,
       converged: true,
       error: maxError,
-      message: `y(${xEnd}) ≈ ${y.toFixed(8)} | ${N} pasos, h=${h}${maxError > 0 ? ` | Error max = ${maxError.toExponential(4)}` : ''}`,
+      message: `y(${xEnd}) ≈ ${y.toFixed(8)} | ${N} pasos, h=${h}${maxError > 0 ? ` | Error max = ${formatFull(maxError)}` : ''}`,
     };
     applyOdeTargetAndVerification(result, params);
     return result;

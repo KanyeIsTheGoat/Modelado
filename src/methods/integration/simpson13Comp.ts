@@ -26,6 +26,7 @@ export const simpson13Comp: MethodDefinition = {
   name: 'Simpson 1/3 Compuesta',
   category: 'integration',
   formula: '∫f(x)dx ≈ h/3 · [f(x₀) + 4f(x₁) + 2f(x₂) + 4f(x₃) + ... + f(xₙ)]',
+  latexFormula: '\\int_a^b f(x)\\,dx \\approx \\frac{h}{3}\\left[f(x_0) + 4\\!\\!\\!\\sum_{i\\,\\text{impar}}\\!\\!\\! f(x_i) + 2\\!\\!\\!\\sum_{i\\,\\text{par}}\\!\\!\\! f(x_i) + f(x_n)\\right], \\quad h = \\frac{b-a}{n}',
   description: 'Aplica Simpson 1/3 en cada par de subintervalos. Requiere n par.',
   inputs: [
     { id: 'fx', label: 'f(x)', placeholder: 'x^2', defaultValue: 'x^2' },

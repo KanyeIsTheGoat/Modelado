@@ -1,19 +1,22 @@
 import type { MethodDefinition, MethodResult, ChartData } from '../types';
 import { parseExpression, linspace } from '../../parser';
 import { checkBolzano, renderBolzanoPanel } from '../../theorems';
+import { parseStop, computeErrors, hasConverged, describeStop, withExactErrors } from '../../stoppingCriteria';
 
 export const bisection: MethodDefinition = {
   id: 'bisection',
   name: 'Metodo de Biseccion',
   category: 'rootFinding',
   formula: 'c = (a + b) / 2, si f(a)·f(c) < 0 => b=c, sino a=c',
+  latexFormula: 'c = \\frac{a + b}{2}, \\quad \\begin{cases} b \\leftarrow c & \\text{si } f(a)\\cdot f(c) < 0 \\\\ a \\leftarrow c & \\text{en caso contrario} \\end{cases}',
   description: 'Encuentra raices dividiendo el intervalo a la mitad en cada iteracion. Requiere f(a)·f(b) < 0.',
   inputs: [
     { id: 'fx', label: 'f(x)', placeholder: 'x^3 - x - 2', hint: 'Funcion a encontrar raiz', defaultValue: 'x^3 - x - 2' },
     { id: 'a', label: 'a (limite inferior)', placeholder: '1', type: 'number', defaultValue: '1' },
     { id: 'b', label: 'b (limite superior)', placeholder: '2', type: 'number', defaultValue: '2' },
-    { id: 'tol', label: 'Tolerancia', placeholder: '1e-6', defaultValue: '1e-6' },
+    { id: 'stop', label: 'Criterio de parada', placeholder: '1e-6', type: 'stopCriterion', defaultValue: 'tolerancia:1e-6', hint: 'Elige el criterio que pide el ejercicio: tolerancia, error absoluto/relativo, cifras significativas, etc.' },
     { id: 'maxIter', label: 'Max iteraciones', placeholder: '100', type: 'number', defaultValue: '100' },
+    { id: 'exact', label: 'Valor exacto (opcional)', placeholder: 'p.ej. 1.52138', type: 'number', hint: 'Si se provee, habilita criterios de parada vs exacto.' },
   ],
   tableColumns: [
     { key: 'iter', label: 'n' },
@@ -21,7 +24,9 @@ export const bisection: MethodDefinition = {
     { key: 'b', label: 'b' },
     { key: 'c', label: 'c' },
     { key: 'fc', label: 'f(c)' },
-    { key: 'error', label: 'Error' },
+    { key: 'errAbs', label: '|Δx| abs' },
+    { key: 'errRel', label: 'Err. rel.' },
+    { key: 'errRelPct', label: 'Err. rel. %' },
   ],
   steps: [
     'Escribe <code>f(x)</code> en el primer campo.',
@@ -36,8 +41,10 @@ export const bisection: MethodDefinition = {
     const f = parseExpression(params.fx);
     let a = parseFloat(params.a);
     let b = parseFloat(params.b);
-    const tol = parseFloat(params.tol) || 1e-6;
+    const stop = parseStop(params.stop);
     const maxIter = parseInt(params.maxIter) || 100;
+    const exactRaw = (params.exact ?? '').trim();
+    const exact = exactRaw === '' ? undefined : parseFloat(exactRaw);
 
     if (isNaN(a) || isNaN(b)) throw new Error('a y b deben ser numeros validos');
     if (a >= b) throw new Error('a debe ser menor que b');
@@ -48,30 +55,37 @@ export const bisection: MethodDefinition = {
 
     const iterations: MethodResult['iterations'] = [];
     let converged = false;
-    let error = Math.abs(b - a);
     let c = a;
+    let cPrev = a;
+    let errSel = Math.abs(b - a);
 
     for (let i = 1; i <= maxIter; i++) {
       c = (a + b) / 2;
       const fc = f(c);
-      error = Math.abs(b - a) / 2;
+      const errs = i === 1
+        ? { errAbs: Math.abs(b - a) / 2, errRel: 0, errRelPct: 0 }
+        : computeErrors(cPrev, c);
+      errSel = errs.errAbs;
 
-      iterations.push({ iter: i, a, b, c, fc, error });
+      iterations.push({
+        iter: i, a, b, c, fc,
+        errAbs: errs.errAbs,
+        errRel: errs.errRel,
+        errRelPct: errs.errRelPct,
+      });
 
-      if (Math.abs(fc) < 1e-15 || error < tol) {
+      const errsFull = withExactErrors(errs, c, exact);
+      if (Math.abs(fc) < 1e-15 || (i > 1 && hasConverged(stop, errsFull))) {
         converged = true;
         break;
       }
 
-      if (fa * fc < 0) {
-        // Use f(a) sign comparison — but we need to track the actual f(a)
-        // Since f(a) sign doesn't change when we update b:
-      }
       if (f(a) * fc < 0) {
         b = c;
       } else {
         a = c;
       }
+      cPrev = c;
     }
 
     const bolzano = checkBolzano(params.fx, parseFloat(params.a), parseFloat(params.b));
@@ -79,7 +93,8 @@ export const bisection: MethodDefinition = {
       root: c,
       iterations,
       converged,
-      error,
+      error: errSel,
+      message: `Criterio: ${describeStop(stop)}`,
       theoremPanels: [renderBolzanoPanel(bolzano)],
     };
   },
@@ -135,7 +150,7 @@ export const bisection: MethodDefinition = {
     };
 
     // Chart 4: Error convergence (log scale)
-    const errors = result.iterations.map(r => r.error as number).filter(e => e > 0);
+    const errors = result.iterations.map(r => r.errAbs as number).filter(e => e > 0);
     const errIters = iters.slice(0, errors.length);
     const chart4: ChartData = {
       title: 'Convergencia del error',

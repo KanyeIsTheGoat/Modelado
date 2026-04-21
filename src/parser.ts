@@ -58,3 +58,31 @@ export function parseExpression2(expr: string): (x: number, y: number) => number
 export function numericalDerivative(f: (x: number) => number, x: number, h: number = 1e-8): number {
   return (f(x + h) - f(x - h)) / (2 * h);
 }
+
+/**
+ * Evaluate a math expression to a scalar number.
+ * Used by the "normal" (arithmetic) calculator mode.
+ * Supports all math.js functions: sin, cos, log, sqrt, !, factorials, etc.
+ * Constants e and pi are pre-loaded.
+ */
+export function evaluateScalar(expr: string): number {
+  const raw = expr.trim();
+  if (!raw) throw new Error('Expresion vacia');
+  try {
+    const compiled = math.compile(raw);
+    const result = compiled.evaluate({ e: Math.E, pi: Math.PI });
+    if (typeof result !== 'number') {
+      if (result && typeof (result as any).toNumber === 'function') {
+        return (result as any).toNumber();
+      }
+      if (result && typeof (result as any).re === 'number') {
+        throw new Error('El resultado es un numero complejo');
+      }
+      throw new Error('El resultado no es un numero');
+    }
+    if (!isFinite(result)) throw new Error('Resultado no finito (division por cero o desbordamiento)');
+    return result;
+  } catch (e: any) {
+    throw new Error(e.message || 'Error al evaluar la expresion');
+  }
+}

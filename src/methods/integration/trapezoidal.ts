@@ -14,9 +14,9 @@ export const trapezoidal: MethodDefinition = {
     { id: 'b', label: 'b (limite superior)', placeholder: '1', type: 'number', defaultValue: '1' },
   ],
   tableColumns: [
-    { key: 'punto', label: 'Punto' },
-    { key: 'x', label: 'x' },
-    { key: 'fx', label: 'f(x)' },
+    { key: 'punto', label: 'Punto', latex: '\\text{Punto}' },
+    { key: 'x', label: 'x', latex: 'x' },
+    { key: 'fx', label: 'f(x)', latex: 'f(x)' },
   ],
   steps: [
     'Version simple con un solo trapecio entre a y b. Util para <em>didactico</em> o verificar una formula — pero en el parcial siempre piden version compuesta (<code>trapezoidalComp</code>).',

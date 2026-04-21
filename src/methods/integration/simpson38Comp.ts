@@ -37,11 +37,11 @@ export const simpson38Comp: MethodDefinition = {
     { id: 'exact', label: 'Valor exacto (opcional)', placeholder: 'p.ej. 0.333333', type: 'number', hint: 'Si se provee, se calcula error relativo y se reintenta con n=21 si supera 1%.' },
   ],
   tableColumns: [
-    { key: 'i', label: 'i' },
-    { key: 'xi', label: 'x_i' },
-    { key: 'fxi', label: 'f(x_i)' },
-    { key: 'coeff', label: 'Coeficiente' },
-    { key: 'contrib', label: 'Contribucion' },
+    { key: 'i', label: 'i', latex: 'i' },
+    { key: 'xi', label: 'x_i', latex: 'x_i' },
+    { key: 'fxi', label: 'f(x_i)', latex: 'f(x_i)' },
+    { key: 'coeff', label: 'Coeficiente', latex: 'c_i' },
+    { key: 'contrib', label: 'Contribucion', latex: 'c_i \\cdot f(x_i)' },
   ],
   steps: [
     'Escribe <code>f(x)</code>, limites <code>a</code>, <code>b</code>, y subintervalos <code>n</code>. <b>Importante</b>: <code>n</code> debe ser <b>multiplo de 3</b> (la regla agrupa los puntos de 3 en 3). Si no lo es, la app lo redondea al siguiente multiplo (y te avisa).',

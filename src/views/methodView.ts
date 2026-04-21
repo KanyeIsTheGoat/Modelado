@@ -39,12 +39,51 @@ export function renderMethodView(method: MethodDefinition): string {
 let lastResult: import('../methods/types').MethodResult | null = null;
 let lastParams: Record<string, string> | null = null;
 
+const STATE_KEY_PREFIX = 'modelado-state:';
+
+function saveMethodState(method: MethodDefinition): void {
+  try {
+    const values = getInputValues(method);
+    localStorage.setItem(STATE_KEY_PREFIX + method.id, JSON.stringify(values));
+  } catch { /* ignore quota/serialization errors */ }
+}
+
+function loadMethodState(method: MethodDefinition): Record<string, string> | null {
+  try {
+    const raw = localStorage.getItem(STATE_KEY_PREFIX + method.id);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return typeof parsed === 'object' && parsed !== null ? parsed : null;
+  } catch { return null; }
+}
+
+function clearMethodState(method: MethodDefinition): void {
+  try { localStorage.removeItem(STATE_KEY_PREFIX + method.id); } catch { /* ignore */ }
+}
+
 function bindMethodEvents(method: MethodDefinition): void {
   // Mount math keyboard into #kb-container
   mountKeyboard('kb-container');
   setupKeyboardListeners();
   initTableInputs(method);
   mountExerciseDropdown(method);
+
+  // Restore previously entered values (if any) and wire auto-save on changes.
+  const savedState = loadMethodState(method);
+  if (savedState) setInputValues(method, savedState);
+
+  const inputsBar = document.querySelector('.method-inputs-bar');
+  if (inputsBar) {
+    const save = () => saveMethodState(method);
+    inputsBar.addEventListener('input', save);
+    inputsBar.addEventListener('change', save);
+    inputsBar.addEventListener('click', (e) => {
+      const t = e.target as HTMLElement;
+      if (t.closest('[data-table-add]') || t.closest('[data-table-remove]') || t.closest('[data-stop-add]') || t.closest('[data-stop-remove]')) {
+        setTimeout(save, 0);
+      }
+    });
+  }
 
   // Re-render iteration table when precision changes (no need to re-solve)
   document.addEventListener('precision-changed', () => {
@@ -89,6 +128,7 @@ function bindMethodEvents(method: MethodDefinition): void {
         const el = document.getElementById(`input-${inp.id}`) as HTMLInputElement;
         if (el) el.value = inp.defaultValue || '';
       });
+      clearMethodState(method);
     });
   }
 

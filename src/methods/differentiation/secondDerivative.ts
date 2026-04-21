@@ -1,5 +1,6 @@
 import type { MethodDefinition, MethodResult, ChartData } from '../types';
 import { parseExpression, linspace } from '../../parser';
+import { parseStop, computeErrors, withExactErrors, hasConverged, describeStop } from '../../stoppingCriteria';
 
 export const secondDerivative: MethodDefinition = {
   id: 'secondDerivative',
@@ -11,15 +12,22 @@ export const secondDerivative: MethodDefinition = {
   inputs: [
     { id: 'fx', label: 'f(x)', placeholder: 'sin(x)', defaultValue: 'sin(x)' },
     { id: 'x0', label: 'x₀ (punto de evaluacion)', placeholder: '1', type: 'number', defaultValue: '1' },
-    { id: 'h', label: 'h (paso)', placeholder: '0.1', defaultValue: '0.1' },
+    { id: 'h', label: 'h (paso inicial)', placeholder: '0.1', defaultValue: '0.1' },
     { id: 'ddfx', label: "f''(x) exacta (opcional)", placeholder: '-sin(x)', defaultValue: '-sin(x)' },
+    { id: 'stop', label: 'Criterio de parada', placeholder: '1e-6', type: 'stopCriterion', defaultValue: 'tolerancia:1e-6', hint: 'Criterios por diferencia entre aproximaciones sucesivas o vs exacto (si se dio f\'\'(x)).' },
+    { id: 'maxIter', label: 'Max iteraciones (h se divide por 2)', placeholder: '20', type: 'number', defaultValue: '20' },
   ],
   tableColumns: [
-    { key: 'step', label: 'Paso' },
-    { key: 'h', label: 'h' },
-    { key: 'approx', label: "f''(x) aprox" },
-    { key: 'exact', label: "f''(x) exacta" },
-    { key: 'error', label: 'Error absoluto' },
+    { key: 'step', label: 'Paso', latex: 'n' },
+    { key: 'h', label: 'h', latex: 'h' },
+    { key: 'approx', label: "f''(x) aprox", latex: "f''(x)_{\\text{aprox}}" },
+    { key: 'exact', label: "f''(x) exacta", latex: "f''(x)_{\\text{exacta}}" },
+    { key: 'errAbs', label: '|Δaprox|', latex: "|\\Delta f''|" },
+    { key: 'errRel', label: 'Err. rel.', latex: '\\varepsilon_{\\text{rel}}' },
+    { key: 'errRelPct', label: 'Err. rel. %', latex: '\\varepsilon_{\\text{rel}}\\,(\\%)' },
+    { key: 'errAbsExact', label: '|E| vs exacto', latex: '|E|_{\\text{exacto}}' },
+    { key: 'errRelExact', label: 'Err. rel. vs exacto', latex: '\\varepsilon_{\\text{rel,ex}}' },
+    { key: 'errRelPctExact', label: 'Err. rel. % vs exacto', latex: '\\varepsilon_{\\text{rel,ex}}\\,(\\%)' },
   ],
 
   solve(params) {
@@ -28,31 +36,51 @@ export const secondDerivative: MethodDefinition = {
     const hStart = parseFloat(params.h) || 0.1;
     const ddfExpr = params.ddfx?.trim();
     const ddf = ddfExpr ? parseExpression(ddfExpr) : null;
+    const stop = parseStop(params.stop);
+    const maxIter = parseInt(params.maxIter) || 20;
 
     if (isNaN(x0)) throw new Error('x₀ debe ser un numero valido');
 
     const iterations: MethodResult['iterations'] = [];
     let h = hStart;
     let lastApprox = 0;
+    let converged = false;
+    let approx = 0;
+    const exactVal = ddf ? ddf(x0) : undefined;
 
-    for (let step = 1; step <= 12; step++) {
-      // f''(x) ≈ (f(x+h) - 2f(x) + f(x-h)) / h²
-      const approx = (f(x0 + h) - 2 * f(x0) + f(x0 - h)) / (h * h);
-      const exact = ddf ? ddf(x0) : NaN;
-      const error = ddf ? Math.abs(approx - exact) : (step > 1 ? Math.abs(approx - lastApprox) : NaN);
+    for (let step = 1; step <= maxIter; step++) {
+      approx = (f(x0 + h) - 2 * f(x0) + f(x0 - h)) / (h * h);
+      const errs = step === 1
+        ? { errAbs: 0, errRel: 0, errRelPct: 0 }
+        : computeErrors(lastApprox, approx);
+      const errsFull = withExactErrors(errs, approx, exactVal);
 
-      iterations.push({ step, h, approx, exact, error: isNaN(error) ? 0 : error });
+      iterations.push({
+        step, h, approx,
+        exact: exactVal ?? null,
+        errAbs: step === 1 ? null : errs.errAbs,
+        errRel: step === 1 ? null : errs.errRel,
+        errRelPct: step === 1 ? null : errs.errRelPct,
+        errAbsExact: errsFull.errAbsExact ?? null,
+        errRelExact: errsFull.errRelExact ?? null,
+        errRelPctExact: errsFull.errRelPctExact ?? null,
+      });
+
+      if (step > 1 && hasConverged(stop, errsFull)) {
+        converged = true;
+        break;
+      }
+
       lastApprox = approx;
       h /= 2;
     }
 
-    const finalApprox = iterations[0].approx as number;
-    const finalError = ddf ? Math.abs(finalApprox - ddf(x0)) : 0;
+    const finalError = exactVal !== undefined ? Math.abs(approx - exactVal) : 0;
 
     return {
-      derivative: finalApprox,
-      iterations, converged: true, error: finalError,
-      message: `f''(${x0}) ≈ ${finalApprox.toPrecision(10)}`,
+      derivative: approx,
+      iterations, converged, error: finalError,
+      message: `f''(${x0}) ≈ ${approx.toPrecision(10)} | Criterio: ${describeStop(stop)}`,
     };
   },
 

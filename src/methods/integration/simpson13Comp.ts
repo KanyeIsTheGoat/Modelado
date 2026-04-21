@@ -36,11 +36,11 @@ export const simpson13Comp: MethodDefinition = {
     { id: 'exact', label: 'Valor exacto (opcional)', placeholder: 'p.ej. 0.333333', type: 'number', hint: 'Si se provee, se calcula error relativo y se reintenta con n=20 si supera 1%.' },
   ],
   tableColumns: [
-    { key: 'i', label: 'i' },
-    { key: 'xi', label: 'x_i' },
-    { key: 'fxi', label: 'f(x_i)' },
-    { key: 'coeff', label: 'Coeficiente' },
-    { key: 'contrib', label: 'Contribucion' },
+    { key: 'i', label: 'i', latex: 'i' },
+    { key: 'xi', label: 'x_i', latex: 'x_i' },
+    { key: 'fxi', label: 'f(x_i)', latex: 'f(x_i)' },
+    { key: 'coeff', label: 'Coeficiente', latex: 'c_i' },
+    { key: 'contrib', label: 'Contribucion', latex: 'c_i \\cdot f(x_i)' },
   ],
   steps: [
     'Escribe <code>f(x)</code>. Para el <b>parcial 02/07/2025</b> (parte b): <code>exp(x^2)</code> sobre <code>[0, 2]</code> con <code>n = 10</code>. Para <b>parcial 2025-I</b>: <code>ln(x+1)/x</code> sobre <code>[0, 1]</code> con <code>n = 4</code>.',

@@ -45,11 +45,11 @@ export const montecarlo2D: MethodDefinition = {
     { id: 'seed', label: 'Semilla (opcional)', placeholder: 'Vacio = aleatorio', hint: 'Numero o texto. Misma semilla = mismos resultados.' },
   ],
   tableColumns: [
-    { key: 'k', label: 'k (repeticion)' },
-    { key: 'estimate', label: 'I_k' },
-    { key: 'runningMean', label: 'Promedio 1..k' },
-    { key: 'stdDevRun', label: 'σ entre lotes' },
-    { key: 'exactDiff', label: '|I_k - Exacto|' },
+    { key: 'k', label: 'k (repeticion)', latex: 'k' },
+    { key: 'estimate', label: 'I_k', latex: 'I_k' },
+    { key: 'runningMean', label: 'Promedio 1..k', latex: '\\bar{I}_{1..k}' },
+    { key: 'stdDevRun', label: 'σ entre lotes', latex: '\\sigma_{\\text{lotes}}' },
+    { key: 'exactDiff', label: '|I_k - Exacto|', latex: '|I_k - I^*|' },
   ],
   steps: [
     'Para el <b>parcial 2025-I (IMG_5755)</b> — integral doble Monte Carlo: introduce <code>f(x, y)</code>. Ejemplo: <code>x^2 + y^2</code> o la funcion que pida el parcial.',

@@ -46286,6 +46286,27 @@
   function numericalDerivative(f, x, h = 1e-8) {
     return (f(x + h) - f(x - h)) / (2 * h);
   }
+  function evaluateScalar(expr) {
+    const raw = expr.trim();
+    if (!raw) throw new Error("Expresion vacia");
+    try {
+      const compiled = math2.compile(raw);
+      const result = compiled.evaluate({ e: Math.E, pi: Math.PI });
+      if (typeof result !== "number") {
+        if (result && typeof result.toNumber === "function") {
+          return result.toNumber();
+        }
+        if (result && typeof result.re === "number") {
+          throw new Error("El resultado es un numero complejo");
+        }
+        throw new Error("El resultado no es un numero");
+      }
+      if (!isFinite(result)) throw new Error("Resultado no finito (division por cero o desbordamiento)");
+      return result;
+    } catch (e3) {
+      throw new Error(e3.message || "Error al evaluar la expresion");
+    }
+  }
 
   // src/precision.ts
   var STORAGE_KEY = "modelado.precision";
@@ -46541,14 +46562,14 @@
       { id: "exact", label: "Valor exacto (opcional)", placeholder: "p.ej. 1.52138", type: "number", hint: "Si se provee, habilita criterios de parada vs exacto." }
     ],
     tableColumns: [
-      { key: "iter", label: "n" },
-      { key: "a", label: "a" },
-      { key: "b", label: "b" },
-      { key: "c", label: "c" },
-      { key: "fc", label: "f(c)" },
-      { key: "errAbs", label: "|\u0394x| abs" },
-      { key: "errRel", label: "Err. rel." },
-      { key: "errRelPct", label: "Err. rel. %" }
+      { key: "iter", label: "n", latex: "n" },
+      { key: "a", label: "a", latex: "a" },
+      { key: "b", label: "b", latex: "b" },
+      { key: "c", label: "c", latex: "c" },
+      { key: "fc", label: "f(c)", latex: "f(c)" },
+      { key: "errAbs", label: "|\u0394x| abs", latex: "|\\Delta x|" },
+      { key: "errRel", label: "Err. rel.", latex: "\\varepsilon_{\\text{rel}}" },
+      { key: "errRelPct", label: "Err. rel. %", latex: "\\varepsilon_{\\text{rel}}\\,(\\%)" }
     ],
     steps: [
       "Escribe <code>f(x)</code> en el primer campo.",
@@ -46695,12 +46716,12 @@
       { id: "exact", label: "Valor exacto (opcional)", placeholder: "p.ej. 1.41421356", type: "number", hint: "Si se provee, habilita criterios de parada vs exacto." }
     ],
     tableColumns: [
-      { key: "iter", label: "n" },
-      { key: "xn", label: "x_n" },
-      { key: "gxn", label: "g(x_n)" },
-      { key: "errAbs", label: "|\u0394x| abs" },
-      { key: "errRel", label: "Err. rel." },
-      { key: "errRelPct", label: "Err. rel. %" }
+      { key: "iter", label: "n", latex: "n" },
+      { key: "xn", label: "x_n", latex: "x_n" },
+      { key: "gxn", label: "g(x_n)", latex: "g(x_n)" },
+      { key: "errAbs", label: "|\u0394x| abs", latex: "|\\Delta x|" },
+      { key: "errRel", label: "Err. rel.", latex: "\\varepsilon_{\\text{rel}}" },
+      { key: "errRelPct", label: "Err. rel. %", latex: "\\varepsilon_{\\text{rel}}\\,(\\%)" }
     ],
     steps: [
       "Parti de <code>f(x) = 0</code> y <b>despeja</b> una funcion <code>g(x)</code> equivalente: <code>x = g(x)</code>. Para <code>x\xB2 = 2</code> \u2192 <code>g(x) = (x + 2/x)/2</code>. Casi siempre hay multiples formas validas; conviene la que sea <em>contractiva</em>.",
@@ -46864,17 +46885,17 @@
       { id: "exact", label: "Valor exacto (opcional)", placeholder: "p.ej. 1.52138", type: "number", hint: "Si se provee, agrega columna de error relativo %." }
     ],
     tableColumns: [
-      { key: "iter", label: "n" },
-      { key: "xn", label: "x_n" },
-      { key: "fxn", label: "f(x_n)" },
-      { key: "dfxn", label: "f'(x_n)" },
-      { key: "xNext", label: "x_{n+1}" },
-      { key: "errAbs", label: "|\u0394x| abs" },
-      { key: "errRel", label: "Err. rel." },
-      { key: "errRelPct", label: "Err. rel. %" },
-      { key: "errAbsExact", label: "|x-exacto| abs" },
-      { key: "errRelExact", label: "Err. rel. vs exacto" },
-      { key: "relErrExactPct", label: "Err. vs exacto %" }
+      { key: "iter", label: "n", latex: "n" },
+      { key: "xn", label: "x_n", latex: "x_n" },
+      { key: "fxn", label: "f(x_n)", latex: "f(x_n)" },
+      { key: "dfxn", label: "f'(x_n)", latex: "f'(x_n)" },
+      { key: "xNext", label: "x_{n+1}", latex: "x_{n+1}" },
+      { key: "errAbs", label: "|\u0394x| abs", latex: "|\\Delta x|" },
+      { key: "errRel", label: "Err. rel.", latex: "\\varepsilon_{\\text{rel}}" },
+      { key: "errRelPct", label: "Err. rel. %", latex: "\\varepsilon_{\\text{rel}}\\,(\\%)" },
+      { key: "errAbsExact", label: "|x-exacto| abs", latex: "|x - x^*|" },
+      { key: "errRelExact", label: "Err. rel. vs exacto", latex: "\\varepsilon_{\\text{rel}}^{\\,*}" },
+      { key: "relErrExactPct", label: "Err. vs exacto %", latex: "\\varepsilon_{\\text{rel}}^{\\,*}\\,(\\%)" }
     ],
     steps: [
       "Escribi la funcion <code>f(x)</code> en el primer campo. Ej: <code>x^3 - 3x - 4</code>.",
@@ -47029,14 +47050,14 @@
       { id: "exact", label: "Valor exacto (opcional)", placeholder: "p.ej. 1.52138", type: "number", hint: "Si se provee, habilita criterios de parada vs exacto." }
     ],
     tableColumns: [
-      { key: "iter", label: "n" },
-      { key: "xn_1", label: "x_{n-1}" },
-      { key: "xn", label: "x_n" },
-      { key: "fxn", label: "f(x_n)" },
-      { key: "xn1", label: "x_{n+1}" },
-      { key: "errAbs", label: "|\u0394x| abs" },
-      { key: "errRel", label: "Err. rel." },
-      { key: "errRelPct", label: "Err. rel. %" }
+      { key: "iter", label: "n", latex: "n" },
+      { key: "xn_1", label: "x_{n-1}", latex: "x_{n-1}" },
+      { key: "xn", label: "x_n", latex: "x_n" },
+      { key: "fxn", label: "f(x_n)", latex: "f(x_n)" },
+      { key: "xn1", label: "x_{n+1}", latex: "x_{n+1}" },
+      { key: "errAbs", label: "|\u0394x| abs", latex: "|\\Delta x|" },
+      { key: "errRel", label: "Err. rel.", latex: "\\varepsilon_{\\text{rel}}" },
+      { key: "errRelPct", label: "Err. rel. %", latex: "\\varepsilon_{\\text{rel}}\\,(\\%)" }
     ],
     steps: [
       "Escribe <code>f(x)</code>. No hace falta derivada \u2014 ese es el punto.",
@@ -47163,14 +47184,14 @@
       { id: "exact", label: "Valor exacto (opcional)", placeholder: "p.ej. 1.52138", type: "number", hint: "Si se provee, habilita criterios de parada vs exacto." }
     ],
     tableColumns: [
-      { key: "iter", label: "n" },
-      { key: "a", label: "a" },
-      { key: "b", label: "b" },
-      { key: "c", label: "c" },
-      { key: "fc", label: "f(c)" },
-      { key: "errAbs", label: "|\u0394x| abs" },
-      { key: "errRel", label: "Err. rel." },
-      { key: "errRelPct", label: "Err. rel. %" }
+      { key: "iter", label: "n", latex: "n" },
+      { key: "a", label: "a", latex: "a" },
+      { key: "b", label: "b", latex: "b" },
+      { key: "c", label: "c", latex: "c" },
+      { key: "fc", label: "f(c)", latex: "f(c)" },
+      { key: "errAbs", label: "|\u0394x| abs", latex: "|\\Delta x|" },
+      { key: "errRel", label: "Err. rel.", latex: "\\varepsilon_{\\text{rel}}" },
+      { key: "errRelPct", label: "Err. rel. %", latex: "\\varepsilon_{\\text{rel}}\\,(\\%)" }
     ],
     steps: [
       "Escribe <code>f(x)</code> y el intervalo <code>[a, b]</code>.",
@@ -47302,18 +47323,18 @@
       { id: "b", label: "b (para Lipschitz, opcional)", placeholder: "2", type: "number", hint: "Extremo superior para verificar |g'(x)| < 1." }
     ],
     tableColumns: [
-      { key: "iter", label: "n" },
-      { key: "xn", label: "x_n" },
-      { key: "xn1", label: "x_{n+1} = g(x_n)" },
-      { key: "xn2", label: "x_{n+2} = g(x_{n+1})" },
-      { key: "xn_aitken", label: "x\u0302_n (Aitken)" },
-      { key: "errAbs", label: "|\u0394x\u0302| abs" },
-      { key: "errRel", label: "Err. rel." },
-      { key: "errRelPct", label: "Err. rel. %" },
-      { key: "error_plain", label: "Error plain" },
-      { key: "errAbsExact", label: "|x\u0302-exacto| abs" },
-      { key: "errRelExact", label: "Err. rel. vs exacto" },
-      { key: "relErrExactPct", label: "Err. vs exacto %" }
+      { key: "iter", label: "n", latex: "n" },
+      { key: "xn", label: "x_n", latex: "x_n" },
+      { key: "xn1", label: "x_{n+1} = g(x_n)", latex: "x_{n+1} = g(x_n)" },
+      { key: "xn2", label: "x_{n+2} = g(x_{n+1})", latex: "x_{n+2} = g(x_{n+1})" },
+      { key: "xn_aitken", label: "x\u0302_n (Aitken)", latex: "\\hat{x}_n\\;\\text{(Aitken)}" },
+      { key: "errAbs", label: "|\u0394x\u0302| abs", latex: "|\\Delta \\hat{x}|" },
+      { key: "errRel", label: "Err. rel.", latex: "\\varepsilon_{\\text{rel}}" },
+      { key: "errRelPct", label: "Err. rel. %", latex: "\\varepsilon_{\\text{rel}}\\,(\\%)" },
+      { key: "error_plain", label: "Error plain", latex: "\\varepsilon_{\\text{plain}}" },
+      { key: "errAbsExact", label: "|x\u0302-exacto| abs", latex: "|\\hat{x} - x^*|" },
+      { key: "errRelExact", label: "Err. rel. vs exacto", latex: "\\varepsilon_{\\text{rel}}^{\\,*}" },
+      { key: "relErrExactPct", label: "Err. vs exacto %", latex: "\\varepsilon_{\\text{rel}}^{\\,*}\\,(\\%)" }
     ],
     steps: [
       "Parti de <code>f(x) = 0</code> y <b>despeja una funcion auxiliar</b> <code>g(x)</code> tal que <code>x = g(x)</code>. Para <code>f(x) = cos(x) - x</code>, la auxiliar directa es <code>g(x) = cos(x)</code>. Para <code>f(x) = e\u02E3 - 3x\xB2</code>, podes usar <code>g(x) = sqrt(exp(x)/3)</code> u otra que converja.",
@@ -47487,17 +47508,17 @@
       { id: "b", label: "b (para Lipschitz, opcional)", placeholder: "2", type: "number", hint: "Extremo superior para verificar |g'(x)| < 1." }
     ],
     tableColumns: [
-      { key: "iter", label: "n" },
-      { key: "p", label: "p_n" },
-      { key: "gp", label: "g(p_n)" },
-      { key: "ggp", label: "g(g(p_n))" },
-      { key: "pNext", label: "p_{n+1}" },
-      { key: "errAbs", label: "|\u0394p| abs" },
-      { key: "errRel", label: "Err. rel." },
-      { key: "errRelPct", label: "Err. rel. %" },
-      { key: "errAbsExact", label: "|p-exacto| abs" },
-      { key: "errRelExact", label: "Err. rel. vs exacto" },
-      { key: "relErrExactPct", label: "Err. vs exacto %" }
+      { key: "iter", label: "n", latex: "n" },
+      { key: "p", label: "p_n", latex: "p_n" },
+      { key: "gp", label: "g(p_n)", latex: "g(p_n)" },
+      { key: "ggp", label: "g(g(p_n))", latex: "g(g(p_n))" },
+      { key: "pNext", label: "p_{n+1}", latex: "p_{n+1}" },
+      { key: "errAbs", label: "|\u0394p| abs", latex: "|\\Delta p|" },
+      { key: "errRel", label: "Err. rel.", latex: "\\varepsilon_{\\text{rel}}" },
+      { key: "errRelPct", label: "Err. rel. %", latex: "\\varepsilon_{\\text{rel}}\\,(\\%)" },
+      { key: "errAbsExact", label: "|p-exacto| abs", latex: "|p - p^*|" },
+      { key: "errRelExact", label: "Err. rel. vs exacto", latex: "\\varepsilon_{\\text{rel}}^{\\,*}" },
+      { key: "relErrExactPct", label: "Err. vs exacto %", latex: "\\varepsilon_{\\text{rel}}^{\\,*}\\,(\\%)" }
     ],
     steps: [
       'Primero verifica <b>Bolzano</b>: el parcial suele pedir "demostrar que existe al menos una raiz en [a, b]". Evalua <code>f(a)</code> y <code>f(b)</code> \u2014 si tienen signos opuestos (<code>f(a)\xB7f(b) &lt; 0</code>) y <code>f</code> es continua, hay raiz. Para <code>f(x) = x\xB3 - sin(x) - 5</code> en [0, 2]: <code>f(0) = -5</code>, <code>f(2) = 8 - sin(2) - 5 \u2248 2.09</code>. Signos opuestos \u2192 Bolzano OK.',
@@ -47743,10 +47764,10 @@
       { id: "exact", label: "Valor exacto (opcional)", placeholder: "p.ej. 0.333333", type: "number", hint: "Si se provee, se calcula error relativo y se reintenta con n=20 si supera 1%." }
     ],
     tableColumns: [
-      { key: "i", label: "i" },
-      { key: "xi_mid", label: "x_i (medio)" },
-      { key: "fxi", label: "f(x_i)" },
-      { key: "area", label: "Area parcial" }
+      { key: "i", label: "i", latex: "i" },
+      { key: "xi_mid", label: "x_i (medio)", latex: "x_i^{\\text{medio}}" },
+      { key: "fxi", label: "f(x_i)", latex: "f(x_i)" },
+      { key: "area", label: "Area parcial", latex: "h \\cdot f(x_i)" }
     ],
     steps: [
       "Escribe <code>f(x)</code> \u2014 ej. <code>exp(x^2)</code> para el ejercicio del parcial \u222B\u2080\xB2 e^(x\xB2) dx.",
@@ -47888,9 +47909,9 @@
       { id: "b", label: "b (limite superior)", placeholder: "1", type: "number", defaultValue: "1" }
     ],
     tableColumns: [
-      { key: "punto", label: "Punto" },
-      { key: "x", label: "x" },
-      { key: "fx", label: "f(x)" }
+      { key: "punto", label: "Punto", latex: "\\text{Punto}" },
+      { key: "x", label: "x", latex: "x" },
+      { key: "fx", label: "f(x)", latex: "f(x)" }
     ],
     steps: [
       "Version simple con un solo trapecio entre a y b. Util para <em>didactico</em> o verificar una formula \u2014 pero en el parcial siempre piden version compuesta (<code>trapezoidalComp</code>).",
@@ -48002,11 +48023,11 @@
       { id: "exact", label: "Valor exacto (opcional)", placeholder: "p.ej. 0.333333", type: "number", hint: "Si se provee, se calcula error relativo y se reintenta con n=20 si supera 1%." }
     ],
     tableColumns: [
-      { key: "i", label: "i" },
-      { key: "xi", label: "x_i" },
-      { key: "fxi", label: "f(x_i)" },
-      { key: "coeff", label: "Coeficiente" },
-      { key: "contrib", label: "Contribucion" }
+      { key: "i", label: "i", latex: "i" },
+      { key: "xi", label: "x_i", latex: "x_i" },
+      { key: "fxi", label: "f(x_i)", latex: "f(x_i)" },
+      { key: "coeff", label: "Coeficiente", latex: "c_i" },
+      { key: "contrib", label: "Contribucion", latex: "c_i \\cdot f(x_i)" }
     ],
     steps: [
       "Escribe <code>f(x)</code>. Para el <b>parcial 2025-I</b>: <code>ln(x+1)/x</code> sobre <code>[0, 1]</code>. Ojo, en <code>x=0</code> la funcion tiene singularidad removible \u2014 el parser lanzaria <code>NaN</code>; usa <code>a = 1e-10</code> (\u2248 0) o redefine como <code>ln(x+1)/x</code> y prueba primero n=4. Para <b>parcial 30/04/2025</b>: <code>sqrt(2)\xB7exp(x^2)</code> sobre <code>[0, 1]</code>.",
@@ -48148,10 +48169,10 @@
       { id: "b", label: "b (limite superior)", placeholder: "1", type: "number", defaultValue: "1" }
     ],
     tableColumns: [
-      { key: "punto", label: "Punto" },
-      { key: "x", label: "x" },
-      { key: "fx", label: "f(x)" },
-      { key: "coeff", label: "Coeficiente" }
+      { key: "punto", label: "Punto", latex: "\\text{Punto}" },
+      { key: "x", label: "x", latex: "x" },
+      { key: "fx", label: "f(x)", latex: "f(x)" },
+      { key: "coeff", label: "Coeficiente", latex: "c_i" }
     ],
     steps: [
       "Version <em>simple</em> de Simpson 1/3: usa solo <b>tres puntos</b> \u2014 <code>a</code>, <code>m = (a+b)/2</code>, <code>b</code> \u2014 y ajusta una <b>parabola</b> que pasa por ellos. Util para didactica o verificar formula; en parcial casi siempre piden la <b>version compuesta</b> con n subintervalos.",
@@ -48281,11 +48302,11 @@
       { id: "exact", label: "Valor exacto (opcional)", placeholder: "p.ej. 0.333333", type: "number", hint: "Si se provee, se calcula error relativo y se reintenta con n=20 si supera 1%." }
     ],
     tableColumns: [
-      { key: "i", label: "i" },
-      { key: "xi", label: "x_i" },
-      { key: "fxi", label: "f(x_i)" },
-      { key: "coeff", label: "Coeficiente" },
-      { key: "contrib", label: "Contribucion" }
+      { key: "i", label: "i", latex: "i" },
+      { key: "xi", label: "x_i", latex: "x_i" },
+      { key: "fxi", label: "f(x_i)", latex: "f(x_i)" },
+      { key: "coeff", label: "Coeficiente", latex: "c_i" },
+      { key: "contrib", label: "Contribucion", latex: "c_i \\cdot f(x_i)" }
     ],
     steps: [
       "Escribe <code>f(x)</code>. Para el <b>parcial 02/07/2025</b> (parte b): <code>exp(x^2)</code> sobre <code>[0, 2]</code> con <code>n = 10</code>. Para <b>parcial 2025-I</b>: <code>ln(x+1)/x</code> sobre <code>[0, 1]</code> con <code>n = 4</code>.",
@@ -48432,10 +48453,10 @@
       { id: "b", label: "b (limite superior)", placeholder: "1", type: "number", defaultValue: "1" }
     ],
     tableColumns: [
-      { key: "punto", label: "Punto" },
-      { key: "x", label: "x" },
-      { key: "fx", label: "f(x)" },
-      { key: "coeff", label: "Coeficiente" }
+      { key: "punto", label: "Punto", latex: "\\text{Punto}" },
+      { key: "x", label: "x", latex: "x" },
+      { key: "fx", label: "f(x)", latex: "f(x)" },
+      { key: "coeff", label: "Coeficiente", latex: "c_i" }
     ],
     steps: [
       "Version <em>simple</em> de Simpson 3/8: usa <b>4 puntos</b> equiespaciados \u2014 <code>a</code>, <code>x_1</code>, <code>x_2</code>, <code>b</code> con <code>h = (b-a)/3</code> \u2014 y ajusta un <b>polinomio cubico</b>.",
@@ -48582,11 +48603,11 @@
       { id: "exact", label: "Valor exacto (opcional)", placeholder: "p.ej. 0.333333", type: "number", hint: "Si se provee, se calcula error relativo y se reintenta con n=21 si supera 1%." }
     ],
     tableColumns: [
-      { key: "i", label: "i" },
-      { key: "xi", label: "x_i" },
-      { key: "fxi", label: "f(x_i)" },
-      { key: "coeff", label: "Coeficiente" },
-      { key: "contrib", label: "Contribucion" }
+      { key: "i", label: "i", latex: "i" },
+      { key: "xi", label: "x_i", latex: "x_i" },
+      { key: "fxi", label: "f(x_i)", latex: "f(x_i)" },
+      { key: "coeff", label: "Coeficiente", latex: "c_i" },
+      { key: "contrib", label: "Contribucion", latex: "c_i \\cdot f(x_i)" }
     ],
     steps: [
       "Escribe <code>f(x)</code>, limites <code>a</code>, <code>b</code>, y subintervalos <code>n</code>. <b>Importante</b>: <code>n</code> debe ser <b>multiplo de 3</b> (la regla agrupa los puntos de 3 en 3). Si no lo es, la app lo redondea al siguiente multiplo (y te avisa).",
@@ -48754,13 +48775,13 @@
       { id: "seed", label: "Semilla (opcional)", placeholder: "Vacio = aleatorio", hint: "Numero o texto. Misma semilla = mismos resultados." }
     ],
     tableColumns: [
-      { key: "batch", label: "Lote" },
-      { key: "nAccum", label: "N acumulado" },
-      { key: "estimate", label: "Estimacion" },
-      { key: "stdDev", label: "Desv. Estandar" },
-      { key: "stdErr", label: "Error Estandar" },
-      { key: "ci95Lower", label: "IC 95% inf" },
-      { key: "ci95Upper", label: "IC 95% sup" }
+      { key: "batch", label: "Lote", latex: "\\text{Lote}" },
+      { key: "nAccum", label: "N acumulado", latex: "N_{\\text{acum}}" },
+      { key: "estimate", label: "Estimacion", latex: "\\hat{I}" },
+      { key: "stdDev", label: "Desv. Estandar", latex: "\\sigma(f)" },
+      { key: "stdErr", label: "Error Estandar", latex: "SE" },
+      { key: "ci95Lower", label: "IC 95% inf", latex: "IC_{95}^{\\text{inf}}" },
+      { key: "ci95Upper", label: "IC 95% sup", latex: "IC_{95}^{\\text{sup}}" }
     ],
     steps: [
       "Escribe <code>f(x)</code> y limites <code>[a, b]</code>. Para el <b>parcial 02/07/2025</b>: <code>exp(x^2)</code> sobre <code>[0, 2]</code>. Para <b>Prueba Evaluativa</b>: la funcion que te pidan.",
@@ -48959,17 +48980,17 @@
       { id: "seed", label: "Semilla (opcional)", placeholder: "Vacio = aleatorio", hint: "Misma semilla = mismos resultados" }
     ],
     tableColumns: [
-      { key: "batch", label: "Lote" },
-      { key: "nAccum", label: "N acumulado" },
-      { key: "inside", label: "Dentro" },
-      { key: "pHat", label: "p = dentro/N" },
-      { key: "piEstimate", label: "\u03C0 estimado" },
-      { key: "variance", label: "Varianza p(1-p)" },
-      { key: "stdDev", label: "\u03C3 (desv. est.)" },
-      { key: "stdErr", label: "SE (err. est.)" },
-      { key: "error", label: "|\u03C0_est - \u03C0|" },
-      { key: "ci95Lower", label: "IC 95% inf" },
-      { key: "ci95Upper", label: "IC 95% sup" }
+      { key: "batch", label: "Lote", latex: "\\text{Lote}" },
+      { key: "nAccum", label: "N acumulado", latex: "N_{\\text{acum}}" },
+      { key: "inside", label: "Dentro", latex: "M" },
+      { key: "pHat", label: "p = dentro/N", latex: "\\hat{p} = M/N" },
+      { key: "piEstimate", label: "\u03C0 estimado", latex: "\\hat{\\pi} = 4\\hat{p}" },
+      { key: "variance", label: "Varianza p(1-p)", latex: "\\hat{p}(1-\\hat{p})" },
+      { key: "stdDev", label: "\u03C3 (desv. est.)", latex: "\\sigma" },
+      { key: "stdErr", label: "SE (err. est.)", latex: "SE" },
+      { key: "error", label: "|\u03C0_est - \u03C0|", latex: "|\\hat{\\pi} - \\pi|" },
+      { key: "ci95Lower", label: "IC 95% inf", latex: "IC_{95}^{\\text{inf}}" },
+      { key: "ci95Upper", label: "IC 95% sup", latex: "IC_{95}^{\\text{sup}}" }
     ],
     steps: [
       "Este es el ejemplo clasico del <b>parcial Prueba Evaluativa</b>: aproximar <code>\u03C0</code> por muestreo por rechazo. <em>No necesita funcion</em> \u2014 solo N.",
@@ -49167,11 +49188,11 @@
       { id: "seed", label: "Semilla (opcional)", placeholder: "Vacio = aleatorio", hint: "Numero o texto. Misma semilla = mismos resultados." }
     ],
     tableColumns: [
-      { key: "k", label: "k (repeticion)" },
-      { key: "estimate", label: "I_k" },
-      { key: "runningMean", label: "Promedio 1..k" },
-      { key: "stdDevRun", label: "\u03C3 entre lotes" },
-      { key: "exactDiff", label: "|I_k - Exacto|" }
+      { key: "k", label: "k (repeticion)", latex: "k" },
+      { key: "estimate", label: "I_k", latex: "I_k" },
+      { key: "runningMean", label: "Promedio 1..k", latex: "\\bar{I}_{1..k}" },
+      { key: "stdDevRun", label: "\u03C3 entre lotes", latex: "\\sigma_{\\text{lotes}}" },
+      { key: "exactDiff", label: "|I_k - Exacto|", latex: "|I_k - I^*|" }
     ],
     steps: [
       "Para el <b>parcial 2025-I (IMG_5755)</b> \u2014 integral doble Monte Carlo: introduce <code>f(x, y)</code>. Ejemplo: <code>x^2 + y^2</code> o la funcion que pida el parcial.",
@@ -49382,12 +49403,12 @@
       { id: "seed", label: "Semilla (opcional)", placeholder: "Vacio = aleatorio", hint: "Numero o texto." }
     ],
     tableColumns: [
-      { key: "k", label: "k (repeticion)" },
-      { key: "hits", label: "Aciertos" },
-      { key: "estimate", label: "A_k" },
-      { key: "runningMean", label: "Promedio 1..k" },
-      { key: "stdDevRun", label: "\u03C3 entre repeticiones" },
-      { key: "exactDiff", label: "|A_k - Exacto|" }
+      { key: "k", label: "k (repeticion)", latex: "k" },
+      { key: "hits", label: "Aciertos", latex: "M" },
+      { key: "estimate", label: "A_k", latex: "A_k" },
+      { key: "runningMean", label: "Promedio 1..k", latex: "\\bar{A}_{1..k}" },
+      { key: "stdDevRun", label: "\u03C3 entre repeticiones", latex: "\\sigma_{\\text{reps}}" },
+      { key: "exactDiff", label: "|A_k - Exacto|", latex: "|A_k - A^*|" }
     ],
     steps: [
       "Para el <b>parcial 30/04/2025</b> (area entre curvas por Monte Carlo): escribe <code>f(x)</code> (curva <em>superior</em>) y <code>g(x)</code> (curva <em>inferior</em>). Ejemplo parcial: <code>f(x) = x\xB2</code>, <code>g(x) = x\xB3</code> en <code>[0, 1]</code>.",
@@ -64233,7 +64254,11 @@
     return `<div class="result-summary">${items.join("")}</div>`;
   }
   function renderIterationTable(result, columns) {
-    const header = columns.map((c) => `<th>${c.label}</th>`).join("");
+    const header = columns.map((c) => {
+      const content = c.latex ? texInline(c.latex) : c.label;
+      const tooltip = c.latex ? ` title="${c.label.replace(/"/g, "&quot;")}"` : "";
+      return `<th${tooltip}>${content}</th>`;
+    }).join("");
     const rows = result.iterations.map((row2) => {
       const cells = columns.map((c) => {
         const v = row2[c.key];
@@ -64295,6 +64320,195 @@
     for (let i2 = 2; i2 <= n; i2++) r *= i2;
     return r;
   }
+  function polyMul(a, b) {
+    const res = new Array(a.length + b.length - 1).fill(0);
+    for (let i2 = 0; i2 < a.length; i2++) {
+      for (let j = 0; j < b.length; j++) {
+        res[i2 + j] += a[i2] * b[j];
+      }
+    }
+    return res;
+  }
+  function polyAdd(a, b) {
+    const res = new Array(Math.max(a.length, b.length)).fill(0);
+    for (let i2 = 0; i2 < a.length; i2++) res[i2] += a[i2];
+    for (let i2 = 0; i2 < b.length; i2++) res[i2] += b[i2];
+    return res;
+  }
+  function polyScale(a, k) {
+    return a.map((c) => c * k);
+  }
+  function numToLatex(n) {
+    if (!isFinite(n)) return n > 0 ? "\\infty" : "-\\infty";
+    if (Math.abs(n) < 1e-14) return "0";
+    if (Math.abs(n - Math.round(n)) < 1e-10) return Math.round(n).toString();
+    for (let d = 2; d <= 1e3; d++) {
+      const numer = n * d;
+      if (Math.abs(numer - Math.round(numer)) < 1e-9) {
+        const num = Math.round(numer);
+        const sign5 = num < 0 !== d < 0 ? "-" : "";
+        return `${sign5}\\frac{${Math.abs(num)}}{${Math.abs(d)}}`;
+      }
+    }
+    let s = n.toPrecision(6);
+    if (s.indexOf(".") >= 0) s = s.replace(/0+$/, "").replace(/\.$/, "");
+    return s;
+  }
+  function polyToLatex(p, variable = "x") {
+    const terms = [];
+    for (let k = p.length - 1; k >= 0; k--) {
+      const c = p[k];
+      if (Math.abs(c) < 1e-12) continue;
+      const isFirst = terms.length === 0;
+      const sign5 = c < 0 ? "-" : "+";
+      const absC = Math.abs(c);
+      let coefStr;
+      if (k === 0) {
+        coefStr = numToLatex(absC);
+      } else if (Math.abs(absC - 1) < 1e-12) {
+        coefStr = "";
+      } else {
+        coefStr = numToLatex(absC);
+      }
+      let varStr;
+      if (k === 0) varStr = "";
+      else if (k === 1) varStr = variable;
+      else varStr = `${variable}^{${k}}`;
+      const term = coefStr + varStr;
+      if (isFirst) {
+        terms.push(c < 0 ? "-" + term : term);
+      } else {
+        terms.push(`${sign5} ${term}`);
+      }
+    }
+    return terms.length > 0 ? terms.join(" ") : "0";
+  }
+  function buildLagrangeBasis(xs, i2) {
+    let numPoly = [1];
+    let den = 1;
+    const factors = [];
+    const denFactors = [];
+    for (let j = 0; j < xs.length; j++) {
+      if (j === i2) continue;
+      numPoly = polyMul(numPoly, [-xs[j], 1]);
+      den *= xs[i2] - xs[j];
+      const xj = xs[j];
+      factors.push(xj >= 0 ? `(x - ${numToLatex(xj)})` : `(x + ${numToLatex(-xj)})`);
+      const diff2 = xs[i2] - xj;
+      denFactors.push(`(${numToLatex(xs[i2])} - ${numToLatex(xj)})`);
+    }
+    return { numPoly, den, factors, denFactors };
+  }
+  function maxAbsProduct(xs, a, b, samples = 2e3) {
+    let best = 0;
+    let xAt = a;
+    for (let k = 0; k <= samples; k++) {
+      const x = a + (b - a) * (k / samples);
+      let p = 1;
+      for (const xi of xs) p *= x - xi;
+      const abs3 = Math.abs(p);
+      if (abs3 > best) {
+        best = abs3;
+        xAt = x;
+      }
+    }
+    return { max: best, xAtMax: xAt };
+  }
+  function renderErrorAnalysisPanel(xs, fxExpr, derivativeExpr, M, xAtM, aInt, bInt, xiVal, pAtXi, fAtXi, pnAtXi, localBound, localActual) {
+    const n = xs.length - 1;
+    const order = n + 1;
+    const fact = factorial2(order);
+    const { max: maxProd, xAtMax: xAtProd } = maxAbsProduct(xs, aInt, bInt);
+    const globalBound = M / fact * maxProd;
+    const nodesList = xs.map((v) => numToLatex(v)).join(",\\; ");
+    const productFactors = (xi) => xs.map((xj) => {
+      const diff2 = xi - xj;
+      return xj >= 0 ? `(${numToLatex(xi)} - ${numToLatex(xj)})` : `(${numToLatex(xi)} + ${numToLatex(-xj)})`;
+    }).join("\\,");
+    const productNumbers = (xi) => xs.map((xj) => {
+      const d = xi - xj;
+      return d < 0 ? `(${numToLatex(d)})` : numToLatex(d);
+    }).join(" \\cdot ");
+    let localSection = "";
+    if (xiVal !== null && pAtXi !== null) {
+      const prodLatex = `${productFactors(xiVal)} = ${productNumbers(xiVal)} = ${numToLatex(pAtXi)}`;
+      const boundLatex = `|E_{${n}}(\\xi)| \\leq \\frac{M}{(n+1)!} \\cdot \\left|\\prod_{i=0}^{${n}} (\\xi - x_i)\\right| = \\frac{${numToLatex(M)}}{${fact}} \\cdot ${numToLatex(Math.abs(pAtXi))} = ${numToLatex(localBound ?? 0)}`;
+      const actualLatex = fAtXi !== null && pnAtXi !== null ? `|f(\\xi) - P_{${n}}(\\xi)| = |${numToLatex(fAtXi)} - ${numToLatex(pnAtXi)}| = ${numToLatex(localActual ?? 0)}` : "";
+      localSection = `
+      <div style="margin-top:10px"><b>Error local en \u03BE = ${numToLatex(xiVal)}</b></div>
+      <div><em>Paso 1:</em> calcular el producto de nodos evaluado en \u03BE:</div>
+      ${texBlock(`\\prod_{i=0}^{${n}}(\\xi - x_i) = ${prodLatex}`)}
+      <div><em>Paso 2:</em> aplicar la cota de error (reemplazar en la formula general):</div>
+      ${texBlock(boundLatex)}
+      ${actualLatex ? `<div><em>Paso 3:</em> error real (ya que conocemos f):</div>${texBlock(actualLatex)}` : ""}
+    `;
+    } else {
+      localSection = `
+      <div style="margin-top:10px"><b>Error local</b></div>
+      <div><em>Ingresa un valor en el campo <code>\u03BE</code> para calcular el error local paso a paso.</em></div>
+    `;
+    }
+    const prodMaxLatex = `\\max_{x \\in [${numToLatex(aInt)}, ${numToLatex(bInt)}]} \\left|\\prod_{i=0}^{${n}}(x - x_i)\\right| = ${numToLatex(maxProd)} \\quad (\\text{alcanzado en } x \\approx ${numToLatex(xAtProd)})`;
+    const globalLatex = `\\max_{x \\in [a,b]} |E_{${n}}(x)| \\leq \\frac{M}{(n+1)!} \\cdot \\max \\left|\\prod(x - x_i)\\right| = \\frac{${numToLatex(M)}}{${fact}} \\cdot ${numToLatex(maxProd)} = ${numToLatex(globalBound)}`;
+    return `
+    <div class="theorem-panel theorem-pass">
+      <div class="theorem-header"><span class="theorem-icon">\u0394</span> Analisis de error de Lagrange \u2014 paso a paso</div>
+      <div class="theorem-body">
+        <div><b>Formula general del error</b> (teorema del resto de interpolacion):</div>
+        ${texBlock(`E_{${n}}(x) = f(x) - P_{${n}}(x) = \\frac{f^{(${order})}(\\eta(x))}{(n+1)!} \\cdot \\prod_{i=0}^{${n}}(x - x_i), \\quad \\eta(x) \\in [a, b]`)}
+        <div><b>Datos del problema:</b> nodos <code>x_i = {${nodesList}}</code>, intervalo <code>[${numToLatex(aInt)}, ${numToLatex(bInt)}]</code>, <code>f(x) = ${fxExpr}</code>, grado <code>n = ${n}</code>, <code>(n+1)! = ${fact}</code>.</div>
+
+        <div style="margin-top:10px"><b>Paso A \u2014 derivada de orden n+1</b></div>
+        ${derivativeExpr ? texBlock(`f^{(${order})}(x) = ${derivativeExpr.replace(/\*/g, "\\cdot ")}`) : "<div><em>No se pudo derivar simbolicamente; se usa diferenciacion numerica.</em></div>"}
+
+        <div style="margin-top:10px"><b>Paso B \u2014 cota M = max|f\u207D\u207F\u207A\xB9\u207E| en el intervalo</b></div>
+        ${texBlock(`M = \\max_{x \\in [${numToLatex(aInt)}, ${numToLatex(bInt)}]} |f^{(${order})}(x)| = ${numToLatex(M)} \\quad (\\text{en } x \\approx ${numToLatex(xAtM)})`)}
+
+        ${localSection}
+
+        <div style="margin-top:10px"><b>Cota de error GLOBAL en [a, b]</b></div>
+        <div><em>Paso 1:</em> maximizar el producto de nodos sobre todo el intervalo:</div>
+        ${texBlock(prodMaxLatex)}
+        <div><em>Paso 2:</em> multiplicar por M/(n+1)!:</div>
+        ${texBlock(globalLatex)}
+        <div style="margin-top:6px"><em>Interpretacion:</em> para <b>cualquier</b> x en [${numToLatex(aInt)}, ${numToLatex(bInt)}], el error de interpolacion no supera <b>${numToLatex(globalBound)}</b>.</div>
+      </div>
+    </div>
+  `;
+  }
+  function renderLagrangeDerivationPanel(xs, ys) {
+    const n = xs.length;
+    const deg = n - 1;
+    let finalPoly = [0];
+    const liLines = [];
+    for (let i2 = 0; i2 < n; i2++) {
+      const { numPoly, den, factors, denFactors } = buildLagrangeBasis(xs, i2);
+      const numFactored = factors.join("");
+      const denFactored = denFactors.join("");
+      const numExpanded = polyToLatex(numPoly);
+      const scaled = polyScale(numPoly, 1 / den);
+      const liExpanded = polyToLatex(scaled);
+      finalPoly = polyAdd(finalPoly, polyScale(scaled, ys[i2]));
+      liLines.push(
+        `${texBlock(`L_{${i2}}(x) = \\frac{${numFactored}}{${denFactored}} = \\frac{${numExpanded}}{${numToLatex(den)}} = ${liExpanded}`)}`
+      );
+    }
+    const sumLine = xs.map((_, i2) => `${numToLatex(ys[i2])} \\cdot L_{${i2}}(x)`).join(" + ");
+    const finalExpanded = polyToLatex(finalPoly);
+    return `
+    <div class="theorem-panel theorem-pass">
+      <div class="theorem-header"><span class="theorem-icon">\u2211</span> Derivacion simbolica del polinomio de Lagrange</div>
+      <div class="theorem-body">
+        <div><b>Grado del polinomio:</b> n \u2212 1 = ${deg} (con ${n} nodos)</div>
+        <div style="margin-top:8px"><b>Bases de Lagrange</b> &nbsp; <code>L_i(x) = \u220F_{j\u2260i} (x \u2212 x_j)/(x_i \u2212 x_j)</code>:</div>
+        ${liLines.join("")}
+        <div style="margin-top:8px"><b>Polinomio interpolante:</b></div>
+        ${texBlock(`P_{${deg}}(x) = ${sumLine}`)}
+        ${texBlock(`P_{${deg}}(x) = ${finalExpanded}`)}
+      </div>
+    </div>
+  `;
+  }
   var lagrange = {
     id: "lagrange",
     name: "Interpolacion de Lagrange",
@@ -64312,15 +64526,16 @@
         tableHeaders: ["x_i", "y_i"],
         defaultValue: "0,1;1,3;2,2;3,5"
       },
-      { id: "xQuery", label: "x objetivo (donde evaluar P_n(x))", placeholder: "1.5", type: "number", defaultValue: "1.5" },
-      { id: "fx", label: "f(x) real (opcional, para error)", placeholder: "p.ej. sin(x)", hint: "Funcion subyacente para calcular error local y cota global." }
+      { id: "xQuery", label: "x objetivo (opcional, donde evaluar P_n(x))", placeholder: "Vacio = solo polinomio", type: "number", hint: "Dejalo vacio si solo queres el polinomio (parte a del parcial)." },
+      { id: "fx", label: "f(x) real (opcional, para error)", placeholder: "p.ej. sin(x)", hint: "Funcion subyacente para calcular error local y cota global." },
+      { id: "xi", label: "\u03BE para error local (opcional)", placeholder: "p.ej. 0.45", type: "number", hint: "Punto donde evaluar el error local |f(\u03BE) - P_n(\u03BE)|. Distinto de x objetivo." }
     ],
     tableColumns: [
-      { key: "i", label: "i" },
-      { key: "xi", label: "x_i" },
-      { key: "yi", label: "y_i" },
-      { key: "Li", label: "L_i(x)" },
-      { key: "yiLi", label: "y_i \xB7 L_i(x)" }
+      { key: "i", label: "i", latex: "i" },
+      { key: "xi", label: "x_i", latex: "x_i" },
+      { key: "yi", label: "y_i", latex: "y_i" },
+      { key: "Li", label: "L_i(x)", latex: "L_i(x)" },
+      { key: "yiLi", label: "y_i \xB7 L_i(x)", latex: "y_i \\cdot L_i(x)" }
     ],
     steps: [
       "Carga la <b>tabla de puntos</b> (x_i, y_i) en el primer input. Podes:<br>&nbsp;&nbsp;\u2022 Pegar tabla discreta tal cual viene del parcial, ej: <code>0,1;1,3;3,0</code> (puntos (0,1), (1,3), (3,0)).<br>&nbsp;&nbsp;\u2022 Construirla evaluando <code>f(x)</code> en cada nodo. Ej: para <code>f(x) = sin(\u03C0x)</code> en nodos 0, 0.5, 1, 1.5 \u2192 <code>0,0;0.5,1;1,0;1.5,-1</code>.",
@@ -64339,56 +64554,108 @@
       const ys = table.map((r) => r[1]);
       const uniqueXs = new Set(xs);
       if (uniqueXs.size !== xs.length) throw new Error("Los valores de x_i deben ser distintos");
-      const xQuery = parseFloat(params.xQuery);
-      if (isNaN(xQuery)) throw new Error("x objetivo invalido");
-      const { value, basis } = evalLagrange(xs, ys, xQuery);
+      const xQueryRaw = (params.xQuery ?? "").trim();
+      const hasQuery = xQueryRaw !== "";
+      const xQuery = hasQuery ? parseFloat(xQueryRaw) : NaN;
+      if (hasQuery && isNaN(xQuery)) throw new Error("x objetivo invalido");
       const n = xs.length - 1;
+      let value;
+      let basis = [];
+      if (hasQuery) {
+        const ev = evalLagrange(xs, ys, xQuery);
+        value = ev.value;
+        basis = ev.basis;
+      }
       const iterations = xs.map((xi, i2) => ({
         i: i2,
         xi,
         yi: ys[i2],
-        Li: basis[i2],
-        yiLi: ys[i2] * basis[i2]
+        Li: hasQuery ? basis[i2] : null,
+        yiLi: hasQuery ? ys[i2] * basis[i2] : null
       }));
       let relativeErrorPercent2;
       let truncationBound;
       let maxDerivative;
       let xiApprox;
       let derivativeExpr;
-      let message = `P_${n}(${xQuery}) = ${value.toPrecision(8)} | grado ${n}`;
+      let message = hasQuery ? `P_${n}(${xQuery}) = ${value.toPrecision(8)} | grado ${n}` : `Polinomio de grado ${n} construido (sin evaluacion en x objetivo)`;
       const fxExpr = (params.fx ?? "").trim();
+      const xiRaw = (params.xi ?? "").trim();
+      const hasXi = xiRaw !== "";
+      const xiVal = hasXi ? parseFloat(xiRaw) : NaN;
+      if (hasXi && isNaN(xiVal)) throw new Error("\u03BE invalido");
+      let errorPanel = null;
       if (fxExpr !== "") {
         try {
           const f = parseExpression(fxExpr);
-          const fVal = f(xQuery);
-          relativeErrorPercent2 = Math.abs(fVal) > 1e-14 ? Math.abs(value - fVal) / Math.abs(fVal) * 100 : Math.abs(value - fVal) * 100;
           const aInt = Math.min(...xs);
           const bInt = Math.max(...xs);
           const d = maxAbsDerivative(fxExpr, n + 1, aInt, bInt);
           maxDerivative = d.max;
           xiApprox = d.xAtMax;
           derivativeExpr = d.derivativeExpr ?? void 0;
-          let prod2 = 1;
-          for (const xi of xs) prod2 *= xQuery - xi;
-          truncationBound = d.max / factorial2(n + 1) * Math.abs(prod2);
-          message += ` \xB7 f(${xQuery}) = ${fVal.toPrecision(8)} \xB7 |error| = ${Math.abs(value - fVal).toPrecision(6)}`;
+          let pAtXi = null;
+          let fAtXi = null;
+          let pnAtXi = null;
+          let localBound = null;
+          let localActual = null;
+          if (hasXi) {
+            let prod2 = 1;
+            for (const xj of xs) prod2 *= xiVal - xj;
+            pAtXi = prod2;
+            fAtXi = f(xiVal);
+            pnAtXi = evalLagrange(xs, ys, xiVal).value;
+            localBound = d.max / factorial2(n + 1) * Math.abs(prod2);
+            localActual = Math.abs(fAtXi - pnAtXi);
+          }
+          if (hasQuery) {
+            const fVal = f(xQuery);
+            relativeErrorPercent2 = Math.abs(fVal) > 1e-14 ? Math.abs(value - fVal) / Math.abs(fVal) * 100 : Math.abs(value - fVal) * 100;
+            let prodQ = 1;
+            for (const xj of xs) prodQ *= xQuery - xj;
+            truncationBound = d.max / factorial2(n + 1) * Math.abs(prodQ);
+            message += ` \xB7 f(${xQuery}) = ${fVal.toPrecision(8)} \xB7 |error| = ${Math.abs(value - fVal).toPrecision(6)}`;
+          }
+          if (hasXi) {
+            message += ` \xB7 \u03BE=${xiVal}: |E_local| \u2264 ${localBound.toPrecision(6)}${localActual !== null ? ` (real: ${localActual.toPrecision(6)})` : ""}`;
+          }
           if (derivativeExpr) message += ` \xB7 f\u207D${n + 1}\u207E(x) = ${derivativeExpr}`;
+          errorPanel = renderErrorAnalysisPanel(
+            xs,
+            fxExpr,
+            derivativeExpr ?? null,
+            d.max,
+            d.xAtMax,
+            aInt,
+            bInt,
+            hasXi ? xiVal : null,
+            pAtXi,
+            fAtXi,
+            pnAtXi,
+            localBound,
+            localActual
+          );
         } catch (e3) {
           message += ` \xB7 (no se pudo evaluar f(x): ${e3.message})`;
         }
+      } else if (hasXi) {
+        message += ` \xB7 (para calcular error local en \u03BE=${xiVal} falta definir f(x))`;
       }
+      const theoremPanels = [renderLagrangeDerivationPanel(xs, ys)];
+      if (errorPanel) theoremPanels.push(errorPanel);
       return {
         root: value,
         iterations,
         converged: true,
         error: truncationBound ?? 0,
-        exact: fxExpr !== "" ? parseExpression(fxExpr)(xQuery) : void 0,
+        exact: fxExpr !== "" && hasQuery ? parseExpression(fxExpr)(xQuery) : void 0,
         relativeErrorPercent: relativeErrorPercent2,
         truncationBound,
         truncationOrder: truncationBound !== void 0 ? n + 1 : void 0,
         maxDerivative,
         xiApprox,
         derivativeExpr,
+        theoremPanels,
         message
       };
     },
@@ -64396,7 +64663,9 @@
       const table = parseTableData(params.points);
       const xs = table.map((r) => r[0]);
       const ys = table.map((r) => r[1]);
-      const xQuery = parseFloat(params.xQuery);
+      const xQueryRaw = (params.xQuery ?? "").trim();
+      const hasQuery = xQueryRaw !== "" && !isNaN(parseFloat(xQueryRaw));
+      const xQuery = hasQuery ? parseFloat(xQueryRaw) : NaN;
       const n = xs.length - 1;
       const aInt = Math.min(...xs);
       const bInt = Math.max(...xs);
@@ -64406,9 +64675,11 @@
       const fxExpr = (params.fx ?? "").trim();
       const datasetsCurve = [
         { label: "P_n(x)", x: xsPlot, y: ysPoly, color: "#cba6f7" },
-        { label: "Datos", x: xs, y: ys, color: "#f9e2af", pointRadius: 5, showLine: false },
-        { label: "P_n(x*)", x: [xQuery], y: [result.root ?? 0], color: "#a6e3a1", pointRadius: 6, showLine: false }
+        { label: "Nodos", x: xs, y: ys, color: "#f9e2af", pointRadius: 5, showLine: false }
       ];
+      if (hasQuery) {
+        datasetsCurve.push({ label: "P_n(x*)", x: [xQuery], y: [result.root ?? 0], color: "#a6e3a1", pointRadius: 6, showLine: false });
+      }
       if (fxExpr !== "") {
         try {
           const f = parseExpression(fxExpr);
@@ -64442,26 +64713,29 @@
         try {
           const f = parseExpression(fxExpr);
           const err = xsPlot.map((x) => Math.abs(f(x) - evalLagrange(xs, ys, x).value));
+          const errDatasets = [
+            { label: "|error|", x: xsPlot, y: err, color: "#f38ba8" }
+          ];
+          if (hasQuery) {
+            errDatasets.push({ label: "x objetivo", x: [xQuery, xQuery], y: [0, Math.max(...err)], color: "#a6e3a1", dashed: true, pointRadius: 0 });
+          }
           chart3 = {
             title: "|f(x) - P_n(x)| \u2014 error absoluto",
             type: "line",
-            datasets: [
-              { label: "|error|", x: xsPlot, y: err, color: "#f38ba8" },
-              { label: "x objetivo", x: [xQuery, xQuery], y: [0, Math.max(...err)], color: "#a6e3a1", dashed: true, pointRadius: 0 }
-            ],
+            datasets: errDatasets,
             xLabel: "x",
             yLabel: "|error|"
           };
         } catch {
-          chart3 = productChart(xsPlot, xs, xQuery);
+          chart3 = productChart(xsPlot, xs, hasQuery ? xQuery : null);
         }
       } else {
-        chart3 = productChart(xsPlot, xs, xQuery);
+        chart3 = productChart(xsPlot, xs, hasQuery ? xQuery : null);
       }
       const iterRows = result.iterations;
       const contribX = iterRows.map((r) => r.i);
-      const contribY = iterRows.map((r) => r.yiLi);
-      const chart4 = {
+      const contribY = iterRows.map((r) => r.yiLi ?? 0);
+      const chart4 = hasQuery ? {
         title: `Contribuciones y_i \xB7 L_i(x*) con x* = ${xQuery}`,
         type: "bar",
         datasets: [
@@ -64469,19 +64743,30 @@
         ],
         xLabel: "i",
         yLabel: "Contribucion"
+      } : {
+        title: "Valores y_i en los nodos",
+        type: "bar",
+        datasets: [
+          { label: "y_i", x: xs, y: ys, color: "#94e2d5" }
+        ],
+        xLabel: "x_i",
+        yLabel: "y_i"
       };
       return [chart1, chart2, chart3, chart4];
     }
   };
   function productChart(xsPlot, xs, xQuery) {
     const prodY = xsPlot.map((x) => xs.reduce((acc, xi) => acc * (x - xi), 1));
+    const datasets = [
+      { label: "\u220F(x - x_i)", x: xsPlot, y: prodY, color: "#fab387" }
+    ];
+    if (xQuery !== null) {
+      datasets.push({ label: "x objetivo", x: [xQuery], y: [xs.reduce((acc, xi) => acc * (xQuery - xi), 1)], color: "#a6e3a1", pointRadius: 6, showLine: false });
+    }
     return {
       title: "\u220F (x - x_i) \u2014 factor del error",
       type: "line",
-      datasets: [
-        { label: "\u220F(x - x_i)", x: xsPlot, y: prodY, color: "#fab387" },
-        { label: "x objetivo", x: [xQuery], y: [xs.reduce((acc, xi) => acc * (xQuery - xi), 1)], color: "#a6e3a1", pointRadius: 6, showLine: false }
-      ],
+      datasets,
       xLabel: "x",
       yLabel: "producto"
     };
@@ -64535,13 +64820,13 @@
       { id: "fx", label: "f(x) real (opcional, para error)", placeholder: "p.ej. sin(x)", hint: "Funcion subyacente para calcular error local y cota global." }
     ],
     tableColumns: [
-      { key: "i", label: "i" },
-      { key: "xi", label: "x_i" },
-      { key: "f0", label: "f[x_i]" },
-      { key: "f1", label: "f[\xB7,\xB7]" },
-      { key: "f2", label: "f[\xB7,\xB7,\xB7]" },
-      { key: "f3", label: "f[\xB7,\xB7,\xB7,\xB7]" },
-      { key: "f4", label: "f[\xB7,\xB7,\xB7,\xB7,\xB7]" }
+      { key: "i", label: "i", latex: "i" },
+      { key: "xi", label: "x_i", latex: "x_i" },
+      { key: "f0", label: "f[x_i]", latex: "f[x_i]" },
+      { key: "f1", label: "f[\xB7,\xB7]", latex: "f[x_i, x_{i+1}]" },
+      { key: "f2", label: "f[\xB7,\xB7,\xB7]", latex: "f[x_i, \\ldots, x_{i+2}]" },
+      { key: "f3", label: "f[\xB7,\xB7,\xB7,\xB7]", latex: "f[x_i, \\ldots, x_{i+3}]" },
+      { key: "f4", label: "f[\xB7,\xB7,\xB7,\xB7,\xB7]", latex: "f[x_i, \\ldots, x_{i+4}]" }
     ],
     steps: [
       "Carga los puntos (x_i, y_i) en la tabla. Funciona igual que Lagrange pero produce el polinomio en <b>forma de Newton</b>: <code>P_n(x) = a_0 + a_1(x - x_0) + a_2(x - x_0)(x - x_1) + ...</code> donde los <code>a_k</code> son las diferencias divididas.",
@@ -64767,7 +65052,7 @@
       result.message = result.message ? `${result.message} \xB7 ${notes.join(" \xB7 ")}` : notes.join(" \xB7 ");
     }
   }
-  var verifyDiffColumn = { key: "verifyDiff", label: "|y\u2099 \u2212 esperado|" };
+  var verifyDiffColumn = { key: "verifyDiff", label: "|y\u2099 \u2212 esperado|", latex: "|y_n - y_{\\text{esperado}}|" };
 
   // src/methods/ode/euler.ts
   var euler = {
@@ -64787,13 +65072,13 @@
       ...commonOdeInputs
     ],
     tableColumns: [
-      { key: "step", label: "Paso n" },
-      { key: "xn", label: "x\u2099" },
-      { key: "yn", label: "y\u2099" },
-      { key: "fxy", label: "f(x\u2099, y\u2099)" },
-      { key: "yNext", label: "y\u2099\u208A\u2081" },
-      { key: "exact", label: "y exacta" },
-      { key: "error", label: "|Error|" },
+      { key: "step", label: "Paso n", latex: "n" },
+      { key: "xn", label: "x\u2099", latex: "x_n" },
+      { key: "yn", label: "y\u2099", latex: "y_n" },
+      { key: "fxy", label: "f(x\u2099, y\u2099)", latex: "f(x_n, y_n)" },
+      { key: "yNext", label: "y\u2099\u208A\u2081", latex: "y_{n+1}" },
+      { key: "exact", label: "y exacta", latex: "y^*(x_n)" },
+      { key: "error", label: "|Error|", latex: "|E|" },
       verifyDiffColumn
     ],
     steps: [
@@ -64974,15 +65259,15 @@
       ...commonOdeInputs
     ],
     tableColumns: [
-      { key: "step", label: "Paso n" },
-      { key: "xn", label: "x\u2099" },
-      { key: "yn", label: "y\u2099" },
-      { key: "fxy", label: "f(x\u2099, y\u2099)" },
-      { key: "yPredict", label: "\u1EF9 (predictor)" },
-      { key: "fPredict", label: "f(x\u2099\u208A\u2081, \u1EF9)" },
-      { key: "yNext", label: "y\u2099\u208A\u2081" },
-      { key: "exact", label: "y exacta" },
-      { key: "error", label: "|Error|" },
+      { key: "step", label: "Paso n", latex: "n" },
+      { key: "xn", label: "x\u2099", latex: "x_n" },
+      { key: "yn", label: "y\u2099", latex: "y_n" },
+      { key: "fxy", label: "f(x\u2099, y\u2099)", latex: "f(x_n, y_n)" },
+      { key: "yPredict", label: "\u1EF9 (predictor)", latex: "\\tilde{y}_{n+1}" },
+      { key: "fPredict", label: "f(x\u2099\u208A\u2081, \u1EF9)", latex: "f(x_{n+1}, \\tilde{y}_{n+1})" },
+      { key: "yNext", label: "y\u2099\u208A\u2081", latex: "y_{n+1}" },
+      { key: "exact", label: "y exacta", latex: "y^*(x_n)" },
+      { key: "error", label: "|Error|", latex: "|E|" },
       verifyDiffColumn
     ],
     steps: [
@@ -65169,16 +65454,16 @@
       ...commonOdeInputs
     ],
     tableColumns: [
-      { key: "step", label: "Paso n" },
-      { key: "xn", label: "x\u2099" },
-      { key: "yn", label: "y\u2099" },
-      { key: "k1", label: "k\u2081" },
-      { key: "k2", label: "k\u2082" },
-      { key: "k3", label: "k\u2083" },
-      { key: "k4", label: "k\u2084" },
-      { key: "yNext", label: "y\u2099\u208A\u2081" },
-      { key: "exact", label: "y exacta" },
-      { key: "error", label: "|Error|" },
+      { key: "step", label: "Paso n", latex: "n" },
+      { key: "xn", label: "x\u2099", latex: "x_n" },
+      { key: "yn", label: "y\u2099", latex: "y_n" },
+      { key: "k1", label: "k\u2081", latex: "k_1" },
+      { key: "k2", label: "k\u2082", latex: "k_2" },
+      { key: "k3", label: "k\u2083", latex: "k_3" },
+      { key: "k4", label: "k\u2084", latex: "k_4" },
+      { key: "yNext", label: "y\u2099\u208A\u2081", latex: "y_{n+1}" },
+      { key: "exact", label: "y exacta", latex: "y^*(x_n)" },
+      { key: "error", label: "|Error|", latex: "|E|" },
       verifyDiffColumn
     ],
     steps: [
@@ -65365,15 +65650,22 @@
     inputs: [
       { id: "fx", label: "f(x)", placeholder: "sin(x)", defaultValue: "sin(x)" },
       { id: "x0", label: "x\u2080 (punto de evaluacion)", placeholder: "1", type: "number", defaultValue: "1" },
-      { id: "h", label: "h (paso)", placeholder: "0.1", defaultValue: "0.1" },
-      { id: "dfx", label: "f'(x) exacta (opcional, para error)", placeholder: "cos(x)", hint: "Para calcular error real", defaultValue: "cos(x)" }
+      { id: "h", label: "h (paso inicial)", placeholder: "0.1", defaultValue: "0.1" },
+      { id: "dfx", label: "f'(x) exacta (opcional, para error)", placeholder: "cos(x)", hint: "Para calcular error real y habilitar criterios vs exacto", defaultValue: "cos(x)" },
+      { id: "stop", label: "Criterio de parada", placeholder: "1e-6", type: "stopCriterion", defaultValue: "tolerancia:1e-6", hint: "Criterios por diferencia entre aproximaciones sucesivas o vs exacto (si se dio f'(x))." },
+      { id: "maxIter", label: "Max iteraciones (h se divide por 2)", placeholder: "20", type: "number", defaultValue: "20" }
     ],
     tableColumns: [
-      { key: "step", label: "Paso" },
-      { key: "h", label: "h" },
-      { key: "approx", label: "f'(x) aprox" },
-      { key: "exact", label: "f'(x) exacta" },
-      { key: "error", label: "Error absoluto" }
+      { key: "step", label: "Paso", latex: "n" },
+      { key: "h", label: "h", latex: "h" },
+      { key: "approx", label: "f'(x) aprox", latex: "f'(x)_{\\text{aprox}}" },
+      { key: "exact", label: "f'(x) exacta", latex: "f'(x)_{\\text{exacta}}" },
+      { key: "errAbs", label: "|\u0394aprox|", latex: "|\\Delta f'|" },
+      { key: "errRel", label: "Err. rel.", latex: "\\varepsilon_{\\text{rel}}" },
+      { key: "errRelPct", label: "Err. rel. %", latex: "\\varepsilon_{\\text{rel}}\\,(\\%)" },
+      { key: "errAbsExact", label: "|E| vs exacto", latex: "|E|_{\\text{exacto}}" },
+      { key: "errRelExact", label: "Err. rel. vs exacto", latex: "\\varepsilon_{\\text{rel,ex}}" },
+      { key: "errRelPctExact", label: "Err. rel. % vs exacto", latex: "\\varepsilon_{\\text{rel,ex}}\\,(\\%)" }
     ],
     solve(params) {
       const f = parseExpression(params.fx);
@@ -65381,26 +65673,45 @@
       const hStart = parseFloat(params.h) || 0.1;
       const dfExpr = params.dfx?.trim();
       const df = dfExpr ? parseExpression(dfExpr) : null;
+      const stop = parseStop(params.stop);
+      const maxIter = parseInt(params.maxIter) || 20;
       if (isNaN(x0)) throw new Error("x\u2080 debe ser un numero valido");
       const iterations = [];
       let h = hStart;
       let lastApprox = 0;
-      for (let step = 1; step <= 12; step++) {
-        const approx = (f(x0 + h) - f(x0)) / h;
-        const exact = df ? df(x0) : NaN;
-        const error = df ? Math.abs(approx - exact) : step > 1 ? Math.abs(approx - lastApprox) : NaN;
-        iterations.push({ step, h, approx, exact, error: isNaN(error) ? 0 : error });
+      let converged = false;
+      let approx = 0;
+      const exactVal = df ? df(x0) : void 0;
+      for (let step = 1; step <= maxIter; step++) {
+        approx = (f(x0 + h) - f(x0)) / h;
+        const errs = step === 1 ? { errAbs: 0, errRel: 0, errRelPct: 0 } : computeErrors(lastApprox, approx);
+        const errsFull = withExactErrors(errs, approx, exactVal);
+        iterations.push({
+          step,
+          h,
+          approx,
+          exact: exactVal ?? null,
+          errAbs: step === 1 ? null : errs.errAbs,
+          errRel: step === 1 ? null : errs.errRel,
+          errRelPct: step === 1 ? null : errs.errRelPct,
+          errAbsExact: errsFull.errAbsExact ?? null,
+          errRelExact: errsFull.errRelExact ?? null,
+          errRelPctExact: errsFull.errRelPctExact ?? null
+        });
+        if (step > 1 && hasConverged(stop, errsFull)) {
+          converged = true;
+          break;
+        }
         lastApprox = approx;
         h /= 2;
       }
-      const finalApprox = iterations[0].approx;
-      const finalError = df ? Math.abs(finalApprox - df(x0)) : 0;
+      const finalError = exactVal !== void 0 ? Math.abs(approx - exactVal) : 0;
       return {
-        derivative: finalApprox,
+        derivative: approx,
         iterations,
-        converged: true,
+        converged,
         error: finalError,
-        message: `f'(${x0}) \u2248 ${finalApprox.toPrecision(10)}`
+        message: `f'(${x0}) \u2248 ${approx.toPrecision(10)} | Criterio: ${describeStop(stop)}`
       };
     },
     getCharts(params, result) {
@@ -65475,15 +65786,22 @@
     inputs: [
       { id: "fx", label: "f(x)", placeholder: "sin(x)", defaultValue: "sin(x)" },
       { id: "x0", label: "x\u2080 (punto de evaluacion)", placeholder: "1", type: "number", defaultValue: "1" },
-      { id: "h", label: "h (paso)", placeholder: "0.1", defaultValue: "0.1" },
-      { id: "dfx", label: "f'(x) exacta (opcional, para error)", placeholder: "cos(x)", defaultValue: "cos(x)" }
+      { id: "h", label: "h (paso inicial)", placeholder: "0.1", defaultValue: "0.1" },
+      { id: "dfx", label: "f'(x) exacta (opcional, para error)", placeholder: "cos(x)", defaultValue: "cos(x)" },
+      { id: "stop", label: "Criterio de parada", placeholder: "1e-6", type: "stopCriterion", defaultValue: "tolerancia:1e-6", hint: "Criterios por diferencia entre aproximaciones sucesivas o vs exacto (si se dio f'(x))." },
+      { id: "maxIter", label: "Max iteraciones (h se divide por 2)", placeholder: "20", type: "number", defaultValue: "20" }
     ],
     tableColumns: [
-      { key: "step", label: "Paso" },
-      { key: "h", label: "h" },
-      { key: "approx", label: "f'(x) aprox" },
-      { key: "exact", label: "f'(x) exacta" },
-      { key: "error", label: "Error absoluto" }
+      { key: "step", label: "Paso", latex: "n" },
+      { key: "h", label: "h", latex: "h" },
+      { key: "approx", label: "f'(x) aprox", latex: "f'(x)_{\\text{aprox}}" },
+      { key: "exact", label: "f'(x) exacta", latex: "f'(x)_{\\text{exacta}}" },
+      { key: "errAbs", label: "|\u0394aprox|", latex: "|\\Delta f'|" },
+      { key: "errRel", label: "Err. rel.", latex: "\\varepsilon_{\\text{rel}}" },
+      { key: "errRelPct", label: "Err. rel. %", latex: "\\varepsilon_{\\text{rel}}\\,(\\%)" },
+      { key: "errAbsExact", label: "|E| vs exacto", latex: "|E|_{\\text{exacto}}" },
+      { key: "errRelExact", label: "Err. rel. vs exacto", latex: "\\varepsilon_{\\text{rel,ex}}" },
+      { key: "errRelPctExact", label: "Err. rel. % vs exacto", latex: "\\varepsilon_{\\text{rel,ex}}\\,(\\%)" }
     ],
     solve(params) {
       const f = parseExpression(params.fx);
@@ -65491,26 +65809,45 @@
       const hStart = parseFloat(params.h) || 0.1;
       const dfExpr = params.dfx?.trim();
       const df = dfExpr ? parseExpression(dfExpr) : null;
+      const stop = parseStop(params.stop);
+      const maxIter = parseInt(params.maxIter) || 20;
       if (isNaN(x0)) throw new Error("x\u2080 debe ser un numero valido");
       const iterations = [];
       let h = hStart;
       let lastApprox = 0;
-      for (let step = 1; step <= 12; step++) {
-        const approx = (f(x0) - f(x0 - h)) / h;
-        const exact = df ? df(x0) : NaN;
-        const error = df ? Math.abs(approx - exact) : step > 1 ? Math.abs(approx - lastApprox) : NaN;
-        iterations.push({ step, h, approx, exact, error: isNaN(error) ? 0 : error });
+      let converged = false;
+      let approx = 0;
+      const exactVal = df ? df(x0) : void 0;
+      for (let step = 1; step <= maxIter; step++) {
+        approx = (f(x0) - f(x0 - h)) / h;
+        const errs = step === 1 ? { errAbs: 0, errRel: 0, errRelPct: 0 } : computeErrors(lastApprox, approx);
+        const errsFull = withExactErrors(errs, approx, exactVal);
+        iterations.push({
+          step,
+          h,
+          approx,
+          exact: exactVal ?? null,
+          errAbs: step === 1 ? null : errs.errAbs,
+          errRel: step === 1 ? null : errs.errRel,
+          errRelPct: step === 1 ? null : errs.errRelPct,
+          errAbsExact: errsFull.errAbsExact ?? null,
+          errRelExact: errsFull.errRelExact ?? null,
+          errRelPctExact: errsFull.errRelPctExact ?? null
+        });
+        if (step > 1 && hasConverged(stop, errsFull)) {
+          converged = true;
+          break;
+        }
         lastApprox = approx;
         h /= 2;
       }
-      const finalApprox = iterations[0].approx;
-      const finalError = df ? Math.abs(finalApprox - df(x0)) : 0;
+      const finalError = exactVal !== void 0 ? Math.abs(approx - exactVal) : 0;
       return {
-        derivative: finalApprox,
+        derivative: approx,
         iterations,
-        converged: true,
+        converged,
         error: finalError,
-        message: `f'(${x0}) \u2248 ${finalApprox.toPrecision(10)}`
+        message: `f'(${x0}) \u2248 ${approx.toPrecision(10)} | Criterio: ${describeStop(stop)}`
       };
     },
     getCharts(params, result) {
@@ -65585,15 +65922,22 @@
     inputs: [
       { id: "fx", label: "f(x)", placeholder: "sin(x)", defaultValue: "sin(x)" },
       { id: "x0", label: "x\u2080 (punto de evaluacion)", placeholder: "1", type: "number", defaultValue: "1" },
-      { id: "h", label: "h (paso)", placeholder: "0.1", defaultValue: "0.1" },
-      { id: "dfx", label: "f'(x) exacta (opcional)", placeholder: "cos(x)", defaultValue: "cos(x)" }
+      { id: "h", label: "h (paso inicial)", placeholder: "0.1", defaultValue: "0.1" },
+      { id: "dfx", label: "f'(x) exacta (opcional)", placeholder: "cos(x)", defaultValue: "cos(x)" },
+      { id: "stop", label: "Criterio de parada", placeholder: "1e-6", type: "stopCriterion", defaultValue: "tolerancia:1e-6", hint: "Criterios por diferencia entre aproximaciones sucesivas o vs exacto (si se dio f'(x))." },
+      { id: "maxIter", label: "Max iteraciones (h se divide por 2)", placeholder: "20", type: "number", defaultValue: "20" }
     ],
     tableColumns: [
-      { key: "step", label: "Paso" },
-      { key: "h", label: "h" },
-      { key: "approx", label: "f'(x) aprox" },
-      { key: "exact", label: "f'(x) exacta" },
-      { key: "error", label: "Error absoluto" }
+      { key: "step", label: "Paso", latex: "n" },
+      { key: "h", label: "h", latex: "h" },
+      { key: "approx", label: "f'(x) aprox", latex: "f'(x)_{\\text{aprox}}" },
+      { key: "exact", label: "f'(x) exacta", latex: "f'(x)_{\\text{exacta}}" },
+      { key: "errAbs", label: "|\u0394aprox|", latex: "|\\Delta f'|" },
+      { key: "errRel", label: "Err. rel.", latex: "\\varepsilon_{\\text{rel}}" },
+      { key: "errRelPct", label: "Err. rel. %", latex: "\\varepsilon_{\\text{rel}}\\,(\\%)" },
+      { key: "errAbsExact", label: "|E| vs exacto", latex: "|E|_{\\text{exacto}}" },
+      { key: "errRelExact", label: "Err. rel. vs exacto", latex: "\\varepsilon_{\\text{rel,ex}}" },
+      { key: "errRelPctExact", label: "Err. rel. % vs exacto", latex: "\\varepsilon_{\\text{rel,ex}}\\,(\\%)" }
     ],
     solve(params) {
       const f = parseExpression(params.fx);
@@ -65601,26 +65945,45 @@
       const hStart = parseFloat(params.h) || 0.1;
       const dfExpr = params.dfx?.trim();
       const df = dfExpr ? parseExpression(dfExpr) : null;
+      const stop = parseStop(params.stop);
+      const maxIter = parseInt(params.maxIter) || 20;
       if (isNaN(x0)) throw new Error("x\u2080 debe ser un numero valido");
       const iterations = [];
       let h = hStart;
       let lastApprox = 0;
-      for (let step = 1; step <= 12; step++) {
-        const approx = (f(x0 + h) - f(x0 - h)) / (2 * h);
-        const exact = df ? df(x0) : NaN;
-        const error = df ? Math.abs(approx - exact) : step > 1 ? Math.abs(approx - lastApprox) : NaN;
-        iterations.push({ step, h, approx, exact, error: isNaN(error) ? 0 : error });
+      let converged = false;
+      let approx = 0;
+      const exactVal = df ? df(x0) : void 0;
+      for (let step = 1; step <= maxIter; step++) {
+        approx = (f(x0 + h) - f(x0 - h)) / (2 * h);
+        const errs = step === 1 ? { errAbs: 0, errRel: 0, errRelPct: 0 } : computeErrors(lastApprox, approx);
+        const errsFull = withExactErrors(errs, approx, exactVal);
+        iterations.push({
+          step,
+          h,
+          approx,
+          exact: exactVal ?? null,
+          errAbs: step === 1 ? null : errs.errAbs,
+          errRel: step === 1 ? null : errs.errRel,
+          errRelPct: step === 1 ? null : errs.errRelPct,
+          errAbsExact: errsFull.errAbsExact ?? null,
+          errRelExact: errsFull.errRelExact ?? null,
+          errRelPctExact: errsFull.errRelPctExact ?? null
+        });
+        if (step > 1 && hasConverged(stop, errsFull)) {
+          converged = true;
+          break;
+        }
         lastApprox = approx;
         h /= 2;
       }
-      const finalApprox = iterations[0].approx;
-      const finalError = df ? Math.abs(finalApprox - df(x0)) : 0;
+      const finalError = exactVal !== void 0 ? Math.abs(approx - exactVal) : 0;
       return {
-        derivative: finalApprox,
+        derivative: approx,
         iterations,
-        converged: true,
+        converged,
         error: finalError,
-        message: `f'(${x0}) \u2248 ${finalApprox.toPrecision(10)}, O(h\xB2)`
+        message: `f'(${x0}) \u2248 ${approx.toPrecision(10)}, O(h\xB2) | Criterio: ${describeStop(stop)}`
       };
     },
     getCharts(params, result) {
@@ -65696,15 +66059,22 @@
     inputs: [
       { id: "fx", label: "f(x)", placeholder: "sin(x)", defaultValue: "sin(x)" },
       { id: "x0", label: "x\u2080 (punto de evaluacion)", placeholder: "1", type: "number", defaultValue: "1" },
-      { id: "h", label: "h (paso)", placeholder: "0.1", defaultValue: "0.1" },
-      { id: "ddfx", label: "f''(x) exacta (opcional)", placeholder: "-sin(x)", defaultValue: "-sin(x)" }
+      { id: "h", label: "h (paso inicial)", placeholder: "0.1", defaultValue: "0.1" },
+      { id: "ddfx", label: "f''(x) exacta (opcional)", placeholder: "-sin(x)", defaultValue: "-sin(x)" },
+      { id: "stop", label: "Criterio de parada", placeholder: "1e-6", type: "stopCriterion", defaultValue: "tolerancia:1e-6", hint: "Criterios por diferencia entre aproximaciones sucesivas o vs exacto (si se dio f''(x))." },
+      { id: "maxIter", label: "Max iteraciones (h se divide por 2)", placeholder: "20", type: "number", defaultValue: "20" }
     ],
     tableColumns: [
-      { key: "step", label: "Paso" },
-      { key: "h", label: "h" },
-      { key: "approx", label: "f''(x) aprox" },
-      { key: "exact", label: "f''(x) exacta" },
-      { key: "error", label: "Error absoluto" }
+      { key: "step", label: "Paso", latex: "n" },
+      { key: "h", label: "h", latex: "h" },
+      { key: "approx", label: "f''(x) aprox", latex: "f''(x)_{\\text{aprox}}" },
+      { key: "exact", label: "f''(x) exacta", latex: "f''(x)_{\\text{exacta}}" },
+      { key: "errAbs", label: "|\u0394aprox|", latex: "|\\Delta f''|" },
+      { key: "errRel", label: "Err. rel.", latex: "\\varepsilon_{\\text{rel}}" },
+      { key: "errRelPct", label: "Err. rel. %", latex: "\\varepsilon_{\\text{rel}}\\,(\\%)" },
+      { key: "errAbsExact", label: "|E| vs exacto", latex: "|E|_{\\text{exacto}}" },
+      { key: "errRelExact", label: "Err. rel. vs exacto", latex: "\\varepsilon_{\\text{rel,ex}}" },
+      { key: "errRelPctExact", label: "Err. rel. % vs exacto", latex: "\\varepsilon_{\\text{rel,ex}}\\,(\\%)" }
     ],
     solve(params) {
       const f = parseExpression(params.fx);
@@ -65712,26 +66082,45 @@
       const hStart = parseFloat(params.h) || 0.1;
       const ddfExpr = params.ddfx?.trim();
       const ddf = ddfExpr ? parseExpression(ddfExpr) : null;
+      const stop = parseStop(params.stop);
+      const maxIter = parseInt(params.maxIter) || 20;
       if (isNaN(x0)) throw new Error("x\u2080 debe ser un numero valido");
       const iterations = [];
       let h = hStart;
       let lastApprox = 0;
-      for (let step = 1; step <= 12; step++) {
-        const approx = (f(x0 + h) - 2 * f(x0) + f(x0 - h)) / (h * h);
-        const exact = ddf ? ddf(x0) : NaN;
-        const error = ddf ? Math.abs(approx - exact) : step > 1 ? Math.abs(approx - lastApprox) : NaN;
-        iterations.push({ step, h, approx, exact, error: isNaN(error) ? 0 : error });
+      let converged = false;
+      let approx = 0;
+      const exactVal = ddf ? ddf(x0) : void 0;
+      for (let step = 1; step <= maxIter; step++) {
+        approx = (f(x0 + h) - 2 * f(x0) + f(x0 - h)) / (h * h);
+        const errs = step === 1 ? { errAbs: 0, errRel: 0, errRelPct: 0 } : computeErrors(lastApprox, approx);
+        const errsFull = withExactErrors(errs, approx, exactVal);
+        iterations.push({
+          step,
+          h,
+          approx,
+          exact: exactVal ?? null,
+          errAbs: step === 1 ? null : errs.errAbs,
+          errRel: step === 1 ? null : errs.errRel,
+          errRelPct: step === 1 ? null : errs.errRelPct,
+          errAbsExact: errsFull.errAbsExact ?? null,
+          errRelExact: errsFull.errRelExact ?? null,
+          errRelPctExact: errsFull.errRelPctExact ?? null
+        });
+        if (step > 1 && hasConverged(stop, errsFull)) {
+          converged = true;
+          break;
+        }
         lastApprox = approx;
         h /= 2;
       }
-      const finalApprox = iterations[0].approx;
-      const finalError = ddf ? Math.abs(finalApprox - ddf(x0)) : 0;
+      const finalError = exactVal !== void 0 ? Math.abs(approx - exactVal) : 0;
       return {
-        derivative: finalApprox,
+        derivative: approx,
         iterations,
-        converged: true,
+        converged,
         error: finalError,
-        message: `f''(${x0}) \u2248 ${finalApprox.toPrecision(10)}`
+        message: `f''(${x0}) \u2248 ${approx.toPrecision(10)} | Criterio: ${describeStop(stop)}`
       };
     },
     getCharts(params, result) {
@@ -65804,64 +66193,79 @@
       { id: "fx", label: "f(x)", placeholder: "sin(x)", defaultValue: "sin(x)" },
       { id: "x0", label: "x\u2080 (punto de evaluacion)", placeholder: "1", type: "number", defaultValue: "1" },
       { id: "h", label: "h (paso inicial)", placeholder: "0.5", defaultValue: "0.5" },
-      { id: "levels", label: "Niveles de extrapolacion", placeholder: "4", type: "number", defaultValue: "4" },
-      { id: "dfx", label: "f'(x) exacta (opcional)", placeholder: "cos(x)", defaultValue: "cos(x)" }
+      { id: "levels", label: "Max niveles de extrapolacion", placeholder: "8", type: "number", defaultValue: "8" },
+      { id: "dfx", label: "f'(x) exacta (opcional)", placeholder: "cos(x)", defaultValue: "cos(x)" },
+      { id: "stop", label: "Criterio de parada", placeholder: "1e-6", type: "stopCriterion", defaultValue: "tolerancia:1e-6", hint: "Criterios por diferencia entre D_Rich sucesivos o vs exacto (si se dio f'(x))." }
     ],
     tableColumns: [
-      { key: "level", label: "Nivel" },
-      { key: "h", label: "h" },
-      { key: "D_base", label: "D base (central)" },
-      { key: "D_richardson", label: "D Richardson" },
-      { key: "error_base", label: "Error base" },
-      { key: "error_rich", label: "Error Richardson" }
+      { key: "level", label: "Nivel", latex: "k" },
+      { key: "h", label: "h", latex: "h_k" },
+      { key: "D_base", label: "D base (central)", latex: "D_{\\text{base}}" },
+      { key: "D_richardson", label: "D Richardson", latex: "D_{\\text{Rich}}" },
+      { key: "errAbs", label: "|\u0394D_Rich|", latex: "|\\Delta D_{\\text{Rich}}|" },
+      { key: "errRel", label: "Err. rel.", latex: "\\varepsilon_{\\text{rel}}" },
+      { key: "errRelPct", label: "Err. rel. %", latex: "\\varepsilon_{\\text{rel}}\\,(\\%)" },
+      { key: "errAbsExact", label: "|E_Rich| vs exacto", latex: "|E_{\\text{Rich}}|" },
+      { key: "errRelExact", label: "Err. rel. vs exacto", latex: "\\varepsilon_{\\text{rel,ex}}" },
+      { key: "errRelPctExact", label: "Err. rel. % vs exacto", latex: "\\varepsilon_{\\text{rel,ex}}\\,(\\%)" },
+      { key: "error_base", label: "Error base vs exacto", latex: "|E_{\\text{base}}|" }
     ],
     solve(params) {
       const f = parseExpression(params.fx);
       const x0 = parseFloat(params.x0);
       const hStart = parseFloat(params.h) || 0.5;
-      const levels = parseInt(params.levels) || 4;
+      const levels = parseInt(params.levels) || 8;
       const dfExpr = params.dfx?.trim();
       const df = dfExpr ? parseExpression(dfExpr) : null;
+      const stop = parseStop(params.stop);
       if (isNaN(x0)) throw new Error("x\u2080 debe ser un numero valido");
       if (levels < 2) throw new Error("Se necesitan al menos 2 niveles");
-      const n = levels;
       const D2 = [];
-      for (let i2 = 0; i2 < n; i2++) {
+      const iterations = [];
+      const exactVal = df ? df(x0) : void 0;
+      let converged = false;
+      let lastDRich = 0;
+      let bestApprox = 0;
+      for (let i2 = 0; i2 < levels; i2++) {
         const h = hStart / Math.pow(2, i2);
         D2.push([(f(x0 + h) - f(x0 - h)) / (2 * h)]);
-      }
-      for (let j = 1; j < n; j++) {
-        for (let i2 = j; i2 < n; i2++) {
+        for (let j = 1; j <= i2; j++) {
           const factor = Math.pow(4, j);
           const val = (factor * D2[i2][j - 1] - D2[i2 - 1][j - 1]) / (factor - 1);
           D2[i2].push(val);
         }
-      }
-      const iterations = [];
-      const exact = df ? df(x0) : NaN;
-      for (let i2 = 0; i2 < n; i2++) {
-        const h = hStart / Math.pow(2, i2);
         const dBase = D2[i2][0];
         const dRich = D2[i2][D2[i2].length - 1];
-        const errorBase = df ? Math.abs(dBase - exact) : 0;
-        const errorRich = df ? Math.abs(dRich - exact) : 0;
+        bestApprox = dRich;
+        const errorBase = exactVal !== void 0 ? Math.abs(dBase - exactVal) : null;
+        const errs = i2 === 0 ? { errAbs: 0, errRel: 0, errRelPct: 0 } : computeErrors(lastDRich, dRich);
+        const errsFull = withExactErrors(errs, dRich, exactVal);
         iterations.push({
           level: i2 + 1,
           h,
           D_base: dBase,
           D_richardson: dRich,
-          error_base: errorBase,
-          error_rich: errorRich
+          errAbs: i2 === 0 ? null : errs.errAbs,
+          errRel: i2 === 0 ? null : errs.errRel,
+          errRelPct: i2 === 0 ? null : errs.errRelPct,
+          errAbsExact: errsFull.errAbsExact ?? null,
+          errRelExact: errsFull.errRelExact ?? null,
+          errRelPctExact: errsFull.errRelPctExact ?? null,
+          error_base: errorBase
         });
+        if (i2 > 0 && hasConverged(stop, errsFull)) {
+          converged = true;
+          break;
+        }
+        lastDRich = dRich;
       }
-      const bestApprox = D2[n - 1][D2[n - 1].length - 1];
-      const finalError = df ? Math.abs(bestApprox - exact) : 0;
+      const finalError = exactVal !== void 0 ? Math.abs(bestApprox - exactVal) : 0;
       return {
         derivative: bestApprox,
         iterations,
-        converged: true,
+        converged,
         error: finalError,
-        message: `f'(${x0}) \u2248 ${bestApprox.toPrecision(12)} (nivel ${n})`
+        message: `f'(${x0}) \u2248 ${bestApprox.toPrecision(12)} (nivel ${iterations.length}) | Criterio: ${describeStop(stop)}`
       };
     },
     getCharts(params, result) {
@@ -65887,8 +66291,8 @@
         yLabel: "y"
       };
       const levels = result.iterations.map((r) => r.level);
-      const errBase = result.iterations.map((r) => r.error_base).filter((e3) => e3 > 0);
-      const errRich = result.iterations.map((r) => r.error_rich).filter((e3) => e3 > 0);
+      const errBase = result.iterations.map((r) => r.error_base).filter((e3) => e3 !== null && e3 > 0);
+      const errRich = result.iterations.map((r) => r.errAbsExact).filter((e3) => e3 !== null && e3 > 0);
       const chart2 = {
         title: "Error: Central vs Richardson",
         type: "line",
@@ -81201,11 +81605,49 @@ ${blocks.join("\n\n")}`;
   }
   var lastResult = null;
   var lastParams = null;
+  var STATE_KEY_PREFIX = "modelado-state:";
+  function saveMethodState(method) {
+    try {
+      const values = getInputValues(method);
+      localStorage.setItem(STATE_KEY_PREFIX + method.id, JSON.stringify(values));
+    } catch {
+    }
+  }
+  function loadMethodState(method) {
+    try {
+      const raw = localStorage.getItem(STATE_KEY_PREFIX + method.id);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      return typeof parsed === "object" && parsed !== null ? parsed : null;
+    } catch {
+      return null;
+    }
+  }
+  function clearMethodState(method) {
+    try {
+      localStorage.removeItem(STATE_KEY_PREFIX + method.id);
+    } catch {
+    }
+  }
   function bindMethodEvents(method) {
     mountKeyboard("kb-container");
     setupKeyboardListeners();
     initTableInputs(method);
     mountExerciseDropdown(method);
+    const savedState = loadMethodState(method);
+    if (savedState) setInputValues(method, savedState);
+    const inputsBar = document.querySelector(".method-inputs-bar");
+    if (inputsBar) {
+      const save = () => saveMethodState(method);
+      inputsBar.addEventListener("input", save);
+      inputsBar.addEventListener("change", save);
+      inputsBar.addEventListener("click", (e3) => {
+        const t = e3.target;
+        if (t.closest("[data-table-add]") || t.closest("[data-table-remove]") || t.closest("[data-stop-add]") || t.closest("[data-stop-remove]")) {
+          setTimeout(save, 0);
+        }
+      });
+    }
     document.addEventListener("precision-changed", () => {
       if (!lastResult) return;
       const tableEl = document.getElementById("iter-table");
@@ -81244,6 +81686,7 @@ ${blocks.join("\n\n")}`;
           const el = document.getElementById(`input-${inp.id}`);
           if (el) el.value = inp.defaultValue || "";
         });
+        clearMethodState(method);
       });
     }
     document.querySelectorAll(".method-inputs-bar input").forEach((input) => {
@@ -82540,19 +82983,43 @@ ${blocks.join("\n\n")}`;
   }
 
   // src/views/calculator.ts
+  var normalHistory = [];
   function renderCalculator() {
     setTimeout(bindCalcEvents, 0);
     return `
-    <h2 style="font-size:1.6rem;margin-bottom:4px;">Calculadora Simbolica</h2>
-    <p style="color:var(--subtext0);margin-bottom:24px;">Calcula derivadas e integrales simbolicas. Ingresa la funcion y obtene la expresion resultante.</p>
+    <h2 style="font-size:1.6rem;margin-bottom:4px;">Calculadora</h2>
+    <p style="color:var(--subtext0);margin-bottom:24px;">Modo normal (aritmetico), derivadas y integrales simbolicas paso a paso.</p>
 
     <div style="display:flex;gap:8px;margin-bottom:20px;">
-      <button class="btn btn-primary calc-tab-btn active" data-tab="derivative">Derivada</button>
+      <button class="btn btn-primary calc-tab-btn active" data-tab="normal">Normal</button>
+      <button class="btn btn-secondary calc-tab-btn" data-tab="derivative">Derivada</button>
       <button class="btn btn-secondary calc-tab-btn" data-tab="integral">Integral</button>
     </div>
 
+    <!-- NORMAL TAB -->
+    <div id="calc-tab-normal" class="calc-tab">
+      <div class="method-inputs-bar">
+        <div class="inputs-row">
+          <div class="input-group" style="flex:1;min-width:280px;">
+            <label>Expresion</label>
+            <input id="calc-norm-expr" type="text" placeholder="2 + 3 * sin(pi/4) + sqrt(16)" value="" autocomplete="off" spellcheck="false">
+            <div class="hint">Ej: 2+3, sqrt(2), sin(pi/4), log(e^3), 5!, (1+2)^3. Constantes: pi, e.</div>
+          </div>
+        </div>
+        <div id="kb-container-norm"></div>
+        <div class="btn-row">
+          <button class="btn btn-primary" id="calc-norm-run">Evaluar</button>
+          <button class="btn btn-secondary" id="calc-norm-clear">Limpiar</button>
+          <button class="btn btn-secondary" id="calc-norm-clear-history">Borrar historial</button>
+        </div>
+      </div>
+      <div id="calc-norm-error"></div>
+      <div id="calc-norm-results" style="margin-top:20px;"></div>
+      <div id="calc-norm-history" style="margin-top:20px;"></div>
+    </div>
+
     <!-- DERIVATIVE TAB -->
-    <div id="calc-tab-derivative" class="calc-tab">
+    <div id="calc-tab-derivative" class="calc-tab" style="display:none;">
       <div class="method-inputs-bar">
         <div class="inputs-row">
           <div class="input-group" style="flex:3;min-width:280px;">
@@ -82608,8 +83075,9 @@ ${blocks.join("\n\n")}`;
   `;
   }
   function bindCalcEvents() {
-    mountKeyboard("kb-container-der");
+    mountKeyboard("kb-container-norm");
     setupKeyboardListeners();
+    renderNormalHistory();
     document.querySelectorAll(".calc-tab-btn").forEach((btn) => {
       btn.addEventListener("click", () => {
         const tab = btn.getAttribute("data-tab");
@@ -82624,8 +83092,19 @@ ${blocks.join("\n\n")}`;
         document.querySelectorAll(".calc-tab").forEach((t) => t.style.display = "none");
         const tabEl = document.getElementById(`calc-tab-${tab}`);
         if (tabEl) tabEl.style.display = "block";
-        mountKeyboard(tab === "derivative" ? "kb-container-der" : "kb-container-int");
+        const kbContainer = tab === "derivative" ? "kb-container-der" : tab === "integral" ? "kb-container-int" : "kb-container-norm";
+        mountKeyboard(kbContainer);
       });
+    });
+    document.getElementById("calc-norm-run")?.addEventListener("click", runNormal);
+    document.getElementById("calc-norm-clear")?.addEventListener("click", () => {
+      document.getElementById("calc-norm-expr").value = "";
+      clearEl("calc-norm-results");
+      clearEl("calc-norm-error");
+    });
+    document.getElementById("calc-norm-clear-history")?.addEventListener("click", () => {
+      normalHistory.length = 0;
+      renderNormalHistory();
     });
     document.getElementById("calc-der-run")?.addEventListener("click", runDerivative);
     document.getElementById("calc-der-clear")?.addEventListener("click", () => {
@@ -82638,6 +83117,11 @@ ${blocks.join("\n\n")}`;
       destroyAllCharts();
       clearEl("calc-int-results");
       clearEl("calc-int-error");
+    });
+    document.querySelectorAll("#calc-tab-normal input").forEach((input) => {
+      input.addEventListener("keydown", (e3) => {
+        if (e3.key === "Enter") runNormal();
+      });
     });
     document.querySelectorAll("#calc-tab-derivative input").forEach((input) => {
       input.addEventListener("keydown", (e3) => {
@@ -82790,6 +83274,67 @@ ${blocks.join("\n\n")}`;
     } catch (e3) {
       if (errEl) errEl.innerHTML = `<div class="error-msg">${e3.message}</div>`;
     }
+  }
+  function runNormal() {
+    clearEl("calc-norm-error");
+    clearEl("calc-norm-results");
+    const errEl = document.getElementById("calc-norm-error");
+    const resEl = document.getElementById("calc-norm-results");
+    try {
+      const expr = document.getElementById("calc-norm-expr").value.trim();
+      if (!expr) throw new Error("Ingresa una expresion");
+      const result = evaluateScalar(expr);
+      const exprTex = exprToTex(expr);
+      const resultStr = formatFull(result);
+      if (resEl) {
+        resEl.innerHTML = `
+        <div class="calc-result-card">
+          <div class="calc-result-label">Resultado</div>
+          <div class="calc-result-tex">
+            ${texBlock(`${exprTex} = ${resultStr}`)}
+          </div>
+          <div class="calc-result-expr">${resultStr}</div>
+        </div>
+      `;
+      }
+      normalHistory.unshift({ expr, result });
+      if (normalHistory.length > 20) normalHistory.length = 20;
+      renderNormalHistory();
+    } catch (e3) {
+      if (errEl) errEl.innerHTML = `<div class="error-msg">${e3.message}</div>`;
+    }
+  }
+  function renderNormalHistory() {
+    const el = document.getElementById("calc-norm-history");
+    if (!el) return;
+    if (normalHistory.length === 0) {
+      el.innerHTML = "";
+      return;
+    }
+    const rows = normalHistory.map((h) => `
+    <div class="calc-history-row" data-expr="${escapeHtml(h.expr)}">
+      <span class="calc-history-expr">${escapeHtml(h.expr)}</span>
+      <span class="calc-history-eq">=</span>
+      <span class="calc-history-result">${escapeHtml(formatFull(h.result))}</span>
+    </div>
+  `).join("");
+    el.innerHTML = `
+    <div class="calc-history-panel">
+      <div class="calc-history-title">Historial</div>
+      ${rows}
+    </div>
+  `;
+    el.querySelectorAll(".calc-history-row").forEach((row2) => {
+      row2.addEventListener("click", () => {
+        const expr = row2.dataset.expr;
+        if (!expr) return;
+        const input = document.getElementById("calc-norm-expr");
+        if (input) {
+          input.value = expr;
+          input.focus();
+        }
+      });
+    });
   }
 
   // src/main.ts

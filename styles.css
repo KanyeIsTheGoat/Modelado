@@ -742,6 +742,40 @@ body {
   color: var(--text);
 }
 
+/* Calculator — normal (arithmetic) mode history */
+.calc-history-panel {
+  margin-top: 20px;
+  background: var(--mantle);
+  border: 1px solid var(--surface0);
+  border-radius: var(--radius);
+  padding: 16px 20px;
+}
+.calc-history-title {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--overlay1);
+  margin-bottom: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.calc-history-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-family: var(--font-mono, monospace);
+  font-size: 0.92rem;
+  border-bottom: 1px dashed var(--surface0);
+  transition: background 0.1s;
+}
+.calc-history-row:last-child { border-bottom: none; }
+.calc-history-row:hover { background: var(--surface0); }
+.calc-history-expr { color: var(--subtext1); flex: 1; overflow-x: auto; white-space: nowrap; }
+.calc-history-eq { color: var(--overlay0); }
+.calc-history-result { color: var(--green); font-weight: 600; }
+
 /* KaTeX color overrides for dark theme */
 .katex { color: var(--subtext1); }
 .method-card .katex { font-size: 0.9rem; }

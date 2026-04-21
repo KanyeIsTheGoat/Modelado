@@ -20,12 +20,12 @@ export const fixedPoint: MethodDefinition = {
     { id: 'exact', label: 'Valor exacto (opcional)', placeholder: 'p.ej. 1.41421356', type: 'number', hint: 'Si se provee, habilita criterios de parada vs exacto.' },
   ],
   tableColumns: [
-    { key: 'iter', label: 'n' },
-    { key: 'xn', label: 'x_n' },
-    { key: 'gxn', label: 'g(x_n)' },
-    { key: 'errAbs', label: '|Δx| abs' },
-    { key: 'errRel', label: 'Err. rel.' },
-    { key: 'errRelPct', label: 'Err. rel. %' },
+    { key: 'iter', label: 'n', latex: 'n' },
+    { key: 'xn', label: 'x_n', latex: 'x_n' },
+    { key: 'gxn', label: 'g(x_n)', latex: 'g(x_n)' },
+    { key: 'errAbs', label: '|Δx| abs', latex: '|\\Delta x|' },
+    { key: 'errRel', label: 'Err. rel.', latex: '\\varepsilon_{\\text{rel}}' },
+    { key: 'errRelPct', label: 'Err. rel. %', latex: '\\varepsilon_{\\text{rel}}\\,(\\%)' },
   ],
   steps: [
     'Parti de <code>f(x) = 0</code> y <b>despeja</b> una funcion <code>g(x)</code> equivalente: <code>x = g(x)</code>. Para <code>x² = 2</code> → <code>g(x) = (x + 2/x)/2</code>. Casi siempre hay multiples formas validas; conviene la que sea <em>contractiva</em>.',

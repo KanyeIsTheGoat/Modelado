@@ -44,12 +44,12 @@ export const montecarloArea: MethodDefinition = {
     { id: 'seed', label: 'Semilla (opcional)', placeholder: 'Vacio = aleatorio', hint: 'Numero o texto.' },
   ],
   tableColumns: [
-    { key: 'k', label: 'k (repeticion)' },
-    { key: 'hits', label: 'Aciertos' },
-    { key: 'estimate', label: 'A_k' },
-    { key: 'runningMean', label: 'Promedio 1..k' },
-    { key: 'stdDevRun', label: 'σ entre repeticiones' },
-    { key: 'exactDiff', label: '|A_k - Exacto|' },
+    { key: 'k', label: 'k (repeticion)', latex: 'k' },
+    { key: 'hits', label: 'Aciertos', latex: 'M' },
+    { key: 'estimate', label: 'A_k', latex: 'A_k' },
+    { key: 'runningMean', label: 'Promedio 1..k', latex: '\\bar{A}_{1..k}' },
+    { key: 'stdDevRun', label: 'σ entre repeticiones', latex: '\\sigma_{\\text{reps}}' },
+    { key: 'exactDiff', label: '|A_k - Exacto|', latex: '|A_k - A^*|' },
   ],
   steps: [
     'Para el <b>parcial 30/04/2025</b> (area entre curvas por Monte Carlo): escribe <code>f(x)</code> (curva <em>superior</em>) y <code>g(x)</code> (curva <em>inferior</em>). Ejemplo parcial: <code>f(x) = x²</code>, <code>g(x) = x³</code> en <code>[0, 1]</code>.',

@@ -32,11 +32,11 @@ export const trapezoidalComp: MethodDefinition = {
     { id: 'exact', label: 'Valor exacto (opcional)', placeholder: 'p.ej. 0.333333', type: 'number', hint: 'Si se provee, se calcula error relativo y se reintenta con n=20 si supera 1%.' },
   ],
   tableColumns: [
-    { key: 'i', label: 'i' },
-    { key: 'xi', label: 'x_i' },
-    { key: 'fxi', label: 'f(x_i)' },
-    { key: 'coeff', label: 'Coeficiente' },
-    { key: 'contrib', label: 'Contribucion' },
+    { key: 'i', label: 'i', latex: 'i' },
+    { key: 'xi', label: 'x_i', latex: 'x_i' },
+    { key: 'fxi', label: 'f(x_i)', latex: 'f(x_i)' },
+    { key: 'coeff', label: 'Coeficiente', latex: 'c_i' },
+    { key: 'contrib', label: 'Contribucion', latex: 'c_i \\cdot f(x_i)' },
   ],
   steps: [
     'Escribe <code>f(x)</code>. Para el <b>parcial 2025-I</b>: <code>ln(x+1)/x</code> sobre <code>[0, 1]</code>. Ojo, en <code>x=0</code> la funcion tiene singularidad removible — el parser lanzaria <code>NaN</code>; usa <code>a = 1e-10</code> (≈ 0) o redefine como <code>ln(x+1)/x</code> y prueba primero n=4. Para <b>parcial 30/04/2025</b>: <code>sqrt(2)·exp(x^2)</code> sobre <code>[0, 1]</code>.',

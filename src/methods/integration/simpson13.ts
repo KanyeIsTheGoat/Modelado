@@ -14,10 +14,10 @@ export const simpson13: MethodDefinition = {
     { id: 'b', label: 'b (limite superior)', placeholder: '1', type: 'number', defaultValue: '1' },
   ],
   tableColumns: [
-    { key: 'punto', label: 'Punto' },
-    { key: 'x', label: 'x' },
-    { key: 'fx', label: 'f(x)' },
-    { key: 'coeff', label: 'Coeficiente' },
+    { key: 'punto', label: 'Punto', latex: '\\text{Punto}' },
+    { key: 'x', label: 'x', latex: 'x' },
+    { key: 'fx', label: 'f(x)', latex: 'f(x)' },
+    { key: 'coeff', label: 'Coeficiente', latex: 'c_i' },
   ],
   steps: [
     'Version <em>simple</em> de Simpson 1/3: usa solo <b>tres puntos</b> — <code>a</code>, <code>m = (a+b)/2</code>, <code>b</code> — y ajusta una <b>parabola</b> que pasa por ellos. Util para didactica o verificar formula; en parcial casi siempre piden la <b>version compuesta</b> con n subintervalos.',

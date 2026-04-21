@@ -343,8 +343,12 @@ export function renderResultSummary(result: MethodResult): string {
   return `<div class="result-summary">${items.join('')}</div>`;
 }
 
-export function renderIterationTable(result: MethodResult, columns: { key: string; label: string }[]): string {
-  const header = columns.map(c => `<th>${c.label}</th>`).join('');
+export function renderIterationTable(result: MethodResult, columns: { key: string; label: string; latex?: string }[]): string {
+  const header = columns.map(c => {
+    const content = c.latex ? texInline(c.latex) : c.label;
+    const tooltip = c.latex ? ` title="${c.label.replace(/"/g, '&quot;')}"` : '';
+    return `<th${tooltip}>${content}</th>`;
+  }).join('');
   const rows = result.iterations.map(row => {
     const cells = columns.map(c => {
       const v = row[c.key];

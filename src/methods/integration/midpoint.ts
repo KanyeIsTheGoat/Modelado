@@ -31,10 +31,10 @@ export const midpoint: MethodDefinition = {
     { id: 'exact', label: 'Valor exacto (opcional)', placeholder: 'p.ej. 0.333333', type: 'number', hint: 'Si se provee, se calcula error relativo y se reintenta con n=20 si supera 1%.' },
   ],
   tableColumns: [
-    { key: 'i', label: 'i' },
-    { key: 'xi_mid', label: 'x_i (medio)' },
-    { key: 'fxi', label: 'f(x_i)' },
-    { key: 'area', label: 'Area parcial' },
+    { key: 'i', label: 'i', latex: 'i' },
+    { key: 'xi_mid', label: 'x_i (medio)', latex: 'x_i^{\\text{medio}}' },
+    { key: 'fxi', label: 'f(x_i)', latex: 'f(x_i)' },
+    { key: 'area', label: 'Area parcial', latex: 'h \\cdot f(x_i)' },
   ],
   steps: [
     'Escribe <code>f(x)</code> — ej. <code>exp(x^2)</code> para el ejercicio del parcial ∫₀² e^(x²) dx.',

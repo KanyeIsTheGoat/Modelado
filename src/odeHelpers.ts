@@ -70,4 +70,4 @@ export function applyOdeTargetAndVerification(
 }
 
 /** Extra table column shown when verifyStep/verifyValue is used */
-export const verifyDiffColumn = { key: 'verifyDiff', label: '|yₙ − esperado|' };
+export const verifyDiffColumn = { key: 'verifyDiff', label: '|yₙ − esperado|', latex: '|y_n - y_{\\text{esperado}}|' };

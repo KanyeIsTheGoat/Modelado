@@ -1,23 +1,50 @@
-import { parseExpression, linspace } from '../parser';
+import { parseExpression, linspace, evaluateScalar } from '../parser';
 import { renderChart, destroyAllCharts } from '../plotter';
 import { mountKeyboard, setupKeyboardListeners } from '../mathKeyboard';
 import { symbolicDerivativeSteps, symbolicIntegralSteps, type SymbolicStep } from '../symbolic';
 import { texBlock, tex, exprToTex } from '../latex';
+import { formatFull } from '../precision';
+
+interface HistoryEntry { expr: string; result: number; }
+const normalHistory: HistoryEntry[] = [];
 
 export function renderCalculator(): string {
   setTimeout(bindCalcEvents, 0);
 
   return `
-    <h2 style="font-size:1.6rem;margin-bottom:4px;">Calculadora Simbolica</h2>
-    <p style="color:var(--subtext0);margin-bottom:24px;">Calcula derivadas e integrales simbolicas. Ingresa la funcion y obtene la expresion resultante.</p>
+    <h2 style="font-size:1.6rem;margin-bottom:4px;">Calculadora</h2>
+    <p style="color:var(--subtext0);margin-bottom:24px;">Modo normal (aritmetico), derivadas y integrales simbolicas paso a paso.</p>
 
     <div style="display:flex;gap:8px;margin-bottom:20px;">
-      <button class="btn btn-primary calc-tab-btn active" data-tab="derivative">Derivada</button>
+      <button class="btn btn-primary calc-tab-btn active" data-tab="normal">Normal</button>
+      <button class="btn btn-secondary calc-tab-btn" data-tab="derivative">Derivada</button>
       <button class="btn btn-secondary calc-tab-btn" data-tab="integral">Integral</button>
     </div>
 
+    <!-- NORMAL TAB -->
+    <div id="calc-tab-normal" class="calc-tab">
+      <div class="method-inputs-bar">
+        <div class="inputs-row">
+          <div class="input-group" style="flex:1;min-width:280px;">
+            <label>Expresion</label>
+            <input id="calc-norm-expr" type="text" placeholder="2 + 3 * sin(pi/4) + sqrt(16)" value="" autocomplete="off" spellcheck="false">
+            <div class="hint">Ej: 2+3, sqrt(2), sin(pi/4), log(e^3), 5!, (1+2)^3. Constantes: pi, e.</div>
+          </div>
+        </div>
+        <div id="kb-container-norm"></div>
+        <div class="btn-row">
+          <button class="btn btn-primary" id="calc-norm-run">Evaluar</button>
+          <button class="btn btn-secondary" id="calc-norm-clear">Limpiar</button>
+          <button class="btn btn-secondary" id="calc-norm-clear-history">Borrar historial</button>
+        </div>
+      </div>
+      <div id="calc-norm-error"></div>
+      <div id="calc-norm-results" style="margin-top:20px;"></div>
+      <div id="calc-norm-history" style="margin-top:20px;"></div>
+    </div>
+
     <!-- DERIVATIVE TAB -->
-    <div id="calc-tab-derivative" class="calc-tab">
+    <div id="calc-tab-derivative" class="calc-tab" style="display:none;">
       <div class="method-inputs-bar">
         <div class="inputs-row">
           <div class="input-group" style="flex:3;min-width:280px;">
@@ -74,8 +101,9 @@ export function renderCalculator(): string {
 }
 
 function bindCalcEvents(): void {
-  mountKeyboard('kb-container-der');
+  mountKeyboard('kb-container-norm');
   setupKeyboardListeners();
+  renderNormalHistory();
 
   // Tab switching
   document.querySelectorAll('.calc-tab-btn').forEach(btn => {
@@ -94,8 +122,24 @@ function bindCalcEvents(): void {
       const tabEl = document.getElementById(`calc-tab-${tab}`);
       if (tabEl) tabEl.style.display = 'block';
 
-      mountKeyboard(tab === 'derivative' ? 'kb-container-der' : 'kb-container-int');
+      const kbContainer =
+        tab === 'derivative' ? 'kb-container-der' :
+        tab === 'integral'   ? 'kb-container-int' :
+                               'kb-container-norm';
+      mountKeyboard(kbContainer);
     });
+  });
+
+  // Buttons — normal
+  document.getElementById('calc-norm-run')?.addEventListener('click', runNormal);
+  document.getElementById('calc-norm-clear')?.addEventListener('click', () => {
+    (document.getElementById('calc-norm-expr') as HTMLInputElement).value = '';
+    clearEl('calc-norm-results');
+    clearEl('calc-norm-error');
+  });
+  document.getElementById('calc-norm-clear-history')?.addEventListener('click', () => {
+    normalHistory.length = 0;
+    renderNormalHistory();
   });
 
   // Buttons
@@ -114,6 +158,9 @@ function bindCalcEvents(): void {
   });
 
   // Enter key
+  document.querySelectorAll('#calc-tab-normal input').forEach(input => {
+    input.addEventListener('keydown', (e) => { if ((e as KeyboardEvent).key === 'Enter') runNormal(); });
+  });
   document.querySelectorAll('#calc-tab-derivative input').forEach(input => {
     input.addEventListener('keydown', (e) => { if ((e as KeyboardEvent).key === 'Enter') runDerivative(); });
   });
@@ -290,4 +337,69 @@ function runIntegral(): void {
   } catch (e: any) {
     if (errEl) errEl.innerHTML = `<div class="error-msg">${e.message}</div>`;
   }
+}
+
+function runNormal(): void {
+  clearEl('calc-norm-error');
+  clearEl('calc-norm-results');
+
+  const errEl = document.getElementById('calc-norm-error');
+  const resEl = document.getElementById('calc-norm-results');
+
+  try {
+    const expr = (document.getElementById('calc-norm-expr') as HTMLInputElement).value.trim();
+    if (!expr) throw new Error('Ingresa una expresion');
+
+    const result = evaluateScalar(expr);
+    const exprTex = exprToTex(expr);
+    const resultStr = formatFull(result);
+
+    if (resEl) {
+      resEl.innerHTML = `
+        <div class="calc-result-card">
+          <div class="calc-result-label">Resultado</div>
+          <div class="calc-result-tex">
+            ${texBlock(`${exprTex} = ${resultStr}`)}
+          </div>
+          <div class="calc-result-expr">${resultStr}</div>
+        </div>
+      `;
+    }
+
+    normalHistory.unshift({ expr, result });
+    if (normalHistory.length > 20) normalHistory.length = 20;
+    renderNormalHistory();
+  } catch (e: any) {
+    if (errEl) errEl.innerHTML = `<div class="error-msg">${e.message}</div>`;
+  }
+}
+
+function renderNormalHistory(): void {
+  const el = document.getElementById('calc-norm-history');
+  if (!el) return;
+  if (normalHistory.length === 0) {
+    el.innerHTML = '';
+    return;
+  }
+  const rows = normalHistory.map(h => `
+    <div class="calc-history-row" data-expr="${escapeHtml(h.expr)}">
+      <span class="calc-history-expr">${escapeHtml(h.expr)}</span>
+      <span class="calc-history-eq">=</span>
+      <span class="calc-history-result">${escapeHtml(formatFull(h.result))}</span>
+    </div>
+  `).join('');
+  el.innerHTML = `
+    <div class="calc-history-panel">
+      <div class="calc-history-title">Historial</div>
+      ${rows}
+    </div>
+  `;
+  el.querySelectorAll<HTMLElement>('.calc-history-row').forEach(row => {
+    row.addEventListener('click', () => {
+      const expr = row.dataset.expr;
+      if (!expr) return;
+      const input = document.getElementById('calc-norm-expr') as HTMLInputElement | null;
+      if (input) { input.value = expr; input.focus(); }
+    });
+  });
 }

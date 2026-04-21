@@ -72,7 +72,7 @@ export interface MethodDefinition {
   inputs: MethodInput[];
   solve: (params: Record<string, string>) => MethodResult;
   getCharts: (params: Record<string, string>, result: MethodResult) => ChartData[];
-  tableColumns: { key: string; label: string }[];
+  tableColumns: { key: string; label: string; latex?: string }[];
   /** Guia paso a paso (HTML inline permitido: <b>, <code>, <em>). Se muestra en la vista del metodo. */
   steps?: string[];
 }

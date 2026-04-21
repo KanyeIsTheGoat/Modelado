@@ -1,5 +1,6 @@
 import type { MethodDefinition, MethodResult, ChartData } from '../types';
 import { parseExpression, linspace } from '../../parser';
+import { parseStop, computeErrors, withExactErrors, hasConverged, describeStop } from '../../stoppingCriteria';
 
 export const richardson: MethodDefinition = {
   id: 'richardson',
@@ -12,76 +13,94 @@ export const richardson: MethodDefinition = {
     { id: 'fx', label: 'f(x)', placeholder: 'sin(x)', defaultValue: 'sin(x)' },
     { id: 'x0', label: 'x₀ (punto de evaluacion)', placeholder: '1', type: 'number', defaultValue: '1' },
     { id: 'h', label: 'h (paso inicial)', placeholder: '0.5', defaultValue: '0.5' },
-    { id: 'levels', label: 'Niveles de extrapolacion', placeholder: '4', type: 'number', defaultValue: '4' },
+    { id: 'levels', label: 'Max niveles de extrapolacion', placeholder: '8', type: 'number', defaultValue: '8' },
     { id: 'dfx', label: "f'(x) exacta (opcional)", placeholder: 'cos(x)', defaultValue: 'cos(x)' },
+    { id: 'stop', label: 'Criterio de parada', placeholder: '1e-6', type: 'stopCriterion', defaultValue: 'tolerancia:1e-6', hint: 'Criterios por diferencia entre D_Rich sucesivos o vs exacto (si se dio f\'(x)).' },
   ],
   tableColumns: [
-    { key: 'level', label: 'Nivel' },
-    { key: 'h', label: 'h' },
-    { key: 'D_base', label: 'D base (central)' },
-    { key: 'D_richardson', label: 'D Richardson' },
-    { key: 'error_base', label: 'Error base' },
-    { key: 'error_rich', label: 'Error Richardson' },
+    { key: 'level', label: 'Nivel', latex: 'k' },
+    { key: 'h', label: 'h', latex: 'h_k' },
+    { key: 'D_base', label: 'D base (central)', latex: 'D_{\\text{base}}' },
+    { key: 'D_richardson', label: 'D Richardson', latex: 'D_{\\text{Rich}}' },
+    { key: 'errAbs', label: '|ΔD_Rich|', latex: '|\\Delta D_{\\text{Rich}}|' },
+    { key: 'errRel', label: 'Err. rel.', latex: '\\varepsilon_{\\text{rel}}' },
+    { key: 'errRelPct', label: 'Err. rel. %', latex: '\\varepsilon_{\\text{rel}}\\,(\\%)' },
+    { key: 'errAbsExact', label: '|E_Rich| vs exacto', latex: '|E_{\\text{Rich}}|' },
+    { key: 'errRelExact', label: 'Err. rel. vs exacto', latex: '\\varepsilon_{\\text{rel,ex}}' },
+    { key: 'errRelPctExact', label: 'Err. rel. % vs exacto', latex: '\\varepsilon_{\\text{rel,ex}}\\,(\\%)' },
+    { key: 'error_base', label: 'Error base vs exacto', latex: '|E_{\\text{base}}|' },
   ],
 
   solve(params) {
     const f = parseExpression(params.fx);
     const x0 = parseFloat(params.x0);
     const hStart = parseFloat(params.h) || 0.5;
-    const levels = parseInt(params.levels) || 4;
+    const levels = parseInt(params.levels) || 8;
     const dfExpr = params.dfx?.trim();
     const df = dfExpr ? parseExpression(dfExpr) : null;
+    const stop = parseStop(params.stop);
 
     if (isNaN(x0)) throw new Error('x₀ debe ser un numero valido');
     if (levels < 2) throw new Error('Se necesitan al menos 2 niveles');
 
-    // Build Richardson table
-    // D[i][j] where i = row (h level), j = column (extrapolation level)
-    const n = levels;
+    // Build Richardson table row by row, checking convergence between D_Rich
     const D: number[][] = [];
+    const iterations: MethodResult['iterations'] = [];
+    const exactVal = df ? df(x0) : undefined;
+    let converged = false;
+    let lastDRich = 0;
+    let bestApprox = 0;
 
-    // Column 0: central differences with decreasing h
-    for (let i = 0; i < n; i++) {
+    for (let i = 0; i < levels; i++) {
       const h = hStart / Math.pow(2, i);
       D.push([(f(x0 + h) - f(x0 - h)) / (2 * h)]);
-    }
 
-    // Fill Richardson table: D[i][j] = (4^j * D[i][j-1] - D[i-1][j-1]) / (4^j - 1)
-    for (let j = 1; j < n; j++) {
-      for (let i = j; i < n; i++) {
+      // Fill column j for row i: D[i][j] = (4^j * D[i][j-1] - D[i-1][j-1]) / (4^j - 1)
+      for (let j = 1; j <= i; j++) {
         const factor = Math.pow(4, j);
         const val = (factor * D[i][j - 1] - D[i - 1][j - 1]) / (factor - 1);
         D[i].push(val);
       }
-    }
 
-    const iterations: MethodResult['iterations'] = [];
-    const exact = df ? df(x0) : NaN;
-
-    for (let i = 0; i < n; i++) {
-      const h = hStart / Math.pow(2, i);
       const dBase = D[i][0];
       const dRich = D[i][D[i].length - 1];
-      const errorBase = df ? Math.abs(dBase - exact) : 0;
-      const errorRich = df ? Math.abs(dRich - exact) : 0;
+      bestApprox = dRich;
+
+      const errorBase = exactVal !== undefined ? Math.abs(dBase - exactVal) : null;
+
+      const errs = i === 0
+        ? { errAbs: 0, errRel: 0, errRelPct: 0 }
+        : computeErrors(lastDRich, dRich);
+      const errsFull = withExactErrors(errs, dRich, exactVal);
 
       iterations.push({
         level: i + 1,
         h,
         D_base: dBase,
         D_richardson: dRich,
+        errAbs: i === 0 ? null : errs.errAbs,
+        errRel: i === 0 ? null : errs.errRel,
+        errRelPct: i === 0 ? null : errs.errRelPct,
+        errAbsExact: errsFull.errAbsExact ?? null,
+        errRelExact: errsFull.errRelExact ?? null,
+        errRelPctExact: errsFull.errRelPctExact ?? null,
         error_base: errorBase,
-        error_rich: errorRich,
       });
+
+      if (i > 0 && hasConverged(stop, errsFull)) {
+        converged = true;
+        break;
+      }
+
+      lastDRich = dRich;
     }
 
-    const bestApprox = D[n - 1][D[n - 1].length - 1];
-    const finalError = df ? Math.abs(bestApprox - exact) : 0;
+    const finalError = exactVal !== undefined ? Math.abs(bestApprox - exactVal) : 0;
 
     return {
       derivative: bestApprox,
-      iterations, converged: true, error: finalError,
-      message: `f'(${x0}) ≈ ${bestApprox.toPrecision(12)} (nivel ${n})`,
+      iterations, converged, error: finalError,
+      message: `f'(${x0}) ≈ ${bestApprox.toPrecision(12)} (nivel ${iterations.length}) | Criterio: ${describeStop(stop)}`,
     };
   },
 
@@ -112,8 +131,8 @@ export const richardson: MethodDefinition = {
 
     // Error comparison: base vs Richardson
     const levels = result.iterations.map(r => r.level as number);
-    const errBase = result.iterations.map(r => r.error_base as number).filter(e => e > 0);
-    const errRich = result.iterations.map(r => r.error_rich as number).filter(e => e > 0);
+    const errBase = result.iterations.map(r => r.error_base as number).filter(e => e !== null && e > 0);
+    const errRich = result.iterations.map(r => r.errAbsExact as number).filter(e => e !== null && e > 0);
 
     const chart2: ChartData = {
       title: 'Error: Central vs Richardson',

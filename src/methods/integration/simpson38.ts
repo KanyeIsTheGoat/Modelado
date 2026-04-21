@@ -14,10 +14,10 @@ export const simpson38: MethodDefinition = {
     { id: 'b', label: 'b (limite superior)', placeholder: '1', type: 'number', defaultValue: '1' },
   ],
   tableColumns: [
-    { key: 'punto', label: 'Punto' },
-    { key: 'x', label: 'x' },
-    { key: 'fx', label: 'f(x)' },
-    { key: 'coeff', label: 'Coeficiente' },
+    { key: 'punto', label: 'Punto', latex: '\\text{Punto}' },
+    { key: 'x', label: 'x', latex: 'x' },
+    { key: 'fx', label: 'f(x)', latex: 'f(x)' },
+    { key: 'coeff', label: 'Coeficiente', latex: 'c_i' },
   ],
   steps: [
     'Version <em>simple</em> de Simpson 3/8: usa <b>4 puntos</b> equiespaciados — <code>a</code>, <code>x_1</code>, <code>x_2</code>, <code>b</code> con <code>h = (b-a)/3</code> — y ajusta un <b>polinomio cubico</b>.',

@@ -20,7 +20,7 @@ export function evaluateDerivativeAt(
   expr: string,
   order: number,
   xi: number,
-): { value: number; derivativeExpr: string | null } {
+): { value: number; derivativeExpr: string | null; derivativeLatex: string | null } {
   try {
     let node: MathNode = math.parse(expr);
     for (let k = 0; k < order; k++) {
@@ -28,12 +28,13 @@ export function evaluateDerivativeAt(
     }
     const simplified = math.simplify(node);
     const derivativeExpr = simplified.toString();
+    const derivativeLatex = simplified.toTex();
     const compiled = math.compile(derivativeExpr);
     const v = compiled.evaluate({ x: xi, e: Math.E, pi: Math.PI }) as number;
-    return { value: typeof v === 'number' ? v : NaN, derivativeExpr };
+    return { value: typeof v === 'number' ? v : NaN, derivativeExpr, derivativeLatex };
   } catch {
     const f = parseExpression(expr);
-    return { value: numericalHighOrderDerivative(f, xi, order), derivativeExpr: null };
+    return { value: numericalHighOrderDerivative(f, xi, order), derivativeExpr: null, derivativeLatex: null };
   }
 }
 
@@ -48,16 +49,19 @@ export function maxAbsDerivative(
   a: number,
   b: number,
   samples: number = 400,
-): { max: number; xAtMax: number; derivativeExpr: string | null } {
+): { max: number; xAtMax: number; derivativeExpr: string | null; derivativeLatex: string | null } {
   let derivedFn: ((x: number) => number) | null = null;
   let derivedStr: string | null = null;
+  let derivedLatex: string | null = null;
 
   try {
     let node: MathNode = math.parse(expr);
     for (let k = 0; k < order; k++) {
       node = math.derivative(node, 'x');
     }
-    derivedStr = math.simplify(node).toString();
+    const simplified = math.simplify(node);
+    derivedStr = simplified.toString();
+    derivedLatex = simplified.toTex();
     const compiled = math.compile(derivedStr);
     derivedFn = (x: number) => {
       const v = compiled.evaluate({ x, e: Math.E, pi: Math.PI }) as number;
@@ -78,7 +82,7 @@ export function maxAbsDerivative(
       xAtMax = x;
     }
   }
-  return { max: maxAbs, xAtMax, derivativeExpr: derivedStr };
+  return { max: maxAbs, xAtMax, derivativeExpr: derivedStr, derivativeLatex: derivedLatex };
 }
 
 /**
@@ -227,7 +231,7 @@ export function renderIntegrationTruncationAtXi(opts: {
     `;
   }
 
-  const { value: fnAtXi, derivativeExpr } = evaluateDerivativeAt(fxExpr, order, xi);
+  const { value: fnAtXi, derivativeExpr, derivativeLatex } = evaluateDerivativeAt(fxExpr, order, xi);
   const orderLatex = order === 2 ? "f''" : 'f^{(4)}';
   const hExpLatex = order === 2 ? 'h^{2}' : 'h^{4}';
   const generalFormulaLatex =
@@ -256,9 +260,11 @@ export function renderIntegrationTruncationAtXi(opts: {
   const signedE = signMul * prefactor * fnAtXi;
   const absE = Math.abs(signedE);
 
-  const derivativeLine = derivativeExpr
-    ? `${texBlock(`${orderLatex}(x) = ${derivativeExpr.replace(/\*/g, '\\cdot ')}`)}`
-    : `<div><em>No se pudo derivar simbolicamente; se uso diferenciacion numerica.</em></div>`;
+  const derivativeLine = derivativeLatex
+    ? `${texBlock(`${orderLatex}(x) = ${derivativeLatex}`)}`
+    : derivativeExpr
+      ? `${texBlock(`${orderLatex}(x) = ${derivativeExpr.replace(/\*/g, '\\cdot ')}`)}`
+      : `<div><em>No se pudo derivar simbolicamente; se uso diferenciacion numerica.</em></div>`;
 
   const evalLine = `${orderLatex}(${fmtNum(xi, 6)}) = ${fmtNum(fnAtXi, 8)}`;
   const plugInLatex =

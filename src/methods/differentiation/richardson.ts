@@ -1,5 +1,5 @@
 import type { MethodDefinition, MethodResult, ChartData } from '../types';
-import { parseExpression, linspace } from '../../parser';
+import { parseExpression, linspace, parseScalar } from '../../parser';
 import { parseStop, computeErrors, withExactErrors, hasConverged, describeStop } from '../../stoppingCriteria';
 
 export const richardson: MethodDefinition = {
@@ -11,8 +11,8 @@ export const richardson: MethodDefinition = {
   description: 'Combina aproximaciones con diferentes h para obtener mayor precision. Usa diferencia central como base.',
   inputs: [
     { id: 'fx', label: 'f(x)', placeholder: 'sin(x)', defaultValue: 'sin(x)' },
-    { id: 'x0', label: 'x₀ (punto de evaluacion)', placeholder: '1', type: 'number', defaultValue: '1' },
-    { id: 'h', label: 'h (paso inicial)', placeholder: '0.5', defaultValue: '0.5' },
+    { id: 'x0', label: 'x₀ (punto de evaluacion)', placeholder: '1', defaultValue: '1', hint: 'Acepta pi, e, pi/4, pi/2, sqrt(2), etc.' },
+    { id: 'h', label: 'h (paso inicial)', placeholder: '0.5', defaultValue: '0.5', hint: 'Acepta expresiones como pi/100.' },
     { id: 'levels', label: 'Max niveles de extrapolacion', placeholder: '8', type: 'number', defaultValue: '8' },
     { id: 'dfx', label: "f'(x) exacta (opcional)", placeholder: 'cos(x)', defaultValue: 'cos(x)' },
     { id: 'stop', label: 'Criterio de parada', placeholder: '1e-6', type: 'stopCriterion', defaultValue: 'tolerancia:1e-6', hint: 'Criterios por diferencia entre D_Rich sucesivos o vs exacto (si se dio f\'(x)).' },
@@ -33,8 +33,8 @@ export const richardson: MethodDefinition = {
 
   solve(params) {
     const f = parseExpression(params.fx);
-    const x0 = parseFloat(params.x0);
-    const hStart = parseFloat(params.h) || 0.5;
+    const x0 = parseScalar(params.x0);
+    const hStart = parseScalar(params.h) || 0.5;
     const levels = parseInt(params.levels) || 8;
     const dfExpr = params.dfx?.trim();
     const df = dfExpr ? parseExpression(dfExpr) : null;
@@ -106,7 +106,7 @@ export const richardson: MethodDefinition = {
 
   getCharts(params, result) {
     const f = parseExpression(params.fx);
-    const x0 = parseFloat(params.x0);
+    const x0 = parseScalar(params.x0);
     const dfExpr = params.dfx?.trim();
     const df = dfExpr ? parseExpression(dfExpr) : null;
 

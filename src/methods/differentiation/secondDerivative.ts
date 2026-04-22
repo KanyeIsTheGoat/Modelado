@@ -1,5 +1,5 @@
 import type { MethodDefinition, MethodResult, ChartData } from '../types';
-import { parseExpression, linspace } from '../../parser';
+import { parseExpression, linspace, parseScalar } from '../../parser';
 import { parseStop, computeErrors, withExactErrors, hasConverged, describeStop } from '../../stoppingCriteria';
 
 export const secondDerivative: MethodDefinition = {
@@ -11,8 +11,8 @@ export const secondDerivative: MethodDefinition = {
   description: 'Aproximacion de segundo orden O(h²) de la segunda derivada usando diferencia central.',
   inputs: [
     { id: 'fx', label: 'f(x)', placeholder: 'sin(x)', defaultValue: 'sin(x)' },
-    { id: 'x0', label: 'x₀ (punto de evaluacion)', placeholder: '1', type: 'number', defaultValue: '1' },
-    { id: 'h', label: 'h (paso inicial)', placeholder: '0.1', defaultValue: '0.1' },
+    { id: 'x0', label: 'x₀ (punto de evaluacion)', placeholder: '1', defaultValue: '1', hint: 'Acepta pi, e, pi/4, pi/2, sqrt(2), etc.' },
+    { id: 'h', label: 'h (paso inicial)', placeholder: '0.1', defaultValue: '0.1', hint: 'Acepta expresiones como pi/100.' },
     { id: 'ddfx', label: "f''(x) exacta (opcional)", placeholder: '-sin(x)', defaultValue: '-sin(x)' },
     { id: 'stop', label: 'Criterio de parada', placeholder: '1e-6', type: 'stopCriterion', defaultValue: 'tolerancia:1e-6', hint: 'Criterios por diferencia entre aproximaciones sucesivas o vs exacto (si se dio f\'\'(x)).' },
     { id: 'maxIter', label: 'Max iteraciones (h se divide por 2)', placeholder: '20', type: 'number', defaultValue: '20' },
@@ -32,8 +32,8 @@ export const secondDerivative: MethodDefinition = {
 
   solve(params) {
     const f = parseExpression(params.fx);
-    const x0 = parseFloat(params.x0);
-    const hStart = parseFloat(params.h) || 0.1;
+    const x0 = parseScalar(params.x0);
+    const hStart = parseScalar(params.h) || 0.1;
     const ddfExpr = params.ddfx?.trim();
     const ddf = ddfExpr ? parseExpression(ddfExpr) : null;
     const stop = parseStop(params.stop);
@@ -86,8 +86,8 @@ export const secondDerivative: MethodDefinition = {
 
   getCharts(params, result) {
     const f = parseExpression(params.fx);
-    const x0 = parseFloat(params.x0);
-    const h = parseFloat(params.h) || 0.1;
+    const x0 = parseScalar(params.x0);
+    const h = parseScalar(params.h) || 0.1;
 
     const pad = 2;
     const xs = linspace(x0 - pad, x0 + pad, 500);

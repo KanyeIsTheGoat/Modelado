@@ -65,6 +65,24 @@ export function numericalDerivative(f: (x: number) => number, x: number, h: numb
  * Supports all math.js functions: sin, cos, log, sqrt, !, factorials, etc.
  * Constants e and pi are pre-loaded.
  */
+/**
+ * Parses a user-provided numeric input that may be a number ("1.5"), a constant
+ * ("pi", "e"), or an expression ("pi/4", "2*pi", "sqrt(2)"). Returns NaN on
+ * failure instead of throwing — use when gating with isNaN().
+ */
+export function parseScalar(raw: string | undefined | null): number {
+  if (raw === undefined || raw === null) return NaN;
+  const s = raw.trim();
+  if (!s) return NaN;
+  const direct = parseFloat(s);
+  if (!isNaN(direct) && /^[-+]?(\d+\.?\d*|\.\d+)([eE][-+]?\d+)?$/.test(s)) return direct;
+  try {
+    return evaluateScalar(s);
+  } catch {
+    return NaN;
+  }
+}
+
 export function evaluateScalar(expr: string): number {
   const raw = expr.trim();
   if (!raw) throw new Error('Expresion vacia');

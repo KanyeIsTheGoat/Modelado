@@ -2,7 +2,7 @@ import type { MethodResult, MethodDefinition, MethodInput } from './methods/type
 import { texInline, texBlock, renderNumber } from './latex';
 import { formatNum, formatFull, getPrecisionMode, setPrecisionMode, ALL_PRECISION_MODES, precisionModeLabel, PrecisionMode } from './precision';
 import { STOP_CRITERION_LABELS, STOP_CRITERION_HINTS, parseStop, StopCriterionKind } from './stoppingCriteria';
-import { evaluateScalar } from './parser';
+import { parseScalar } from './parser';
 
 function renderStopRow(selectedKind: StopCriterionKind, value: string | number, placeholder: string): string {
   const options = (Object.keys(STOP_CRITERION_LABELS) as StopCriterionKind[]).map(k =>
@@ -293,23 +293,30 @@ export function getInputValues(method: MethodDefinition): Record<string, string>
  * Parse a table-input string "x1,y1;x2,y2;..." into an array of number arrays.
  * Cells accept constantes (pi, e) y expresiones matematicas (pi/2, sin(1), 2*pi).
  */
-function parseCell(raw: string): number {
-  const s = raw.trim();
-  if (!s) return NaN;
-  const direct = parseFloat(s);
-  if (!isNaN(direct) && /^[-+]?(\d+\.?\d*|\.\d+)([eE][-+]?\d+)?$/.test(s)) return direct;
-  try {
-    return evaluateScalar(s);
-  } catch {
-    return NaN;
-  }
-}
-
 export function parseTableData(raw: string): number[][] {
   if (!raw || !raw.trim()) return [];
   return raw.split(';').map(row =>
-    row.split(',').map(parseCell).filter(n => !isNaN(n))
+    row.split(',').map(parseScalar).filter(n => !isNaN(n))
   ).filter(r => r.length > 0);
+}
+
+/**
+ * Same shape as parseTableData but also returns the original cell strings,
+ * so callers can display symbolic forms (e.g., "pi/4") instead of decimals.
+ */
+export function parseTableDataWithStrings(raw: string): { values: number[][]; raws: string[][] } {
+  if (!raw || !raw.trim()) return { values: [], raws: [] };
+  const values: number[][] = [];
+  const raws: string[][] = [];
+  raw.split(';').forEach(row => {
+    const cells = row.split(',').map(s => s.trim());
+    const nums = cells.map(parseScalar);
+    const keepIdx = nums.map((n, i) => isNaN(n) ? -1 : i).filter(i => i >= 0);
+    if (keepIdx.length === 0) return;
+    values.push(keepIdx.map(i => nums[i]));
+    raws.push(keepIdx.map(i => cells[i]));
+  });
+  return { values, raws };
 }
 
 export function renderResultSummary(result: MethodResult): string {

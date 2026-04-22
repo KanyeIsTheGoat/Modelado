@@ -1,8 +1,11 @@
 import type { MethodDefinition, MethodResult, ChartData } from '../types';
 import { parseExpression, linspace } from '../../parser';
-import { parseTableData } from '../../ui';
+import { parseTableData, parseTableDataWithStrings } from '../../ui';
 import { maxAbsDerivative } from '../../integrationHelpers';
 import { texBlock } from '../../latex';
+import { create, all } from 'mathjs';
+
+const math = create(all);
 
 function evalLagrange(xs: number[], ys: number[], x: number): { value: number; basis: number[] } {
   const n = xs.length;
@@ -135,6 +138,7 @@ function renderErrorAnalysisPanel(
   xs: number[],
   fxExpr: string,
   derivativeExpr: string | null,
+  derivativeLatex: string | null,
   M: number,
   xAtM: number,
   aInt: number,
@@ -222,7 +226,11 @@ function renderErrorAnalysisPanel(
         <div><b>Datos del problema:</b> nodos <code>x_i = {${nodesList}}</code>, intervalo <code>[${numToLatex(aInt)}, ${numToLatex(bInt)}]</code>, <code>f(x) = ${fxExpr}</code>, grado <code>n = ${n}</code>, <code>(n+1)! = ${fact}</code>.</div>
 
         <div style="margin-top:10px"><b>Paso A — derivada de orden n+1</b></div>
-        ${derivativeExpr ? texBlock(`f^{(${order})}(x) = ${derivativeExpr.replace(/\*/g, '\\cdot ')}`) : '<div><em>No se pudo derivar simbolicamente; se usa diferenciacion numerica.</em></div>'}
+        ${derivativeLatex
+          ? texBlock(`f^{(${order})}(x) = ${derivativeLatex}`)
+          : derivativeExpr
+            ? texBlock(`f^{(${order})}(x) = ${derivativeExpr.replace(/\*/g, '\\cdot ')}`)
+            : '<div><em>No se pudo derivar simbolicamente; se usa diferenciacion numerica.</em></div>'}
 
         <div style="margin-top:10px"><b>Paso B — cota M = max|f⁽ⁿ⁺¹⁾| en el intervalo</b></div>
         ${texBlock(`M = \\max_{x \\in [${numToLatex(aInt)}, ${numToLatex(bInt)}]} |f^{(${order})}(x)| = ${numToLatex(M)} \\quad (\\text{en } x \\approx ${numToLatex(xAtM)})`)}
@@ -240,8 +248,87 @@ function renderErrorAnalysisPanel(
   `;
 }
 
+/** Detecta si alguna celda tiene forma no-numerica (pi, sqrt, etc.) que justifica el modo simbolico. */
+function hasSymbolicCells(raws: string[]): boolean {
+  return raws.some(r => /[a-zA-Z]/.test(r));
+}
+
+/** Intenta renderizar expresion math.js como TeX; si falla devuelve la expresion cruda. */
+function safeToTex(expr: string): string {
+  try {
+    return math.parse(expr).toTex();
+  } catch {
+    return expr;
+  }
+}
+
+function safeSimplifyToTex(expr: string): string {
+  try {
+    const simp = math.simplify(expr);
+    return simp.toTex();
+  } catch {
+    return safeToTex(expr);
+  }
+}
+
+/** Renderiza el panel con Lagrange usando las expresiones crudas (ej: pi/4) sin convertir a decimal. */
+function renderSymbolicLagrangePanel(xsRaw: string[], ysRaw: string[]): string {
+  const n = xsRaw.length;
+  const deg = n - 1;
+
+  const liLines: string[] = [];
+  const liExprs: string[] = [];
+
+  for (let i = 0; i < n; i++) {
+    const numFactorStrs: string[] = [];
+    const denFactorStrs: string[] = [];
+    for (let j = 0; j < n; j++) {
+      if (j === i) continue;
+      numFactorStrs.push(`(x - (${xsRaw[j]}))`);
+      denFactorStrs.push(`((${xsRaw[i]}) - (${xsRaw[j]}))`);
+    }
+    const numExpr = numFactorStrs.join(' * ');
+    const denExpr = denFactorStrs.join(' * ');
+    const liExpr = `(${numExpr}) / (${denExpr})`;
+    liExprs.push(liExpr);
+
+    const numFactoredTex = numFactorStrs.map(safeToTex).join('');
+    const denFactoredTex = denFactorStrs.map(safeToTex).join('');
+    const denSimplifiedTex = safeSimplifyToTex(denExpr);
+    const liSimplifiedTex = safeSimplifyToTex(liExpr);
+
+    liLines.push(
+      texBlock(`L_{${i}}(x) = \\frac{${numFactoredTex}}{${denFactoredTex}} = \\frac{${numFactoredTex}}{${denSimplifiedTex}} = ${liSimplifiedTex}`)
+    );
+  }
+
+  const pExpr = ysRaw.map((y, i) => `((${y})) * (${liExprs[i]})`).join(' + ');
+  const pTex = safeSimplifyToTex(pExpr);
+
+  const sumLine = ysRaw.map((y, i) => `${safeToTex(y)} \\cdot L_{${i}}(x)`).join(' + ');
+
+  return `
+    <div class="theorem-panel theorem-pass">
+      <div class="theorem-header"><span class="theorem-icon">∑</span> Derivacion simbolica del polinomio de Lagrange</div>
+      <div class="theorem-body">
+        <div><b>Grado del polinomio:</b> n − 1 = ${deg} (con ${n} nodos)</div>
+        <div style="margin-top:8px"><b>Bases de Lagrange</b> &nbsp; <code>L_i(x) = ∏_{j≠i} (x − x_j)/(x_i − x_j)</code>:</div>
+        ${liLines.join('')}
+        <div style="margin-top:8px"><b>Polinomio interpolante</b> (se conservan los valores simbolicos tal como se ingresaron, sin pasar a decimal):</div>
+        ${texBlock(`P_{${deg}}(x) = ${sumLine}`)}
+        ${texBlock(`P_{${deg}}(x) = ${pTex}`)}
+      </div>
+    </div>
+  `;
+}
+
 /** Renderiza el panel HTML con la derivacion simbolica de Lagrange. */
-function renderLagrangeDerivationPanel(xs: number[], ys: number[]): string {
+function renderLagrangeDerivationPanel(xs: number[], ys: number[], xsRaw?: string[], ysRaw?: string[]): string {
+  // Si alguna celda tiene forma simbolica (pi, sqrt, etc.), usar el camino simbolico con math.js.
+  if (xsRaw && ysRaw && (hasSymbolicCells(xsRaw) || hasSymbolicCells(ysRaw))) {
+    return renderSymbolicLagrangePanel(xsRaw, ysRaw);
+  }
+
   const n = xs.length;
   const deg = n - 1;
   let finalPoly: Poly = [0];
@@ -325,10 +412,12 @@ export const lagrange: MethodDefinition = {
   ],
 
   solve(params) {
-    const table = parseTableData(params.points);
+    const { values: table, raws: tableRaws } = parseTableDataWithStrings(params.points);
     if (table.length < 2) throw new Error('Se requieren al menos 2 puntos');
     const xs = table.map(r => r[0]);
     const ys = table.map(r => r[1]);
+    const xsRaw = tableRaws.map(r => r[0]);
+    const ysRaw = tableRaws.map(r => r[1]);
 
     const uniqueXs = new Set(xs);
     if (uniqueXs.size !== xs.length) throw new Error('Los valores de x_i deben ser distintos');
@@ -417,7 +506,7 @@ export const lagrange: MethodDefinition = {
         if (derivativeExpr) message += ` · f⁽${n + 1}⁾(x) = ${derivativeExpr}`;
 
         errorPanel = renderErrorAnalysisPanel(
-          xs, fxExpr, derivativeExpr ?? null, d.max, d.xAtMax, aInt, bInt,
+          xs, fxExpr, derivativeExpr ?? null, d.derivativeLatex ?? null, d.max, d.xAtMax, aInt, bInt,
           hasXi ? xiVal : null, pAtXi, fAtXi, pnAtXi, localBound, localActual,
         );
       } catch (e: any) {
@@ -427,7 +516,7 @@ export const lagrange: MethodDefinition = {
       message += ` · (para calcular error local en ξ=${xiVal} falta definir f(x))`;
     }
 
-    const theoremPanels = [renderLagrangeDerivationPanel(xs, ys)];
+    const theoremPanels = [renderLagrangeDerivationPanel(xs, ys, xsRaw, ysRaw)];
     if (errorPanel) theoremPanels.push(errorPanel);
 
     return {

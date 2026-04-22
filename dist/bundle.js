@@ -1892,8 +1892,8 @@
   // node_modules/seedrandom/seedrandom.js
   var require_seedrandom = __commonJS({
     "node_modules/seedrandom/seedrandom.js"(exports, module) {
-      (function(global, pool, math7) {
-        var width = 256, chunks = 6, digits2 = 52, rngname = "random", startdenom = math7.pow(width, chunks), significance = math7.pow(2, digits2), overflow = significance * 2, mask = width - 1, nodecrypto;
+      (function(global, pool, math8) {
+        var width = 256, chunks = 6, digits2 = 52, rngname = "random", startdenom = math8.pow(width, chunks), significance = math8.pow(2, digits2), overflow = significance * 2, mask = width - 1, nodecrypto;
         function seedrandom2(seed, options, callback2) {
           var key = [];
           options = options == true ? { entropy: true } : options || {};
@@ -1934,13 +1934,13 @@
               };
             }
             if (is_math_call) {
-              math7[rngname] = prng2;
+              math8[rngname] = prng2;
               return seed2;
             } else return prng2;
           })(
             prng,
             shortseed,
-            "global" in options ? options.global : this == math7,
+            "global" in options ? options.global : this == math8,
             options.state
           );
         }
@@ -2011,7 +2011,7 @@
         function tostring(a) {
           return String.fromCharCode.apply(0, a);
         }
-        mixkey(math7.random(), pool);
+        mixkey(math8.random(), pool);
         if (typeof module == "object" && module.exports) {
           module.exports = seedrandom2;
           try {
@@ -2023,7 +2023,7 @@
             return seedrandom2;
           });
         } else {
-          math7["seed" + rngname] = seedrandom2;
+          math8["seed" + rngname] = seedrandom2;
         }
       })(
         // global: `self` in browsers (including strict mode and web workers),
@@ -25439,7 +25439,7 @@
        * @return {function} Returns a function which can be called like:
        *                        evalNode(scope: Object, args: Object, context: *)
        */
-      _compile(math7, argNames) {
+      _compile(math8, argNames) {
         throw new Error("Method _compile must be implemented by type " + this.type);
       }
       /**
@@ -25804,9 +25804,9 @@
        * @return {function} Returns a function which can be called like:
        *                        evalNode(scope: Object, args: Object, context: *)
        */
-      _compile(math7, argNames) {
-        var evalObject = this.object._compile(math7, argNames);
-        var evalIndex = this.index._compile(math7, argNames);
+      _compile(math8, argNames) {
+        var evalObject = this.object._compile(math8, argNames);
+        var evalIndex = this.index._compile(math8, argNames);
         if (this.index.isObjectProperty()) {
           var prop = this.index.getObjectProperty();
           return function evalAccessorNode(scope, args, context) {
@@ -25950,13 +25950,13 @@
        * @return {function} Returns a function which can be called like:
        *                        evalNode(scope: Object, args: Object, context: *)
        */
-      _compile(math7, argNames) {
+      _compile(math8, argNames) {
         var evalItems = map(this.items, function(item) {
-          return item._compile(math7, argNames);
+          return item._compile(math8, argNames);
         });
-        var asMatrix = math7.config.matrix !== "Array";
+        var asMatrix = math8.config.matrix !== "Array";
         if (asMatrix) {
-          var matrix2 = math7.matrix;
+          var matrix2 = math8.matrix;
           return function evalArrayNode(scope, args, context) {
             return matrix2(map(evalItems, function(evalItem) {
               return evalItem(scope, args, context);
@@ -26509,10 +26509,10 @@
        * @return {function} Returns a function which can be called like:
        *                        evalNode(scope: Object, args: Object, context: *)
        */
-      _compile(math7, argNames) {
-        var evalObject = this.object._compile(math7, argNames);
-        var evalIndex = this.index ? this.index._compile(math7, argNames) : null;
-        var evalValue = this.value._compile(math7, argNames);
+      _compile(math8, argNames) {
+        var evalObject = this.object._compile(math8, argNames);
+        var evalIndex = this.index ? this.index._compile(math8, argNames) : null;
+        var evalValue = this.value._compile(math8, argNames);
         var name315 = this.object.name;
         if (!this.index) {
           if (!isSymbolNode(this.object)) {
@@ -26540,7 +26540,7 @@
             return value;
           };
         } else {
-          var evalParentObject = this.object.object._compile(math7, argNames);
+          var evalParentObject = this.object.object._compile(math8, argNames);
           if (this.object.index.isObjectProperty()) {
             var parentProp = this.object.index.getObjectProperty();
             return function evalAssignmentNode(scope, args, context) {
@@ -26552,7 +26552,7 @@
               return value;
             };
           } else {
-            var evalParentIndex = this.object.index._compile(math7, argNames);
+            var evalParentIndex = this.object.index._compile(math8, argNames);
             return function evalAssignmentNode(scope, args, context) {
               var parent = evalParentObject(scope, args, context);
               var parentIndex = evalParentIndex(scope, args, parent);
@@ -26722,10 +26722,10 @@
        * @return {function} Returns a function which can be called like:
        *                        evalNode(scope: Object, args: Object, context: *)
        */
-      _compile(math7, argNames) {
+      _compile(math8, argNames) {
         var evalBlocks = map(this.blocks, function(block) {
           return {
-            evaluate: block.node._compile(math7, argNames),
+            evaluate: block.node._compile(math8, argNames),
             visible: block.visible
           };
         });
@@ -26913,10 +26913,10 @@
        * @return {function} Returns a function which can be called like:
        *                        evalNode(scope: Object, args: Object, context: *)
        */
-      _compile(math7, argNames) {
-        var evalCondition = this.condition._compile(math7, argNames);
-        var evalTrueExpr = this.trueExpr._compile(math7, argNames);
-        var evalFalseExpr = this.falseExpr._compile(math7, argNames);
+      _compile(math8, argNames) {
+        var evalCondition = this.condition._compile(math8, argNames);
+        var evalTrueExpr = this.trueExpr._compile(math8, argNames);
+        var evalFalseExpr = this.falseExpr._compile(math8, argNames);
         return function evalConditionalNode(scope, args, context) {
           return testCondition(evalCondition(scope, args, context)) ? evalTrueExpr(scope, args, context) : evalFalseExpr(scope, args, context);
         };
@@ -27567,7 +27567,7 @@
        * @return {function} Returns a function which can be called like:
        *                        evalNode(scope: Object, args: Object, context: *)
        */
-      _compile(math7, argNames) {
+      _compile(math8, argNames) {
         var value = this.value;
         return function evalConstantNode() {
           return value;
@@ -27765,12 +27765,12 @@
        * @return {function} Returns a function which can be called like:
        *                        evalNode(scope: Object, args: Object, context: *)
        */
-      _compile(math7, argNames) {
+      _compile(math8, argNames) {
         var childArgNames = Object.create(argNames);
         forEach(this.params, function(param) {
           childArgNames[param] = true;
         });
-        var evalExpr = this.expr._compile(math7, childArgNames);
+        var evalExpr = this.expr._compile(math8, childArgNames);
         var name315 = this.name;
         var params = this.params;
         var signature = join(this.types, ",");
@@ -27951,13 +27951,13 @@
        * @return {function} Returns a function which can be called like:
        *                        evalNode(scope: Object, args: Object, context: *)
        */
-      _compile(math7, argNames) {
+      _compile(math8, argNames) {
         var evalDimensions = map(this.dimensions, function(dimension, i2) {
           var needsEnd = dimension.filter((node) => node.isSymbolNode && node.name === "end").length > 0;
           if (needsEnd) {
             var childArgNames = Object.create(argNames);
             childArgNames.end = true;
-            var _evalDimension = dimension._compile(math7, childArgNames);
+            var _evalDimension = dimension._compile(math8, childArgNames);
             return function evalDimension(scope, args, context) {
               if (!isMatrix(context) && !isArray(context) && !isString(context)) {
                 throw new TypeError('Cannot resolve "end": context must be a Matrix, Array, or string but is ' + typeOf(context));
@@ -27968,10 +27968,10 @@
               return _evalDimension(scope, childArgs, context);
             };
           } else {
-            return dimension._compile(math7, argNames);
+            return dimension._compile(math8, argNames);
           }
         });
-        var index3 = getSafeProperty(math7, "index");
+        var index3 = getSafeProperty(math8, "index");
         return function evalIndexNode(scope, args, context) {
           var dimensions = map(evalDimensions, function(evalDimension) {
             return evalDimension(scope, args, context);
@@ -28132,14 +28132,14 @@
        * @return {function} Returns a function which can be called like:
        *                        evalNode(scope: Object, args: Object, context: *)
        */
-      _compile(math7, argNames) {
+      _compile(math8, argNames) {
         var evalEntries = {};
         for (var key in this.properties) {
           if (hasOwnProperty(this.properties, key)) {
             var stringifiedKey = stringify(key);
             var parsedKey = JSON.parse(stringifiedKey);
             var prop = getSafeProperty(this.properties, key);
-            evalEntries[parsedKey] = prop._compile(math7, argNames);
+            evalEntries[parsedKey] = prop._compile(math8, argNames);
           }
         }
         return function evalObjectNode(scope, args, context) {
@@ -28476,22 +28476,22 @@
        * @return {function} Returns a function which can be called like:
        *                        evalNode(scope: Object, args: Object, context: *)
        */
-      _compile(math7, argNames) {
-        if (typeof this.fn !== "string" || !isSafeMethod(math7, this.fn)) {
-          if (!math7[this.fn]) {
+      _compile(math8, argNames) {
+        if (typeof this.fn !== "string" || !isSafeMethod(math8, this.fn)) {
+          if (!math8[this.fn]) {
             throw new Error("Function " + this.fn + ' missing in provided namespace "math"');
           } else {
             throw new Error('No access to function "' + this.fn + '"');
           }
         }
-        var fn = getSafeProperty(math7, this.fn);
+        var fn = getSafeProperty(math8, this.fn);
         var evalArgs = map(this.args, function(arg2) {
-          return arg2._compile(math7, argNames);
+          return arg2._compile(math8, argNames);
         });
         if (typeof fn === "function" && fn.rawArgs === true) {
           var rawArgs = this.args;
           return function evalOperatorNode(scope, args, context) {
-            return fn(rawArgs, math7, createSubScope(scope, args));
+            return fn(rawArgs, math8, createSubScope(scope, args));
           };
         } else if (evalArgs.length === 1) {
           var evalArg0 = evalArgs[0];
@@ -28827,8 +28827,8 @@
        * @return {function} Returns a function which can be called like:
        *                        evalNode(scope: Object, args: Object, context: *)
        */
-      _compile(math7, argNames) {
-        return this.content._compile(math7, argNames);
+      _compile(math8, argNames) {
+        return this.content._compile(math8, argNames);
       }
       /**
        * Get the content of the current Node.
@@ -28995,12 +28995,12 @@
        * @return {function} Returns a function which can be called like:
        *                        evalNode(scope: Object, args: Object, context: *)
        */
-      _compile(math7, argNames) {
-        var range2 = math7.range;
-        var evalStart = this.start._compile(math7, argNames);
-        var evalEnd = this.end._compile(math7, argNames);
+      _compile(math8, argNames) {
+        var range2 = math8.range;
+        var evalStart = this.start._compile(math8, argNames);
+        var evalEnd = this.end._compile(math8, argNames);
         if (this.step) {
-          var evalStep = this.step._compile(math7, argNames);
+          var evalStep = this.step._compile(math8, argNames);
           return function evalRangeNode(scope, args, context) {
             return range2(evalStart(scope, args, context), evalEnd(scope, args, context), evalStep(scope, args, context));
           };
@@ -29210,16 +29210,16 @@
        * @return {function} Returns a function which can be called like:
        *                        evalNode(scope: Object, args: Object, context: *)
        */
-      _compile(math7, argNames) {
+      _compile(math8, argNames) {
         var self2 = this;
-        var compiled = this.params.map((p) => p._compile(math7, argNames));
+        var compiled = this.params.map((p) => p._compile(math8, argNames));
         return function evalRelationalNode(scope, args, context) {
           var evalLhs;
           var evalRhs = compiled[0](scope, args, context);
           for (var i2 = 0; i2 < self2.conditionals.length; i2++) {
             evalLhs = evalRhs;
             evalRhs = compiled[i2 + 1](scope, args, context);
-            var condFn = getSafeProperty(math7, self2.conditionals[i2]);
+            var condFn = getSafeProperty(math8, self2.conditionals[i2]);
             if (!condFn(evalLhs, evalRhs)) {
               return false;
             }
@@ -29340,7 +29340,7 @@
   var dependencies221 = ["math", "?Unit", "Node"];
   var createSymbolNode = /* @__PURE__ */ factory(name220, dependencies221, (_ref) => {
     var {
-      math: math7,
+      math: math8,
       Unit: Unit2,
       Node: Node2
     } = _ref;
@@ -29381,15 +29381,15 @@
        * @return {function} Returns a function which can be called like:
        *                        evalNode(scope: Object, args: Object, context: *)
        */
-      _compile(math8, argNames) {
+      _compile(math9, argNames) {
         var name315 = this.name;
         if (argNames[name315] === true) {
           return function(scope, args, context) {
             return getSafeProperty(args, name315);
           };
-        } else if (name315 in math8) {
+        } else if (name315 in math9) {
           return function(scope, args, context) {
-            return scope.has(name315) ? scope.get(name315) : getSafeProperty(math8, name315);
+            return scope.has(name315) ? scope.get(name315) : getSafeProperty(math9, name315);
           };
         } else {
           var isUnit2 = isValuelessUnit(name315);
@@ -29487,7 +29487,7 @@
        */
       _toTex(options) {
         var isUnit2 = false;
-        if (typeof math7[this.name] === "undefined" && isValuelessUnit(this.name)) {
+        if (typeof math8[this.name] === "undefined" && isValuelessUnit(this.name)) {
           isUnit2 = true;
         }
         var symbol = toSymbol(this.name, isUnit2);
@@ -29509,7 +29509,7 @@
   var createFunctionNode = /* @__PURE__ */ factory(name221, dependencies222, (_ref) => {
     var _FunctionNode;
     var {
-      math: math7,
+      math: math8,
       Node: Node2,
       SymbolNode: SymbolNode3
     } = _ref;
@@ -29612,19 +29612,19 @@
        * @return {function} Returns a function which can be called like:
        *                        evalNode(scope: Object, args: Object, context: *)
        */
-      _compile(math8, argNames) {
-        var evalArgs = this.args.map((arg2) => arg2._compile(math8, argNames));
+      _compile(math9, argNames) {
+        var evalArgs = this.args.map((arg2) => arg2._compile(math9, argNames));
         if (isSymbolNode(this.fn)) {
           var _name = this.fn.name;
           if (!argNames[_name]) {
-            var fn = _name in math8 ? getSafeProperty(math8, _name) : void 0;
+            var fn = _name in math9 ? getSafeProperty(math9, _name) : void 0;
             var isRaw = typeof fn === "function" && fn.rawArgs === true;
             var resolveFn = (scope) => {
               var value;
               if (scope.has(_name)) {
                 value = scope.get(_name);
-              } else if (_name in math8) {
-                value = getSafeProperty(math8, _name);
+              } else if (_name in math9) {
+                value = getSafeProperty(math9, _name);
               } else {
                 return FunctionNode2.onUndefinedFunction(_name);
               }
@@ -29638,7 +29638,7 @@
               return function evalFunctionNode(scope, args, context) {
                 var fn2 = resolveFn(scope);
                 if (fn2.rawArgs === true) {
-                  return fn2(rawArgs, math8, createSubScope(scope, args));
+                  return fn2(rawArgs, math9, createSubScope(scope, args));
                 } else {
                   var values = evalArgs.map((evalArg) => evalArg(scope, args, context));
                   return fn2(...values);
@@ -29680,7 +29680,7 @@
                 throw new TypeError("Argument '".concat(_name, "' was not a function; received: ").concat(strin(fn2)));
               }
               if (fn2.rawArgs) {
-                return fn2(_rawArgs, math8, createSubScope(scope, args));
+                return fn2(_rawArgs, math9, createSubScope(scope, args));
               } else {
                 var values = evalArgs.map((evalArg) => evalArg(scope, args, context));
                 return fn2.apply(fn2, values);
@@ -29688,14 +29688,14 @@
             };
           }
         } else if (isAccessorNode(this.fn) && isIndexNode(this.fn.index) && this.fn.index.isObjectProperty()) {
-          var evalObject = this.fn.object._compile(math8, argNames);
+          var evalObject = this.fn.object._compile(math9, argNames);
           var prop = this.fn.index.getObjectProperty();
           var _rawArgs2 = this.args;
           return function evalFunctionNode(scope, args, context) {
             var object = evalObject(scope, args, context);
             var fn2 = getSafeMethod(object, prop);
             if (fn2 !== null && fn2 !== void 0 && fn2.rawArgs) {
-              return fn2(_rawArgs2, math8, createSubScope(scope, args));
+              return fn2(_rawArgs2, math9, createSubScope(scope, args));
             } else {
               var values = evalArgs.map((evalArg) => evalArg(scope, args, context));
               return fn2.apply(object, values);
@@ -29703,7 +29703,7 @@
           };
         } else {
           var fnExpr = this.fn.toString();
-          var evalFn = this.fn._compile(math8, argNames);
+          var evalFn = this.fn._compile(math9, argNames);
           var _rawArgs3 = this.args;
           return function evalFunctionNode(scope, args, context) {
             var fn2 = evalFn(scope, args, context);
@@ -29711,7 +29711,7 @@
               throw new TypeError("Expression '".concat(fnExpr, "' did not evaluate to a function; value is:") + "\n  ".concat(strin(fn2)));
             }
             if (fn2.rawArgs) {
-              return fn2(_rawArgs3, math8, createSubScope(scope, args));
+              return fn2(_rawArgs3, math9, createSubScope(scope, args));
             } else {
               var values = evalArgs.map((evalArg) => evalArg(scope, args, context));
               return fn2.apply(fn2, values);
@@ -29852,8 +29852,8 @@
         if (latexFunctions[this.name]) {
           latexConverter = latexFunctions[this.name];
         }
-        if (math7[this.name] && (typeof math7[this.name].toTex === "function" || typeof math7[this.name].toTex === "object" || typeof math7[this.name].toTex === "string")) {
-          latexConverter = math7[this.name].toTex;
+        if (math8[this.name] && (typeof math8[this.name].toTex === "function" || typeof math8[this.name].toTex === "object" || typeof math8[this.name].toTex === "string")) {
+          latexConverter = math8[this.name].toTex;
         }
         var customToTex;
         switch (typeof latexConverter) {
@@ -32712,7 +32712,7 @@
   var createChainClass = /* @__PURE__ */ factory(name238, dependencies239, (_ref) => {
     var {
       on,
-      math: math7,
+      math: math8,
       typed: typed3
     } = _ref;
     function Chain2(value) {
@@ -32802,7 +32802,7 @@
       isChain: true
       // conflicts with the property isChain of a Chain instance
     };
-    Chain2.createProxy(math7);
+    Chain2.createProxy(math8);
     if (on) {
       on("import", function(name315, resolver, path2) {
         if (!path2) {
@@ -42479,9 +42479,9 @@
   });
 
   // node_modules/mathjs/lib/esm/expression/transform/utils/compileInlineExpression.js
-  function compileInlineExpression(expression, math7, scope) {
+  function compileInlineExpression(expression, math8, scope) {
     var symbol = expression.filter(function(node) {
-      return isSymbolNode(node) && !(node.name in math7) && !scope.has(node.name);
+      return isSymbolNode(node) && !(node.name in math8) && !scope.has(node.name);
     })[0];
     if (!symbol) {
       throw new Error('No undefined variable found in inline expression "' + expression + '"');
@@ -42564,7 +42564,7 @@
     var {
       typed: typed3
     } = _ref;
-    function filterTransform(args, math7, scope) {
+    function filterTransform(args, math8, scope) {
       var filter3 = createFilter({
         typed: typed3
       });
@@ -42587,7 +42587,7 @@
         if (isSymbolNode(callback2) || isFunctionAssignmentNode(callback2)) {
           callback2 = _compileAndEvaluate(callback2, scope);
         } else {
-          callback2 = compileInlineExpression(callback2, math7, scope);
+          callback2 = compileInlineExpression(callback2, math8, scope);
         }
       }
       return filter3(x, transformCallback(callback2, N));
@@ -42614,7 +42614,7 @@
     var transformCallback = createTransformCallback({
       typed: typed3
     });
-    function forEachTransform(args, math7, scope) {
+    function forEachTransform(args, math8, scope) {
       if (args.length === 0) {
         return forEach3();
       }
@@ -42631,7 +42631,7 @@
         if (isSymbolNode(callback2) || isFunctionAssignmentNode(callback2)) {
           callback2 = _compileAndEvaluate(callback2, scope);
         } else {
-          callback2 = compileInlineExpression(callback2, math7, scope);
+          callback2 = compileInlineExpression(callback2, math8, scope);
         }
       }
       return forEach3(x, transformCallback(callback2, N));
@@ -42701,7 +42701,7 @@
     var transformCallback = createTransformCallback({
       typed: typed3
     });
-    function mapTransform(args, math7, scope) {
+    function mapTransform(args, math8, scope) {
       if (args.length === 0) {
         return map5();
       }
@@ -42716,7 +42716,7 @@
         if (isSymbolNode(callback2) || isFunctionAssignmentNode(callback2)) {
           callback2 = _compileAndEvaluate(callback2, scope);
         } else {
-          callback2 = compileInlineExpression(callback2, math7, scope);
+          callback2 = compileInlineExpression(callback2, math8, scope);
         }
       }
       return map5(...X, transformCallback(callback2, N));
@@ -43256,7 +43256,7 @@
       not: not2,
       concat: concat3
     });
-    function andTransform(args, math7, scope) {
+    function andTransform(args, math8, scope) {
       var condition1 = args[0].compile().evaluate(scope);
       if (!isCollection(condition1) && !and2(condition1, true)) {
         return false;
@@ -43288,7 +43288,7 @@
       DenseMatrix: DenseMatrix2,
       concat: concat3
     });
-    function orTransform(args, math7, scope) {
+    function orTransform(args, math8, scope) {
       var condition1 = args[0].compile().evaluate(scope);
       if (!isCollection(condition1) && or2(condition1, false)) {
         return true;
@@ -43322,7 +43322,7 @@
       not: not2,
       concat: concat3
     });
-    function bitAndTransform(args, math7, scope) {
+    function bitAndTransform(args, math8, scope) {
       var condition1 = args[0].compile().evaluate(scope);
       if (!isCollection(condition1)) {
         if (isNaN(condition1)) {
@@ -43359,7 +43359,7 @@
       DenseMatrix: DenseMatrix2,
       concat: concat3
     });
-    function bitOrTransform(args, math7, scope) {
+    function bitOrTransform(args, math8, scope) {
       var condition1 = args[0].compile().evaluate(scope);
       if (!isCollection(condition1)) {
         if (isNaN(condition1)) {
@@ -45917,7 +45917,7 @@
   }
 
   // node_modules/mathjs/lib/esm/core/function/import.js
-  function importFactory(typed3, load, math7, importedFactories) {
+  function importFactory(typed3, load, math8, importedFactories) {
     function mathImport(functions2, options) {
       var num = arguments.length;
       if (num !== 1 && num !== 2) {
@@ -45973,25 +45973,25 @@
           [value.signature]: value
         });
       }
-      if (typed3.isTypedFunction(math7[name315]) && typed3.isTypedFunction(value)) {
+      if (typed3.isTypedFunction(math8[name315]) && typed3.isTypedFunction(value)) {
         if (options.override) {
           value = typed3(name315, value.signatures);
         } else {
-          value = typed3(math7[name315], value);
+          value = typed3(math8[name315], value);
         }
-        math7[name315] = value;
+        math8[name315] = value;
         delete importedFactories[name315];
         _importTransform(name315, value);
-        math7.emit("import", name315, function resolver() {
+        math8.emit("import", name315, function resolver() {
           return value;
         });
         return;
       }
-      if (math7[name315] === void 0 || options.override) {
-        math7[name315] = value;
+      if (math8[name315] === void 0 || options.override) {
+        math8[name315] = value;
         delete importedFactories[name315];
         _importTransform(name315, value);
-        math7.emit("import", name315, function resolver() {
+        math8.emit("import", name315, function resolver() {
           return value;
         });
         return;
@@ -46002,23 +46002,23 @@
     }
     function _importTransform(name315, value) {
       if (value && typeof value.transform === "function") {
-        math7.expression.transform[name315] = value.transform;
+        math8.expression.transform[name315] = value.transform;
         if (allowedInExpressions(name315)) {
-          math7.expression.mathWithTransform[name315] = value.transform;
+          math8.expression.mathWithTransform[name315] = value.transform;
         }
       } else {
-        delete math7.expression.transform[name315];
+        delete math8.expression.transform[name315];
         if (allowedInExpressions(name315)) {
-          math7.expression.mathWithTransform[name315] = value;
+          math8.expression.mathWithTransform[name315] = value;
         }
       }
     }
     function _deleteTransform(name315) {
-      delete math7.expression.transform[name315];
+      delete math8.expression.transform[name315];
       if (allowedInExpressions(name315)) {
-        math7.expression.mathWithTransform[name315] = math7[name315];
+        math8.expression.mathWithTransform[name315] = math8[name315];
       } else {
-        delete math7.expression.mathWithTransform[name315];
+        delete math8.expression.mathWithTransform[name315];
       }
     }
     function _wrap(fn) {
@@ -46028,7 +46028,7 @@
           var arg2 = arguments[i2];
           args[i2] = arg2 && arg2.valueOf();
         }
-        return fn.apply(math7, args);
+        return fn.apply(math8, args);
       };
       if (fn.transform) {
         wrapper.transform = fn.transform;
@@ -46040,8 +46040,8 @@
       if (name315.includes(".")) {
         throw new Error("Factory name should not contain a nested path. Name: " + JSON.stringify(name315));
       }
-      var namespace = isTransformFunctionFactory(factory2) ? math7.expression.transform : math7;
-      var existingTransform = name315 in math7.expression.transform;
+      var namespace = isTransformFunctionFactory(factory2) ? math8.expression.transform : math8;
+      var existingTransform = name315 in math8.expression.transform;
       var existing = hasOwnProperty(namespace, name315) ? namespace[name315] : void 0;
       var resolver = function resolver2() {
         var dependencies316 = {};
@@ -46050,13 +46050,13 @@
             throw new Error("Factory dependency should not contain a nested path. Name: " + JSON.stringify(dependency));
           }
           if (dependency === "math") {
-            dependencies316.math = math7;
+            dependencies316.math = math8;
           } else if (dependency === "mathWithTransform") {
-            dependencies316.mathWithTransform = math7.expression.mathWithTransform;
+            dependencies316.mathWithTransform = math8.expression.mathWithTransform;
           } else if (dependency === "classes") {
-            dependencies316.classes = math7;
+            dependencies316.classes = math8;
           } else {
-            dependencies316[dependency] = math7[dependency];
+            dependencies316[dependency] = math8[dependency];
           }
         });
         var instance = /* @__PURE__ */ factory2(dependencies316);
@@ -46081,7 +46081,7 @@
           _deleteTransform(name315);
         } else {
           if (isTransformFunctionFactory(factory2) || factoryAllowedInExpressions(factory2)) {
-            lazy(math7.expression.mathWithTransform, name315, () => namespace[name315]);
+            lazy(math8.expression.mathWithTransform, name315, () => namespace[name315]);
           }
         }
       } else {
@@ -46090,12 +46090,12 @@
           _deleteTransform(name315);
         } else {
           if (isTransformFunctionFactory(factory2) || factoryAllowedInExpressions(factory2)) {
-            lazy(math7.expression.mathWithTransform, name315, () => namespace[name315]);
+            lazy(math8.expression.mathWithTransform, name315, () => namespace[name315]);
           }
         }
       }
       importedFactories[name315] = factory2;
-      math7.emit("import", name315, resolver);
+      math8.emit("import", name315, resolver);
     }
     function isSupportedType(object) {
       return typeof object === "function" || typeof object === "number" || typeof object === "string" || typeof object === "boolean" || object === null || isUnit(object) || isComplex(object) || isBigNumber(object) || isFraction(object) || isMatrix(object) || Array.isArray(object);
@@ -46131,7 +46131,7 @@
     if (typeof Object.create !== "function") {
       throw new Error("ES5 not supported by this JavaScript engine. Please load the es5-shim and es5-sham library for compatibility.");
     }
-    var math7 = mixin({
+    var math8 = mixin({
       // only here for backward compatibility for legacy factory functions
       isNumber,
       isComplex,
@@ -46177,22 +46177,22 @@
       isSymbolNode,
       isChain
     });
-    math7.config = configFactory(configInternal, math7.emit);
-    math7.expression = {
+    math8.config = configFactory(configInternal, math8.emit);
+    math8.expression = {
       transform: {},
       mathWithTransform: {
-        config: math7.config
+        config: math8.config
       }
     };
     var legacyFactories = [];
     var legacyInstances = [];
     function load(factory2) {
       if (isFactory(factory2)) {
-        return factory2(math7);
+        return factory2(math8);
       }
       var firstProperty = factory2[Object.keys(factory2)[0]];
       if (isFactory(firstProperty)) {
-        return firstProperty(math7);
+        return firstProperty(math8);
       }
       if (!isLegacyFactory(factory2)) {
         console.warn("Factory object with properties `type`, `name`, and `factory` expected", factory2);
@@ -46202,9 +46202,9 @@
       var instance;
       if (index3 === -1) {
         if (factory2.math === true) {
-          instance = factory2.factory(math7.type, configInternal, load, math7.typed, math7);
+          instance = factory2.factory(math8.type, configInternal, load, math8.typed, math8);
         } else {
-          instance = factory2.factory(math7.type, configInternal, load, math7.typed);
+          instance = factory2.factory(math8.type, configInternal, load, math8.typed);
         }
         legacyFactories.push(factory2);
         legacyInstances.push(instance);
@@ -46218,12 +46218,12 @@
       for (var _len = arguments.length, args = new Array(_len), _key = 0; _key < _len; _key++) {
         args[_key] = arguments[_key];
       }
-      return math7.typed.apply(math7.typed, args);
+      return math8.typed.apply(math8.typed, args);
     }
     lazyTyped.isTypedFunction = import_typed_function3.default.isTypedFunction;
-    var internalImport = importFactory(lazyTyped, load, math7, importedFactories);
-    math7.import = internalImport;
-    math7.on("config", () => {
+    var internalImport = importFactory(lazyTyped, load, math8, importedFactories);
+    math8.import = internalImport;
+    math8.on("config", () => {
       Object.values(importedFactories).forEach((factory2) => {
         if (factory2 && factory2.meta && factory2.meta.recreateOnConfigChange) {
           internalImport(factory2, {
@@ -46232,13 +46232,13 @@
         }
       });
     });
-    math7.create = create.bind(null, factories);
-    math7.factory = factory;
-    math7.import(Object.values(deepFlatten(factories)));
-    math7.ArgumentsError = ArgumentsError;
-    math7.DimensionError = DimensionError;
-    math7.IndexError = IndexError;
-    return math7;
+    math8.create = create.bind(null, factories);
+    math8.factory = factory;
+    math8.import(Object.values(deepFlatten(factories)));
+    math8.ArgumentsError = ArgumentsError;
+    math8.DimensionError = DimensionError;
+    math8.IndexError = IndexError;
+    return math8;
   }
 
   // src/parser.ts
@@ -46285,6 +46285,18 @@
   }
   function numericalDerivative(f, x, h = 1e-8) {
     return (f(x + h) - f(x - h)) / (2 * h);
+  }
+  function parseScalar(raw) {
+    if (raw === void 0 || raw === null) return NaN;
+    const s = raw.trim();
+    if (!s) return NaN;
+    const direct = parseFloat(s);
+    if (!isNaN(direct) && /^[-+]?(\d+\.?\d*|\.\d+)([eE][-+]?\d+)?$/.test(s)) return direct;
+    try {
+      return evaluateScalar(s);
+    } catch {
+      return NaN;
+    }
   }
   function evaluateScalar(expr) {
     const raw = expr.trim();
@@ -52951,13 +52963,13 @@
     var annotation = new MathNode2("annotation", [new TextNode(texExpression)]);
     annotation.setAttribute("encoding", "application/x-tex");
     var semantics = new MathNode2("semantics", [wrapper, annotation]);
-    var math7 = new MathNode2("math", [semantics]);
-    math7.setAttribute("xmlns", "http://www.w3.org/1998/Math/MathML");
+    var math8 = new MathNode2("math", [semantics]);
+    math8.setAttribute("xmlns", "http://www.w3.org/1998/Math/MathML");
     if (isDisplayMode) {
-      math7.setAttribute("display", "block");
+      math8.setAttribute("display", "block");
     }
     var wrapperClass = forMathmlOnly ? "katex" : "katex-mathml";
-    return makeSpan([wrapperClass], [math7]);
+    return makeSpan([wrapperClass], [math8]);
   }
   var sizeStyleMap = [
     // Each element contains [textsize, scriptsize, scriptscriptsize].
@@ -57303,12 +57315,12 @@
       return makeAnchor(group.href, [], elements2, options);
     },
     mathmlBuilder: (group, options) => {
-      var math7 = buildExpressionRow(group.body, options);
-      if (!(math7 instanceof MathNode2)) {
-        math7 = new MathNode2("mrow", [math7]);
+      var math8 = buildExpressionRow(group.body, options);
+      if (!(math8 instanceof MathNode2)) {
+        math8 = new MathNode2("mrow", [math8]);
       }
-      math7.setAttribute("href", group.href);
-      return math7;
+      math8.setAttribute("href", group.href);
+      return math8;
     }
   });
   defineFunction({
@@ -62024,23 +62036,27 @@
       }
       const simplified = math5.simplify(node);
       const derivativeExpr = simplified.toString();
+      const derivativeLatex = simplified.toTex();
       const compiled = math5.compile(derivativeExpr);
       const v = compiled.evaluate({ x: xi, e: Math.E, pi: Math.PI });
-      return { value: typeof v === "number" ? v : NaN, derivativeExpr };
+      return { value: typeof v === "number" ? v : NaN, derivativeExpr, derivativeLatex };
     } catch {
       const f = parseExpression(expr);
-      return { value: numericalHighOrderDerivative(f, xi, order), derivativeExpr: null };
+      return { value: numericalHighOrderDerivative(f, xi, order), derivativeExpr: null, derivativeLatex: null };
     }
   }
   function maxAbsDerivative(expr, order, a, b, samples = 400) {
     let derivedFn = null;
     let derivedStr = null;
+    let derivedLatex = null;
     try {
       let node = math5.parse(expr);
       for (let k = 0; k < order; k++) {
         node = math5.derivative(node, "x");
       }
-      derivedStr = math5.simplify(node).toString();
+      const simplified = math5.simplify(node);
+      derivedStr = simplified.toString();
+      derivedLatex = simplified.toTex();
       const compiled = math5.compile(derivedStr);
       derivedFn = (x) => {
         const v = compiled.evaluate({ x, e: Math.E, pi: Math.PI });
@@ -62060,7 +62076,7 @@
         xAtMax = x;
       }
     }
-    return { max: maxAbs, xAtMax, derivativeExpr: derivedStr };
+    return { max: maxAbs, xAtMax, derivativeExpr: derivedStr, derivativeLatex: derivedLatex };
   }
   function numericalHighOrderDerivative(f, x, order, h = 1e-3) {
     if (order === 0) return f(x);
@@ -62141,7 +62157,7 @@
       </div>
     `;
     }
-    const { value: fnAtXi, derivativeExpr } = evaluateDerivativeAt(fxExpr, order, xi);
+    const { value: fnAtXi, derivativeExpr, derivativeLatex } = evaluateDerivativeAt(fxExpr, order, xi);
     const orderLatex = order === 2 ? "f''" : "f^{(4)}";
     const hExpLatex = order === 2 ? "h^{2}" : "h^{4}";
     const generalFormulaLatex = order === 2 ? `E = ${sign5 === "-" ? "-" : ""}\\frac{(b-a)\\,h^{2}}{${denom}}\\, f''(\\xi), \\quad \\xi \\in (a, b)` : `E = ${sign5 === "-" ? "-" : ""}\\frac{(b-a)\\,h^{4}}{${denom}}\\, f^{(4)}(\\xi), \\quad \\xi \\in (a, b)`;
@@ -62164,7 +62180,7 @@
     const signMul = sign5 === "-" ? -1 : 1;
     const signedE = signMul * prefactor * fnAtXi;
     const absE = Math.abs(signedE);
-    const derivativeLine = derivativeExpr ? `${texBlock(`${orderLatex}(x) = ${derivativeExpr.replace(/\*/g, "\\cdot ")}`)}` : `<div><em>No se pudo derivar simbolicamente; se uso diferenciacion numerica.</em></div>`;
+    const derivativeLine = derivativeLatex ? `${texBlock(`${orderLatex}(x) = ${derivativeLatex}`)}` : derivativeExpr ? `${texBlock(`${orderLatex}(x) = ${derivativeExpr.replace(/\*/g, "\\cdot ")}`)}` : `<div><em>No se pudo derivar simbolicamente; se uso diferenciacion numerica.</em></div>`;
     const evalLine = `${orderLatex}(${fmtNum(xi, 6)}) = ${fmtNum(fnAtXi, 8)}`;
     const plugInLatex = order === 2 ? `E = ${sign5 === "-" ? "-" : ""}\\frac{(${fmtNum(ba, 6)})\\,(${fmtNum(h, 6)})^{2}}{${denom}}\\,(${fmtNum(fnAtXi, 6)}) = ${fmtNum(signedE, 8)}` : `E = ${sign5 === "-" ? "-" : ""}\\frac{(${fmtNum(ba, 6)})\\,(${fmtNum(h, 6)})^{4}}{${denom}}\\,(${fmtNum(fnAtXi, 6)}) = ${fmtNum(signedE, 8)}`;
     return `
@@ -64725,22 +64741,25 @@
     }
     return values;
   }
-  function parseCell(raw) {
-    const s = raw.trim();
-    if (!s) return NaN;
-    const direct = parseFloat(s);
-    if (!isNaN(direct) && /^[-+]?(\d+\.?\d*|\.\d+)([eE][-+]?\d+)?$/.test(s)) return direct;
-    try {
-      return evaluateScalar(s);
-    } catch {
-      return NaN;
-    }
-  }
   function parseTableData(raw) {
     if (!raw || !raw.trim()) return [];
     return raw.split(";").map(
-      (row2) => row2.split(",").map(parseCell).filter((n) => !isNaN(n))
+      (row2) => row2.split(",").map(parseScalar).filter((n) => !isNaN(n))
     ).filter((r) => r.length > 0);
+  }
+  function parseTableDataWithStrings(raw) {
+    if (!raw || !raw.trim()) return { values: [], raws: [] };
+    const values = [];
+    const raws = [];
+    raw.split(";").forEach((row2) => {
+      const cells = row2.split(",").map((s) => s.trim());
+      const nums = cells.map(parseScalar);
+      const keepIdx = nums.map((n, i2) => isNaN(n) ? -1 : i2).filter((i2) => i2 >= 0);
+      if (keepIdx.length === 0) return;
+      values.push(keepIdx.map((i2) => nums[i2]));
+      raws.push(keepIdx.map((i2) => cells[i2]));
+    });
+    return { values, raws };
   }
   function renderResultSummary(result) {
     const items = [];
@@ -64838,6 +64857,7 @@
   }
 
   // src/methods/interpolation/lagrange.ts
+  var math6 = create(all);
   function evalLagrange(xs, ys, x) {
     const n = xs.length;
     const basis = [];
@@ -64952,7 +64972,7 @@
     }
     return { max: best, xAtMax: xAt };
   }
-  function renderErrorAnalysisPanel(xs, fxExpr, derivativeExpr, M, xAtM, aInt, bInt, xiVal, pAtXi, fAtXi, pnAtXi, localBound, localActual) {
+  function renderErrorAnalysisPanel(xs, fxExpr, derivativeExpr, derivativeLatex, M, xAtM, aInt, bInt, xiVal, pAtXi, fAtXi, pnAtXi, localBound, localActual) {
     const n = xs.length - 1;
     const order = n + 1;
     const fact = factorial2(order);
@@ -65018,7 +65038,7 @@
         <div><b>Datos del problema:</b> nodos <code>x_i = {${nodesList}}</code>, intervalo <code>[${numToLatex(aInt)}, ${numToLatex(bInt)}]</code>, <code>f(x) = ${fxExpr}</code>, grado <code>n = ${n}</code>, <code>(n+1)! = ${fact}</code>.</div>
 
         <div style="margin-top:10px"><b>Paso A \u2014 derivada de orden n+1</b></div>
-        ${derivativeExpr ? texBlock(`f^{(${order})}(x) = ${derivativeExpr.replace(/\*/g, "\\cdot ")}`) : "<div><em>No se pudo derivar simbolicamente; se usa diferenciacion numerica.</em></div>"}
+        ${derivativeLatex ? texBlock(`f^{(${order})}(x) = ${derivativeLatex}`) : derivativeExpr ? texBlock(`f^{(${order})}(x) = ${derivativeExpr.replace(/\*/g, "\\cdot ")}`) : "<div><em>No se pudo derivar simbolicamente; se usa diferenciacion numerica.</em></div>"}
 
         <div style="margin-top:10px"><b>Paso B \u2014 cota M = max|f\u207D\u207F\u207A\xB9\u207E| en el intervalo</b></div>
         ${texBlock(`M = \\max_{x \\in [${numToLatex(aInt)}, ${numToLatex(bInt)}]} |f^{(${order})}(x)| = ${numToLatex(M)} \\quad (\\text{en } x \\approx ${numToLatex(xAtM)})`)}
@@ -65035,7 +65055,70 @@
     </div>
   `;
   }
-  function renderLagrangeDerivationPanel(xs, ys) {
+  function hasSymbolicCells(raws) {
+    return raws.some((r) => /[a-zA-Z]/.test(r));
+  }
+  function safeToTex(expr) {
+    try {
+      return math6.parse(expr).toTex();
+    } catch {
+      return expr;
+    }
+  }
+  function safeSimplifyToTex(expr) {
+    try {
+      const simp = math6.simplify(expr);
+      return simp.toTex();
+    } catch {
+      return safeToTex(expr);
+    }
+  }
+  function renderSymbolicLagrangePanel(xsRaw, ysRaw) {
+    const n = xsRaw.length;
+    const deg = n - 1;
+    const liLines = [];
+    const liExprs = [];
+    for (let i2 = 0; i2 < n; i2++) {
+      const numFactorStrs = [];
+      const denFactorStrs = [];
+      for (let j = 0; j < n; j++) {
+        if (j === i2) continue;
+        numFactorStrs.push(`(x - (${xsRaw[j]}))`);
+        denFactorStrs.push(`((${xsRaw[i2]}) - (${xsRaw[j]}))`);
+      }
+      const numExpr = numFactorStrs.join(" * ");
+      const denExpr = denFactorStrs.join(" * ");
+      const liExpr = `(${numExpr}) / (${denExpr})`;
+      liExprs.push(liExpr);
+      const numFactoredTex = numFactorStrs.map(safeToTex).join("");
+      const denFactoredTex = denFactorStrs.map(safeToTex).join("");
+      const denSimplifiedTex = safeSimplifyToTex(denExpr);
+      const liSimplifiedTex = safeSimplifyToTex(liExpr);
+      liLines.push(
+        texBlock(`L_{${i2}}(x) = \\frac{${numFactoredTex}}{${denFactoredTex}} = \\frac{${numFactoredTex}}{${denSimplifiedTex}} = ${liSimplifiedTex}`)
+      );
+    }
+    const pExpr = ysRaw.map((y, i2) => `((${y})) * (${liExprs[i2]})`).join(" + ");
+    const pTex = safeSimplifyToTex(pExpr);
+    const sumLine = ysRaw.map((y, i2) => `${safeToTex(y)} \\cdot L_{${i2}}(x)`).join(" + ");
+    return `
+    <div class="theorem-panel theorem-pass">
+      <div class="theorem-header"><span class="theorem-icon">\u2211</span> Derivacion simbolica del polinomio de Lagrange</div>
+      <div class="theorem-body">
+        <div><b>Grado del polinomio:</b> n \u2212 1 = ${deg} (con ${n} nodos)</div>
+        <div style="margin-top:8px"><b>Bases de Lagrange</b> &nbsp; <code>L_i(x) = \u220F_{j\u2260i} (x \u2212 x_j)/(x_i \u2212 x_j)</code>:</div>
+        ${liLines.join("")}
+        <div style="margin-top:8px"><b>Polinomio interpolante</b> (se conservan los valores simbolicos tal como se ingresaron, sin pasar a decimal):</div>
+        ${texBlock(`P_{${deg}}(x) = ${sumLine}`)}
+        ${texBlock(`P_{${deg}}(x) = ${pTex}`)}
+      </div>
+    </div>
+  `;
+  }
+  function renderLagrangeDerivationPanel(xs, ys, xsRaw, ysRaw) {
+    if (xsRaw && ysRaw && (hasSymbolicCells(xsRaw) || hasSymbolicCells(ysRaw))) {
+      return renderSymbolicLagrangePanel(xsRaw, ysRaw);
+    }
     const n = xs.length;
     const deg = n - 1;
     let finalPoly = [0];
@@ -65111,10 +65194,12 @@
       "Informe: polinomio resultante, grafica, error local en \u03BE, cota global, y justificacion de que <code>|error| &lt; 1 %</code>."
     ],
     solve(params) {
-      const table = parseTableData(params.points);
+      const { values: table, raws: tableRaws } = parseTableDataWithStrings(params.points);
       if (table.length < 2) throw new Error("Se requieren al menos 2 puntos");
       const xs = table.map((r) => r[0]);
       const ys = table.map((r) => r[1]);
+      const xsRaw = tableRaws.map((r) => r[0]);
+      const ysRaw = tableRaws.map((r) => r[1]);
       const uniqueXs = new Set(xs);
       if (uniqueXs.size !== xs.length) throw new Error("Los valores de x_i deben ser distintos");
       const xQueryRaw = (params.xQuery ?? "").trim();
@@ -65187,6 +65272,7 @@
             xs,
             fxExpr,
             derivativeExpr ?? null,
+            d.derivativeLatex ?? null,
             d.max,
             d.xAtMax,
             aInt,
@@ -65204,7 +65290,7 @@
       } else if (hasXi) {
         message += ` \xB7 (para calcular error local en \u03BE=${xiVal} falta definir f(x))`;
       }
-      const theoremPanels = [renderLagrangeDerivationPanel(xs, ys)];
+      const theoremPanels = [renderLagrangeDerivationPanel(xs, ys, xsRaw, ysRaw)];
       if (errorPanel) theoremPanels.push(errorPanel);
       return {
         root: value,
@@ -66212,8 +66298,8 @@
     description: "Aproximacion de primer orden O(h) de la derivada usando diferencia hacia adelante.",
     inputs: [
       { id: "fx", label: "f(x)", placeholder: "sin(x)", defaultValue: "sin(x)" },
-      { id: "x0", label: "x\u2080 (punto de evaluacion)", placeholder: "1", type: "number", defaultValue: "1" },
-      { id: "h", label: "h (paso inicial)", placeholder: "0.1", defaultValue: "0.1" },
+      { id: "x0", label: "x\u2080 (punto de evaluacion)", placeholder: "1", defaultValue: "1", hint: "Acepta pi, e, pi/4, pi/2, sqrt(2), etc." },
+      { id: "h", label: "h (paso inicial)", placeholder: "0.1", defaultValue: "0.1", hint: "Acepta expresiones como pi/100." },
       { id: "dfx", label: "f'(x) exacta (opcional, para error)", placeholder: "cos(x)", hint: "Para calcular error real y habilitar criterios vs exacto", defaultValue: "cos(x)" },
       { id: "stop", label: "Criterio de parada", placeholder: "1e-6", type: "stopCriterion", defaultValue: "tolerancia:1e-6", hint: "Criterios por diferencia entre aproximaciones sucesivas o vs exacto (si se dio f'(x))." },
       { id: "maxIter", label: "Max iteraciones (h se divide por 2)", placeholder: "20", type: "number", defaultValue: "20" }
@@ -66232,8 +66318,8 @@
     ],
     solve(params) {
       const f = parseExpression(params.fx);
-      const x0 = parseFloat(params.x0);
-      const hStart = parseFloat(params.h) || 0.1;
+      const x0 = parseScalar(params.x0);
+      const hStart = parseScalar(params.h) || 0.1;
       const dfExpr = params.dfx?.trim();
       const df = dfExpr ? parseExpression(dfExpr) : null;
       const stop = parseStop(params.stop);
@@ -66279,8 +66365,8 @@
     },
     getCharts(params, result) {
       const f = parseExpression(params.fx);
-      const x0 = parseFloat(params.x0);
-      const h = parseFloat(params.h) || 0.1;
+      const x0 = parseScalar(params.x0);
+      const h = parseScalar(params.h) || 0.1;
       const dfExpr = params.dfx?.trim();
       const df = dfExpr ? parseExpression(dfExpr) : null;
       const pad2 = 2;
@@ -66348,8 +66434,8 @@
     description: "Aproximacion de primer orden O(h) de la derivada usando diferencia hacia atras.",
     inputs: [
       { id: "fx", label: "f(x)", placeholder: "sin(x)", defaultValue: "sin(x)" },
-      { id: "x0", label: "x\u2080 (punto de evaluacion)", placeholder: "1", type: "number", defaultValue: "1" },
-      { id: "h", label: "h (paso inicial)", placeholder: "0.1", defaultValue: "0.1" },
+      { id: "x0", label: "x\u2080 (punto de evaluacion)", placeholder: "1", defaultValue: "1", hint: "Acepta pi, e, pi/4, pi/2, sqrt(2), etc." },
+      { id: "h", label: "h (paso inicial)", placeholder: "0.1", defaultValue: "0.1", hint: "Acepta expresiones como pi/100." },
       { id: "dfx", label: "f'(x) exacta (opcional, para error)", placeholder: "cos(x)", defaultValue: "cos(x)" },
       { id: "stop", label: "Criterio de parada", placeholder: "1e-6", type: "stopCriterion", defaultValue: "tolerancia:1e-6", hint: "Criterios por diferencia entre aproximaciones sucesivas o vs exacto (si se dio f'(x))." },
       { id: "maxIter", label: "Max iteraciones (h se divide por 2)", placeholder: "20", type: "number", defaultValue: "20" }
@@ -66368,8 +66454,8 @@
     ],
     solve(params) {
       const f = parseExpression(params.fx);
-      const x0 = parseFloat(params.x0);
-      const hStart = parseFloat(params.h) || 0.1;
+      const x0 = parseScalar(params.x0);
+      const hStart = parseScalar(params.h) || 0.1;
       const dfExpr = params.dfx?.trim();
       const df = dfExpr ? parseExpression(dfExpr) : null;
       const stop = parseStop(params.stop);
@@ -66415,8 +66501,8 @@
     },
     getCharts(params, result) {
       const f = parseExpression(params.fx);
-      const x0 = parseFloat(params.x0);
-      const h = parseFloat(params.h) || 0.1;
+      const x0 = parseScalar(params.x0);
+      const h = parseScalar(params.h) || 0.1;
       const dfExpr = params.dfx?.trim();
       const df = dfExpr ? parseExpression(dfExpr) : null;
       const pad2 = 2;
@@ -66484,8 +66570,8 @@
     description: "Aproximacion de segundo orden O(h\xB2) de la derivada. Mas precisa que forward/backward.",
     inputs: [
       { id: "fx", label: "f(x)", placeholder: "sin(x)", defaultValue: "sin(x)" },
-      { id: "x0", label: "x\u2080 (punto de evaluacion)", placeholder: "1", type: "number", defaultValue: "1" },
-      { id: "h", label: "h (paso inicial)", placeholder: "0.1", defaultValue: "0.1" },
+      { id: "x0", label: "x\u2080 (punto de evaluacion)", placeholder: "1", defaultValue: "1", hint: "Acepta pi, e, pi/4, pi/2, sqrt(2), etc." },
+      { id: "h", label: "h (paso inicial)", placeholder: "0.1", defaultValue: "0.1", hint: "Acepta expresiones como pi/100." },
       { id: "dfx", label: "f'(x) exacta (opcional)", placeholder: "cos(x)", defaultValue: "cos(x)" },
       { id: "stop", label: "Criterio de parada", placeholder: "1e-6", type: "stopCriterion", defaultValue: "tolerancia:1e-6", hint: "Criterios por diferencia entre aproximaciones sucesivas o vs exacto (si se dio f'(x))." },
       { id: "maxIter", label: "Max iteraciones (h se divide por 2)", placeholder: "20", type: "number", defaultValue: "20" }
@@ -66504,8 +66590,8 @@
     ],
     solve(params) {
       const f = parseExpression(params.fx);
-      const x0 = parseFloat(params.x0);
-      const hStart = parseFloat(params.h) || 0.1;
+      const x0 = parseScalar(params.x0);
+      const hStart = parseScalar(params.h) || 0.1;
       const dfExpr = params.dfx?.trim();
       const df = dfExpr ? parseExpression(dfExpr) : null;
       const stop = parseStop(params.stop);
@@ -66551,8 +66637,8 @@
     },
     getCharts(params, result) {
       const f = parseExpression(params.fx);
-      const x0 = parseFloat(params.x0);
-      const h = parseFloat(params.h) || 0.1;
+      const x0 = parseScalar(params.x0);
+      const h = parseScalar(params.h) || 0.1;
       const dfExpr = params.dfx?.trim();
       const df = dfExpr ? parseExpression(dfExpr) : null;
       const pad2 = 2;
@@ -66621,8 +66707,8 @@
     description: "Aproximacion de segundo orden O(h\xB2) de la segunda derivada usando diferencia central.",
     inputs: [
       { id: "fx", label: "f(x)", placeholder: "sin(x)", defaultValue: "sin(x)" },
-      { id: "x0", label: "x\u2080 (punto de evaluacion)", placeholder: "1", type: "number", defaultValue: "1" },
-      { id: "h", label: "h (paso inicial)", placeholder: "0.1", defaultValue: "0.1" },
+      { id: "x0", label: "x\u2080 (punto de evaluacion)", placeholder: "1", defaultValue: "1", hint: "Acepta pi, e, pi/4, pi/2, sqrt(2), etc." },
+      { id: "h", label: "h (paso inicial)", placeholder: "0.1", defaultValue: "0.1", hint: "Acepta expresiones como pi/100." },
       { id: "ddfx", label: "f''(x) exacta (opcional)", placeholder: "-sin(x)", defaultValue: "-sin(x)" },
       { id: "stop", label: "Criterio de parada", placeholder: "1e-6", type: "stopCriterion", defaultValue: "tolerancia:1e-6", hint: "Criterios por diferencia entre aproximaciones sucesivas o vs exacto (si se dio f''(x))." },
       { id: "maxIter", label: "Max iteraciones (h se divide por 2)", placeholder: "20", type: "number", defaultValue: "20" }
@@ -66641,8 +66727,8 @@
     ],
     solve(params) {
       const f = parseExpression(params.fx);
-      const x0 = parseFloat(params.x0);
-      const hStart = parseFloat(params.h) || 0.1;
+      const x0 = parseScalar(params.x0);
+      const hStart = parseScalar(params.h) || 0.1;
       const ddfExpr = params.ddfx?.trim();
       const ddf = ddfExpr ? parseExpression(ddfExpr) : null;
       const stop = parseStop(params.stop);
@@ -66688,8 +66774,8 @@
     },
     getCharts(params, result) {
       const f = parseExpression(params.fx);
-      const x0 = parseFloat(params.x0);
-      const h = parseFloat(params.h) || 0.1;
+      const x0 = parseScalar(params.x0);
+      const h = parseScalar(params.h) || 0.1;
       const pad2 = 2;
       const xs = linspace(x0 - pad2, x0 + pad2, 500);
       const ys = xs.map((x) => f(x));
@@ -66754,8 +66840,8 @@
     description: "Combina aproximaciones con diferentes h para obtener mayor precision. Usa diferencia central como base.",
     inputs: [
       { id: "fx", label: "f(x)", placeholder: "sin(x)", defaultValue: "sin(x)" },
-      { id: "x0", label: "x\u2080 (punto de evaluacion)", placeholder: "1", type: "number", defaultValue: "1" },
-      { id: "h", label: "h (paso inicial)", placeholder: "0.5", defaultValue: "0.5" },
+      { id: "x0", label: "x\u2080 (punto de evaluacion)", placeholder: "1", defaultValue: "1", hint: "Acepta pi, e, pi/4, pi/2, sqrt(2), etc." },
+      { id: "h", label: "h (paso inicial)", placeholder: "0.5", defaultValue: "0.5", hint: "Acepta expresiones como pi/100." },
       { id: "levels", label: "Max niveles de extrapolacion", placeholder: "8", type: "number", defaultValue: "8" },
       { id: "dfx", label: "f'(x) exacta (opcional)", placeholder: "cos(x)", defaultValue: "cos(x)" },
       { id: "stop", label: "Criterio de parada", placeholder: "1e-6", type: "stopCriterion", defaultValue: "tolerancia:1e-6", hint: "Criterios por diferencia entre D_Rich sucesivos o vs exacto (si se dio f'(x))." }
@@ -66775,8 +66861,8 @@
     ],
     solve(params) {
       const f = parseExpression(params.fx);
-      const x0 = parseFloat(params.x0);
-      const hStart = parseFloat(params.h) || 0.5;
+      const x0 = parseScalar(params.x0);
+      const hStart = parseScalar(params.h) || 0.5;
       const levels = parseInt(params.levels) || 8;
       const dfExpr = params.dfx?.trim();
       const df = dfExpr ? parseExpression(dfExpr) : null;
@@ -66833,7 +66919,7 @@
     },
     getCharts(params, result) {
       const f = parseExpression(params.fx);
-      const x0 = parseFloat(params.x0);
+      const x0 = parseScalar(params.x0);
       const dfExpr = params.dfx?.trim();
       const df = dfExpr ? parseExpression(dfExpr) : null;
       const pad2 = 2;
@@ -82652,13 +82738,13 @@ ${blocks.join("\n\n")}`;
   }
 
   // src/symbolic.ts
-  var math6 = create(all);
+  var math7 = create(all);
   function symbolicDerivativeSteps(expr, variable = "x") {
     try {
-      const node = math6.parse(expr);
+      const node = math7.parse(expr);
       const steps2 = [];
       const derived = deriveStep(node, variable, steps2);
-      const simplified = math6.simplify(derived);
+      const simplified = math7.simplify(derived);
       const derivedStr = derived.toString();
       const simpStr = simplified.toString();
       if (simpStr !== derivedStr) {
@@ -82869,7 +82955,7 @@ ${blocks.join("\n\n")}`;
     if (node.type === "ParenthesisNode") {
       return deriveStep(node.content, v, steps2);
     }
-    const fallback = math6.derivative(node, v);
+    const fallback = math7.derivative(node, v);
     steps2.push({
       rule: "Derivada directa",
       explanation: "Aplicamos la regla est\xE1ndar de math.js para esta expresi\xF3n.",
@@ -83018,10 +83104,10 @@ ${blocks.join("\n\n")}`;
   }
   function symbolicIntegralSteps(expr, variable = "x") {
     try {
-      const node = math6.parse(expr);
+      const node = math7.parse(expr);
       const steps2 = [];
       const integrated = integrateWithSteps(node, variable, steps2);
-      const simplified = math6.simplify(integrated);
+      const simplified = math7.simplify(integrated);
       if (simplified.toString() !== integrated.toString()) {
         steps2.push({
           rule: "Simplificar",
@@ -83320,7 +83406,7 @@ ${blocks.join("\n\n")}`;
   }
   function tryAdvancedIntegration(op2, v, steps2) {
     const str = op2.toString();
-    const simplified = math6.simplify(str);
+    const simplified = math7.simplify(str);
     const simpStr = simplified.toString();
     if (simpStr !== str && !stillMixedProduct(simplified, v)) {
       steps2.push({
@@ -83328,7 +83414,7 @@ ${blocks.join("\n\n")}`;
         explanation: `Simplificamos antes de integrar: ${str} = ${simpStr}.`,
         latex: `${toTex(op2)} \\;=\\; ${toTex(simplified)}`
       });
-      return integrateWithSteps(math6.parse(simpStr), v, steps2);
+      return integrateWithSteps(math7.parse(simpStr), v, steps2);
     }
     const uSub = tryUSubstitution(op2, v, steps2);
     if (uSub) return uSub;
@@ -83407,7 +83493,7 @@ ${blocks.join("\n\n")}`;
     try {
       const throwaway = [];
       du = deriveStep(u, v, throwaway);
-      du = math6.simplify(du);
+      du = math7.simplify(du);
       const throwaway2 = [];
       vInt = integrateWithSteps(dv, v, throwaway2);
     } catch {
@@ -83453,14 +83539,14 @@ ${blocks.join("\n\n")}`;
   }
   function safeDerivative(node, v) {
     try {
-      return math6.simplify(math6.derivative(node, v));
+      return math7.simplify(math7.derivative(node, v));
     } catch {
       return null;
     }
   }
   function equivalentExprs(a, b) {
     try {
-      const diff2 = math6.simplify(new OperatorNode("-", "subtract", [a.cloneDeep(), b.cloneDeep()]));
+      const diff2 = math7.simplify(new OperatorNode("-", "subtract", [a.cloneDeep(), b.cloneDeep()]));
       return diff2.toString() === "0";
     } catch {
       return false;

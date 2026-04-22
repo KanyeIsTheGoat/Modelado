@@ -1,31 +1,32 @@
 import type { MethodDefinition, MethodResult, ChartData } from '../types';
+import { texBlock } from '../../latex';
+import {
+  mulberry32,
+  parseSeed,
+  zForConfidence,
+  parseConfPct,
+  fmtNum,
+  renderKRepsPanel,
+  renderSummaryPanel,
+  renderErrorHalvingPanel,
+} from './monteCarloCommon';
 
 /**
- * Mulberry32 seeded PRNG — uniform distribution, period 2^32.
+ * Run one π-approximation simulation with N Hit-or-Miss points. Returns π estimate and Bernoulli SE.
  */
-function mulberry32(seed: number): () => number {
-  let s = seed | 0;
-  return () => {
-    s = (s + 0x6D2B79F5) | 0;
-    let t = Math.imul(s ^ (s >>> 15), 1 | s);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
-
-function hashString(str: string): number {
-  let hash = 0;
-  for (let i = 0; i < str.length; i++) {
-    hash = ((hash << 5) - hash + str.charCodeAt(i)) | 0;
+function runPi(N: number, seed: number): { estimate: number; stdErr: number; pHat: number } {
+  const rand = mulberry32(seed);
+  let inside = 0;
+  for (let i = 0; i < N; i++) {
+    const x = rand() * 2 - 1;
+    const y = rand() * 2 - 1;
+    if (x * x + y * y <= 1) inside++;
   }
-  return hash;
-}
-
-function parseSeed(input: string | undefined): number | null {
-  if (!input || input.trim() === '') return null;
-  const num = Number(input.trim());
-  if (!isNaN(num)) return num;
-  return hashString(input.trim());
+  const pHat = inside / N;
+  const estimate = 4 * pHat;
+  // Bernoulli variance for p̂: p(1-p)/N, scaled by 4 for π.
+  const stdErr = 4 * Math.sqrt(pHat * (1 - pHat) / N);
+  return { estimate, stdErr, pHat };
 }
 
 export const montecarloPi: MethodDefinition = {
@@ -34,9 +35,11 @@ export const montecarloPi: MethodDefinition = {
   category: 'integration',
   formula: 'π ≈ 4 · (puntos en circulo) / (puntos totales)',
   latexFormula: '\\pi \\approx 4 \\cdot \\frac{\\#\\{(x_i, y_i) : x_i^2 + y_i^2 \\le 1\\}}{N}, \\quad (x_i, y_i) \\sim U([-1,1]^2)',
-  description: 'Aproxima π por muestreo por rechazo: puntos aleatorios en un cuadrado de lado 2, se cuentan los que caen dentro del circulo unitario.',
+  description: 'Aproxima π por muestreo por rechazo: puntos aleatorios en un cuadrado de lado 2, se cuentan los que caen dentro del circulo unitario. Soporta K repeticiones y nivel de confianza configurable.',
   inputs: [
-    { id: 'n', label: 'N (puntos aleatorios)', placeholder: '10000', type: 'number', defaultValue: '10000' },
+    { id: 'n', label: 'N (puntos por repeticion)', placeholder: '10000', type: 'number', defaultValue: '10000' },
+    { id: 'K', label: 'K (repeticiones, 1 = sin promediar)', placeholder: '1', type: 'number', defaultValue: '1', hint: 'Si K>1 se promedian K simulaciones independientes.' },
+    { id: 'conf', label: 'Nivel de confianza (%)', placeholder: '95', type: 'number', defaultValue: '95', hint: 'Ej: 90, 95, 99.' },
     { id: 'seed', label: 'Semilla (opcional)', placeholder: 'Vacio = aleatorio', hint: 'Misma semilla = mismos resultados' },
   ],
   tableColumns: [
@@ -49,61 +52,44 @@ export const montecarloPi: MethodDefinition = {
     { key: 'stdDev', label: 'σ (desv. est.)', latex: '\\sigma' },
     { key: 'stdErr', label: 'SE (err. est.)', latex: 'SE' },
     { key: 'error', label: '|π_est - π|', latex: '|\\hat{\\pi} - \\pi|' },
-    { key: 'ci95Lower', label: 'IC 95% inf', latex: 'IC_{95}^{\\text{inf}}' },
-    { key: 'ci95Upper', label: 'IC 95% sup', latex: 'IC_{95}^{\\text{sup}}' },
+    { key: 'ci95Lower', label: 'IC inf', latex: 'IC^{\\text{inf}}' },
+    { key: 'ci95Upper', label: 'IC sup', latex: 'IC^{\\text{sup}}' },
   ],
   steps: [
-    'Este es el ejemplo clasico del <b>parcial Prueba Evaluativa</b>: aproximar <code>π</code> por muestreo por rechazo. <em>No necesita funcion</em> — solo N.',
-    'Elige <code>N</code> (puntos aleatorios). Recomendado: <code>N = 10000</code> como punto inicial. Para precision ~2 decimales, N ≈ 10⁴; para 3 decimales, N ≈ 10⁶.',
-    '<b>Semilla</b>: usa un valor fijo (ej. <code>42</code>) para reproducir la tabla exacta en tu informe.',
-    'Pulsa <b>Resolver</b>. El algoritmo:<br>&nbsp;&nbsp;1. Genera punto aleatorio <code>(x, y)</code> en el cuadrado <code>[-1, 1] × [-1, 1]</code> (lado 2).<br>&nbsp;&nbsp;2. Verifica si cae dentro del circulo unitario: <code>x² + y² ≤ 1</code>.<br>&nbsp;&nbsp;3. Cuenta <code>M</code> = puntos dentro, <code>N</code> = total.<br>&nbsp;&nbsp;4. Ratio <code>p̂ = M/N</code> aproxima <code>π/4</code>.',
-    'Por lo tanto: <code>π ≈ 4 · M/N</code>. La grafica 1 visualiza el cuadrado con circulo y los puntos coloreados (verde = dentro, rojo = fuera).',
-    '<b>Probabilidad</b>: cada punto es Bernoulli con <code>p = π/4 ≈ 0.7854</code>. Varianza <code>p(1-p) ≈ 0.1686</code>. Error estandar de π̂: <code>SE = 4·√(p̂(1-p̂)/N)</code>.',
-    '<b>Intervalo de confianza 95%</b>: <code>π̂ ± 1.96·SE</code>. Deberia contener a <code>π = 3.14159...</code>.',
-    'La convergencia es <code>O(1/√N)</code>: duplicar precision requiere 4× mas puntos. En la grafica 4 veras que <code>|error real|</code> sigue la curva teorica <code>1/√N</code>.',
-    'Para el informe: reporta (a) N, (b) M, (c) p̂, (d) π̂, (e) |error|, (f) SE, (g) IC 95%, (h) semilla. Contrasta el IC con el valor verdadero π.',
+    'Ejemplo clasico del <b>parcial Prueba Evaluativa</b>: aproximar <code>π</code> por muestreo por rechazo. <em>No necesita funcion</em> — solo N, K y nivel de confianza.',
+    'Elige <code>N</code> (puntos por repeticion). Recomendado: <code>10000</code>. Para 3 decimales, N ≈ 10⁶.',
+    '<b>K</b>: repeticiones independientes. Si K=1 usa SE de Bernoulli de una sola muestra; si K>1 promedia y calcula SE entre repeticiones.',
+    '<b>Nivel de confianza</b>: 90, 95 (default) o 99. Se calcula <code>z_{α/2}</code> automaticamente.',
+    'Pulsa <b>Resolver</b>. Se muestran: (1) solucion analitica del problema; (2) tabla de K repeticiones (si K>1); (3) <b>Resumen estadistico</b> (p̂, σ, SE, IC); (4) <b>demostracion 1/√n</b> con simulacion a 4N.',
+    'Para el informe: reporta (a) N, K, semilla; (b) M y p̂ finales; (c) π̂; (d) |error|; (e) SE; (f) IC al nivel elegido.',
   ],
 
   solve(params) {
     const N = parseInt(params.n) || 10000;
+    const K = Math.max(1, parseInt(params.K) || 1);
+    const confPct = parseConfPct(params.conf, 95);
+    const z = zForConfidence(confPct);
     if (N < 1) throw new Error('N debe ser >= 1');
 
     const seedVal = parseSeed(params.seed);
-    const actualSeed = seedVal !== null ? seedVal : (Date.now() ^ (Math.random() * 0xFFFFFFFF));
-    const rand = mulberry32(actualSeed);
+    const baseSeed = seedVal !== null ? seedVal : (Date.now() ^ (Math.random() * 0xFFFFFFFF));
 
+    // ---- First pass: single long simulation for batched iteration table ----
+    const rand = mulberry32(baseSeed);
     const iterations: MethodResult['iterations'] = [];
     const batchSize = Math.max(1, Math.floor(N / 20));
-
     let insideCount = 0;
-
     for (let i = 1; i <= N; i++) {
-      // Punto aleatorio en cuadrado [-1, 1] x [-1, 1] (lado 2)
       const x = rand() * 2 - 1;
       const y = rand() * 2 - 1;
-
-      // Dentro del circulo unitario? x² + y² ≤ 1
-      if (x * x + y * y <= 1) {
-        insideCount++;
-      }
-
+      if (x * x + y * y <= 1) insideCount++;
       if (i % batchSize === 0 || i === N) {
-        // p̂ = proporcion de exitos (dentro del circulo)
         const pHat = insideCount / i;
-        // π estimado = 4 * p̂
         const piEst = 4 * pHat;
-        // Error absoluto vs π real
         const error = Math.abs(piEst - Math.PI);
-        // Varianza de Bernoulli: Var(X) = p̂(1 - p̂)
         const variance = pHat * (1 - pHat);
-        // Desviacion estandar de la proporcion: σ = sqrt(p̂(1-p̂))
         const stdDev = Math.sqrt(variance);
-        // Error estandar de p̂: SE(p̂) = σ/√N, escalado a π: SE(π) = 4·SE(p̂)
-        const stdErrP = stdDev / Math.sqrt(i);
-        const stdErr = 4 * stdErrP;
-        // Intervalo de confianza 95%: π̂ ± 1.96·SE(π)
-        const z95 = 1.96;
-
+        const stdErr = 4 * stdDev / Math.sqrt(i);
         iterations.push({
           batch: iterations.length + 1,
           nAccum: i,
@@ -114,36 +100,104 @@ export const montecarloPi: MethodDefinition = {
           stdDev,
           stdErr,
           error,
-          ci95Lower: piEst - z95 * stdErr,
-          ci95Upper: piEst + z95 * stdErr,
+          ci95Lower: piEst - z * stdErr,
+          ci95Upper: piEst + z * stdErr,
         });
       }
     }
+    const piEstimate1 = 4 * insideCount / N;
+    const pHat1 = insideCount / N;
+    const stdErr1 = 4 * Math.sqrt(pHat1 * (1 - pHat1) / N);
 
-    const piEstimate = 4 * insideCount / N;
-    const pHatFinal = insideCount / N;
-    const varianceFinal = pHatFinal * (1 - pHatFinal);
-    const stdDevFinal = Math.sqrt(varianceFinal);
-    const stdErr = 4 * stdDevFinal / Math.sqrt(N);
-    const finalError = Math.abs(piEstimate - Math.PI);
+    // ---- K-reps (if K>1): run K independent π-simulations with distinct seeds ----
+    const reps: { k: number; estimate: number; runningMean: number; runningStd: number }[] = [];
+    let finalMean = piEstimate1;
+    let finalVar = pHat1 * (1 - pHat1);
+    let finalStd = Math.sqrt(finalVar);
+    let finalSE = stdErr1;
+    let basis: 'bernoulli' | 'reps' = 'bernoulli';
+
+    if (K > 1) {
+      let sumK = 0, sumKSq = 0;
+      for (let k = 1; k <= K; k++) {
+        const run = runPi(N, baseSeed + k * 10007);
+        sumK += run.estimate;
+        sumKSq += run.estimate * run.estimate;
+        const runningMean = sumK / k;
+        const varRun = k > 1 ? Math.max(0, (sumKSq - k * runningMean * runningMean) / (k - 1)) : 0;
+        const runningStd = Math.sqrt(varRun);
+        reps.push({ k, estimate: run.estimate, runningMean, runningStd });
+      }
+      finalMean = reps[K - 1].runningMean;
+      finalVar = Math.max(0, (sumKSq - K * finalMean * finalMean) / (K - 1));
+      finalStd = Math.sqrt(finalVar);
+      finalSE = finalStd / Math.sqrt(K);
+      basis = 'reps';
+    }
+
+    const ciLower = finalMean - z * finalSE;
+    const ciUpper = finalMean + z * finalSE;
+    const finalError = Math.abs(finalMean - Math.PI);
+
+    // ---- Analytical explanation panel (why π ≈ 4·M/N) ----
+    const analyticalPanel = `
+      <div class="theorem-panel theorem-pass">
+        <div class="theorem-header"><span class="theorem-icon">∫</span> Solucion analitica — ¿por que π ≈ 4·M/N?</div>
+        <div class="theorem-body">
+          <div>El cuadrado <code>[-1, 1] × [-1, 1]</code> tiene area <code>4</code>. El circulo unitario inscrito tiene area <code>π·1² = π</code>.</div>
+          ${texBlock('P\\bigl((X, Y) \\in \\text{circulo}\\bigr) = \\frac{\\text{area del circulo}}{\\text{area del cuadrado}} = \\frac{\\pi}{4}')}
+          <div>Para puntos <code>(x<sub>i</sub>, y<sub>i</sub>) ~ U([-1, 1]²)</code>, la variable indicadora</div>
+          ${texBlock('Z_i = \\begin{cases} 1 & \\text{si } x_i^2 + y_i^2 \\le 1 \\\\ 0 & \\text{en otro caso} \\end{cases}')}
+          <div>es Bernoulli con parametro <code>p = π/4</code>. Por la Ley de los Grandes Numeros:</div>
+          ${texBlock('\\hat{p} = \\frac{1}{N}\\sum_{i=1}^{N} Z_i \\;\\xrightarrow{\\,N\\to\\infty\\,}\\; p = \\frac{\\pi}{4}')}
+          <div>Por lo tanto <code>π ≈ 4·p̂ = 4·M/N</code> donde M es el numero de puntos dentro del circulo.</div>
+          <div style="margin-top:8px"><b>Varianza de Bernoulli:</b> <code>Var(Z) = p(1-p) ≈ 0.7854·0.2146 ≈ 0.1686</code>.</div>
+          ${texBlock('SE(\\hat{\\pi}) = 4 \\cdot SE(\\hat{p}) = 4 \\cdot \\sqrt{\\frac{\\hat{p}(1-\\hat{p})}{N}}')}
+        </div>
+      </div>
+    `;
+
+    const panels: string[] = [];
+    panels.push(analyticalPanel);
+    if (K > 1) panels.push(renderKRepsPanel(reps, '\\hat{\\pi}'));
+    panels.push(renderSummaryPanel({
+      N, K,
+      mean: finalMean, varianceEst: finalVar, stdDev: finalStd,
+      stdErr: finalSE, confPct, z, ciLower, ciUpper, basis,
+      symbol: '\\hat{\\pi}',
+    }));
+    panels.push(renderErrorHalvingPanel({
+      runner: (Nn, seed) => {
+        const r = runPi(Nn, seed);
+        return { estimate: r.estimate, stdErr: r.stdErr };
+      },
+      N, baseSeed, currentStdErr: finalSE,
+      constantLabel: '4\\cdot \\sqrt{p(1-p)}',
+      constantValue: 4 * Math.sqrt(pHat1 * (1 - pHat1)),
+    }));
 
     const seedMsg = seedVal !== null ? `semilla=${seedVal}` : 'semilla aleatoria';
+    const message = `π ≈ ${fmtNum(finalMean, 8)} | N=${N}${K > 1 ? `, K=${K}` : ''} | ${seedMsg} | |error|=${fmtNum(finalError, 6)} | SE=${fmtNum(finalSE, 6)} | IC ${confPct}%: [${fmtNum(ciLower, 6)}, ${fmtNum(ciUpper, 6)}]`;
+
     return {
-      root: piEstimate,
+      root: finalMean,
       iterations,
       converged: true,
       error: finalError,
-      message: `π ≈ ${piEstimate.toFixed(8)} | ${seedMsg} | ${insideCount}/${N} dentro | σ=${stdDevFinal.toFixed(6)} | SE=${stdErr.toFixed(6)} | IC 95%: [${(piEstimate - 1.96 * stdErr).toFixed(6)}, ${(piEstimate + 1.96 * stdErr).toFixed(6)}]`,
+      message,
+      theoremPanels: panels,
     };
   },
 
   getCharts(params, result) {
     const N = parseInt(params.n) || 10000;
+    const K = Math.max(1, parseInt(params.K) || 1);
+    const confPct = parseConfPct(params.conf, 95);
+    const z = zForConfidence(confPct);
     const seedVal = parseSeed(params.seed);
     const chartSeed = seedVal !== null ? seedVal : (Date.now() ^ 0xABCD);
     const rand = mulberry32(chartSeed);
 
-    // Chart 1: Scatter plot — circle inside square, colored by hit/miss
     const nShow = Math.min(N, 3000);
     const hitX: number[] = [];
     const hitY: number[] = [];
@@ -162,7 +216,6 @@ export const montecarloPi: MethodDefinition = {
       }
     }
 
-    // Circle outline for reference
     const circleX: number[] = [];
     const circleY: number[] = [];
     for (let i = 0; i <= 200; i++) {
@@ -182,31 +235,27 @@ export const montecarloPi: MethodDefinition = {
       xLabel: 'x', yLabel: 'y',
     };
 
-    // Extracted data
     const batchNs = result.iterations.map(r => r.nAccum as number);
     const piEsts = result.iterations.map(r => r.piEstimate as number);
-    const ci95Lowers = result.iterations.map(r => r.ci95Lower as number);
-    const ci95Uppers = result.iterations.map(r => r.ci95Upper as number);
+    const stdErrs = result.iterations.map(r => r.stdErr as number);
+    const ciLowers = piEsts.map((e, i) => e - z * stdErrs[i]);
+    const ciUppers = piEsts.map((e, i) => e + z * stdErrs[i]);
     const variances = result.iterations.map(r => r.variance as number);
     const stdDevs = result.iterations.map(r => r.stdDev as number);
-    const stdErrs = result.iterations.map(r => r.stdErr as number);
     const errors = result.iterations.map(r => r.error as number);
 
-    // Chart 2: Convergence of π estimate with CI band
     const chart2: ChartData = {
-      title: 'Convergencia a π con IC 95%',
+      title: `Convergencia a π con IC ${confPct}%`,
       type: 'line',
       datasets: [
-        { label: 'IC 95% sup', x: batchNs, y: ci95Uppers, color: '#a6e3a1', dashed: true, pointRadius: 0 },
+        { label: `IC ${confPct}% sup`, x: batchNs, y: ciUppers, color: '#a6e3a1', dashed: true, pointRadius: 0 },
         { label: 'π estimado', x: batchNs, y: piEsts, color: '#cba6f7', pointRadius: 3 },
-        { label: 'IC 95% inf', x: batchNs, y: ci95Lowers, color: '#a6e3a1', dashed: true, pointRadius: 0 },
+        { label: `IC ${confPct}% inf`, x: batchNs, y: ciLowers, color: '#a6e3a1', dashed: true, pointRadius: 0 },
         { label: 'π real', x: [batchNs[0], batchNs[batchNs.length - 1]], y: [Math.PI, Math.PI], color: '#f9e2af', dashed: true, pointRadius: 0 },
       ],
       xLabel: 'N', yLabel: 'π estimado',
     };
 
-    // Chart 3: σ y Varianza (escala lineal — ambas ~0.4-0.5, misma escala)
-    // σ = sqrt(p(1-p)) ≈ 0.49, Var = p(1-p) ≈ 0.24 — escalas cercanas, lineal OK
     const chart3: ChartData = {
       title: 'Varianza p̂(1-p̂) y Desviacion Estandar σ vs N',
       type: 'line',
@@ -217,25 +266,42 @@ export const montecarloPi: MethodDefinition = {
       xLabel: 'N', yLabel: 'Valor',
     };
 
-    // Chart 4: |Error| y SE — escala log (ambos decrecen con N, ~0.001-0.1)
-    // SE decrece como 1/√N, |error| oscila pero tambien decrece
-    const errFiltered = errors.filter(e => e > 0);
-    const seFiltered = stdErrs.filter(e => e > 0);
-
-    // Curva teorica 1/√N para referencia
-    const theorN = batchNs.filter(n => n > 0);
-    const theor1sqrtN = theorN.map(n => 4 * 0.5 / Math.sqrt(n)); // 4·σ_max/√N ≈ 2/√N
-
-    const chart4: ChartData = {
-      title: '|Error real| vs Error Estandar vs N (log)',
-      type: 'line',
-      datasets: [
-        { label: '|π̂ - π|', x: batchNs.slice(0, errFiltered.length), y: errFiltered, color: '#f38ba8', pointRadius: 2 },
-        { label: 'SE (error est.)', x: batchNs.slice(0, seFiltered.length), y: seFiltered, color: '#fab387', pointRadius: 2 },
-        { label: '~1/√N (teorico)', x: theorN, y: theor1sqrtN, color: '#585b70', dashed: true, pointRadius: 0 },
-      ],
-      xLabel: 'N', yLabel: 'Error', yLog: true,
-    };
+    // Chart 4: if K > 1 show K reps; else |error| vs SE in log scale
+    let chart4: ChartData;
+    if (K > 1) {
+      const repsSim: { k: number; est: number; mean: number }[] = [];
+      let sumK = 0;
+      for (let k = 1; k <= K; k++) {
+        const r = runPi(N, (seedVal ?? chartSeed) + k * 10007);
+        sumK += r.estimate;
+        repsSim.push({ k, est: r.estimate, mean: sumK / k });
+      }
+      chart4 = {
+        title: `K = ${K} repeticiones y promedio acumulado`,
+        type: 'line',
+        datasets: [
+          { label: 'π̂_k', x: repsSim.map(r => r.k), y: repsSim.map(r => r.est), color: '#f38ba8', pointRadius: 4, showLine: false },
+          { label: 'Promedio 1..k', x: repsSim.map(r => r.k), y: repsSim.map(r => r.mean), color: '#cba6f7', pointRadius: 2 },
+          { label: 'π real', x: [1, K], y: [Math.PI, Math.PI], color: '#f9e2af', dashed: true, pointRadius: 0 },
+        ],
+        xLabel: 'k', yLabel: 'π̂',
+      };
+    } else {
+      const errFiltered = errors.filter(e => e > 0);
+      const seFiltered = stdErrs.filter(e => e > 0);
+      const theorN = batchNs.filter(n => n > 0);
+      const theor1sqrtN = theorN.map(n => 4 * 0.5 / Math.sqrt(n));
+      chart4 = {
+        title: '|Error real| vs Error Estandar vs N (log)',
+        type: 'line',
+        datasets: [
+          { label: '|π̂ - π|', x: batchNs.slice(0, errFiltered.length), y: errFiltered, color: '#f38ba8', pointRadius: 2 },
+          { label: 'SE (error est.)', x: batchNs.slice(0, seFiltered.length), y: seFiltered, color: '#fab387', pointRadius: 2 },
+          { label: '~1/√N (teorico)', x: theorN, y: theor1sqrtN, color: '#585b70', dashed: true, pointRadius: 0 },
+        ],
+        xLabel: 'N', yLabel: 'Error', yLog: true,
+      };
+    }
 
     return [chart1, chart2, chart3, chart4];
   },

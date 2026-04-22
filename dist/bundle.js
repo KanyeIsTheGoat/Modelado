@@ -63669,7 +63669,902 @@
     }
   };
 
-  // src/methods/integration/montecarlo.ts
+  // src/symbolic.ts
+  var math6 = create(all);
+  registerMathAliases(math6);
+  function symbolicDerivativeSteps(expr, variable = "x") {
+    try {
+      const node = math6.parse(expr);
+      const steps2 = [];
+      const derived = deriveStep(node, variable, steps2);
+      const simplified = math6.simplify(derived);
+      const derivedStr = derived.toString();
+      const simpStr = simplified.toString();
+      if (simpStr !== derivedStr) {
+        steps2.push({
+          rule: "Simplificar",
+          explanation: "Agrupamos t\xE9rminos semejantes y reducimos la expresi\xF3n.",
+          latex: `${toTex(derived)} \\;=\\; ${toTex(simplified)}`
+        });
+      }
+      return {
+        result: simpStr,
+        resultTex: toTex(simplified),
+        steps: steps2
+      };
+    } catch (e3) {
+      throw new Error(`No se pudo derivar: ${e3.message}`);
+    }
+  }
+  function deriveStep(node, v, steps2) {
+    if (!containsVariable(node, v)) {
+      const result = new ConstantNode(0);
+      steps2.push({
+        rule: "Derivada de una constante",
+        explanation: `La derivada de cualquier constante respecto de ${v} es 0.`,
+        latex: `\\frac{d}{d${v}}\\left[${toTex(node)}\\right] = 0`
+      });
+      return result;
+    }
+    if (isSymbol(node, v)) {
+      const result = new ConstantNode(1);
+      steps2.push({
+        rule: "Derivada de la variable",
+        explanation: `La derivada de la variable respecto de s\xED misma es 1.`,
+        latex: `\\frac{d}{d${v}}\\left[${v}\\right] = 1`
+      });
+      return result;
+    }
+    if (isOperator(node, "+") || isOperator(node, "-")) {
+      const op2 = node;
+      if (op2.args.length === 2) {
+        const sign5 = op2.op;
+        const opName = sign5 === "+" ? "add" : "subtract";
+        steps2.push({
+          rule: sign5 === "+" ? "Regla de la suma" : "Regla de la resta",
+          explanation: `La derivada de una ${sign5 === "+" ? "suma" : "resta"} es la ${sign5 === "+" ? "suma" : "resta"} de las derivadas.`,
+          latex: `\\frac{d}{d${v}}\\left[${toTex(op2.args[0])} ${sign5} ${toTex(op2.args[1])}\\right] = \\frac{d}{d${v}}\\left[${toTex(op2.args[0])}\\right] ${sign5} \\frac{d}{d${v}}\\left[${toTex(op2.args[1])}\\right]`
+        });
+        const a = deriveStep(op2.args[0], v, steps2);
+        const b = deriveStep(op2.args[1], v, steps2);
+        return new OperatorNode(sign5, opName, [a, b]);
+      }
+      if (op2.args.length === 1) {
+        steps2.push({
+          rule: "Signo negativo",
+          explanation: "Una constante (\u22121) sale de la derivada.",
+          latex: `\\frac{d}{d${v}}\\left[-${toTex(op2.args[0])}\\right] = -\\frac{d}{d${v}}\\left[${toTex(op2.args[0])}\\right]`
+        });
+        const a = deriveStep(op2.args[0], v, steps2);
+        return new OperatorNode("-", "unaryMinus", [a]);
+      }
+    }
+    if (isOperator(node, "*")) {
+      const op2 = node;
+      if (!containsVariable(op2.args[0], v)) {
+        steps2.push({
+          rule: "M\xFAltiplo constante",
+          explanation: "Una constante sale de la derivada multiplicando.",
+          latex: `\\frac{d}{d${v}}\\left[${toTex(op2.args[0])} \\cdot ${toTex(op2.args[1])}\\right] = ${toTex(op2.args[0])} \\cdot \\frac{d}{d${v}}\\left[${toTex(op2.args[1])}\\right]`
+        });
+        const inner2 = deriveStep(op2.args[1], v, steps2);
+        return new OperatorNode("*", "multiply", [op2.args[0], inner2]);
+      }
+      if (!containsVariable(op2.args[1], v)) {
+        steps2.push({
+          rule: "M\xFAltiplo constante",
+          explanation: "Una constante sale de la derivada multiplicando.",
+          latex: `\\frac{d}{d${v}}\\left[${toTex(op2.args[0])} \\cdot ${toTex(op2.args[1])}\\right] = ${toTex(op2.args[1])} \\cdot \\frac{d}{d${v}}\\left[${toTex(op2.args[0])}\\right]`
+        });
+        const inner2 = deriveStep(op2.args[0], v, steps2);
+        return new OperatorNode("*", "multiply", [op2.args[1], inner2]);
+      }
+      steps2.push({
+        rule: "Regla del producto",
+        explanation: `Aplicamos (f\xB7g)' = f'\xB7g + f\xB7g'.`,
+        latex: `\\frac{d}{d${v}}\\left[${toTex(op2.args[0])} \\cdot ${toTex(op2.args[1])}\\right] = \\frac{d}{d${v}}\\left[${toTex(op2.args[0])}\\right]\\cdot ${toTex(op2.args[1])} + ${toTex(op2.args[0])}\\cdot\\frac{d}{d${v}}\\left[${toTex(op2.args[1])}\\right]`
+      });
+      const df = deriveStep(op2.args[0], v, steps2);
+      const dg = deriveStep(op2.args[1], v, steps2);
+      return new OperatorNode("+", "add", [
+        new OperatorNode("*", "multiply", [df, op2.args[1]]),
+        new OperatorNode("*", "multiply", [op2.args[0], dg])
+      ]);
+    }
+    if (isOperator(node, "/")) {
+      const op2 = node;
+      if (!containsVariable(op2.args[1], v)) {
+        steps2.push({
+          rule: "Divisi\xF3n por constante",
+          explanation: "La constante del denominador sale multiplicando por su rec\xEDproco.",
+          latex: `\\frac{d}{d${v}}\\left[\\frac{${toTex(op2.args[0])}}{${toTex(op2.args[1])}}\\right] = \\frac{1}{${toTex(op2.args[1])}}\\cdot\\frac{d}{d${v}}\\left[${toTex(op2.args[0])}\\right]`
+        });
+        const inner2 = deriveStep(op2.args[0], v, steps2);
+        return new OperatorNode("/", "divide", [inner2, op2.args[1]]);
+      }
+      steps2.push({
+        rule: "Regla del cociente",
+        explanation: `(f/g)' = (f'\xB7g \u2212 f\xB7g') / g\xB2`,
+        latex: `\\frac{d}{d${v}}\\left[\\frac{${toTex(op2.args[0])}}{${toTex(op2.args[1])}}\\right] = \\frac{\\frac{d}{d${v}}\\left[${toTex(op2.args[0])}\\right]\\cdot ${toTex(op2.args[1])} - ${toTex(op2.args[0])}\\cdot\\frac{d}{d${v}}\\left[${toTex(op2.args[1])}\\right]}{${toTex(op2.args[1])}^2}`
+      });
+      const df = deriveStep(op2.args[0], v, steps2);
+      const dg = deriveStep(op2.args[1], v, steps2);
+      return new OperatorNode("/", "divide", [
+        new OperatorNode("-", "subtract", [
+          new OperatorNode("*", "multiply", [df, op2.args[1]]),
+          new OperatorNode("*", "multiply", [op2.args[0], dg])
+        ]),
+        new OperatorNode("^", "pow", [op2.args[1], new ConstantNode(2)])
+      ]);
+    }
+    if (isOperator(node, "^")) {
+      const op2 = node;
+      const base = op2.args[0];
+      const exp3 = op2.args[1];
+      if (isSymbol(base, v) && !containsVariable(exp3, v)) {
+        steps2.push({
+          rule: "Regla de la potencia",
+          explanation: `(${v}^n)' = n\xB7${v}^(n\u22121).`,
+          latex: `\\frac{d}{d${v}}\\left[${v}^{${toTex(exp3)}}\\right] = ${toTex(exp3)}\\cdot ${v}^{${toTex(exp3)}-1}`
+        });
+        return new OperatorNode("*", "multiply", [
+          exp3,
+          new OperatorNode("^", "pow", [new SymbolNode(v), new OperatorNode("-", "subtract", [exp3, new ConstantNode(1)])])
+        ]);
+      }
+      if (containsVariable(base, v) && !containsVariable(exp3, v)) {
+        steps2.push({
+          rule: "Potencia con regla de la cadena",
+          explanation: `(f^n)' = n\xB7f^(n\u22121)\xB7f'.`,
+          latex: `\\frac{d}{d${v}}\\left[\\left(${toTex(base)}\\right)^{${toTex(exp3)}}\\right] = ${toTex(exp3)}\\cdot\\left(${toTex(base)}\\right)^{${toTex(exp3)}-1}\\cdot\\frac{d}{d${v}}\\left[${toTex(base)}\\right]`
+        });
+        const db = deriveStep(base, v, steps2);
+        return new OperatorNode("*", "multiply", [
+          new OperatorNode("*", "multiply", [
+            exp3,
+            new OperatorNode("^", "pow", [base, new OperatorNode("-", "subtract", [exp3, new ConstantNode(1)])])
+          ]),
+          db
+        ]);
+      }
+      if (!containsVariable(base, v) && isSymbol(exp3, v)) {
+        if (isSymbolNamed(base, "e")) {
+          steps2.push({
+            rule: "Exponencial natural",
+            explanation: `(e^${v})' = e^${v}.`,
+            latex: `\\frac{d}{d${v}}\\left[e^{${v}}\\right] = e^{${v}}`
+          });
+          return node.cloneDeep();
+        }
+        steps2.push({
+          rule: "Exponencial general",
+          explanation: `(a^${v})' = a^${v}\xB7ln(a).`,
+          latex: `\\frac{d}{d${v}}\\left[${toTex(base)}^{${v}}\\right] = ${toTex(base)}^{${v}}\\cdot\\ln\\left(${toTex(base)}\\right)`
+        });
+        return new OperatorNode("*", "multiply", [
+          node.cloneDeep(),
+          new FunctionNode(new SymbolNode("log"), [base.cloneDeep()])
+        ]);
+      }
+      if (!containsVariable(base, v) && containsVariable(exp3, v)) {
+        steps2.push({
+          rule: "Exponencial con cadena",
+          explanation: `(a^f)' = a^f\xB7ln(a)\xB7f'.`,
+          latex: `\\frac{d}{d${v}}\\left[${toTex(base)}^{${toTex(exp3)}}\\right] = ${toTex(base)}^{${toTex(exp3)}}\\cdot\\ln\\left(${toTex(base)}\\right)\\cdot\\frac{d}{d${v}}\\left[${toTex(exp3)}\\right]`
+        });
+        const de = deriveStep(exp3, v, steps2);
+        return new OperatorNode("*", "multiply", [
+          new OperatorNode("*", "multiply", [
+            node.cloneDeep(),
+            new FunctionNode(new SymbolNode("log"), [base.cloneDeep()])
+          ]),
+          de
+        ]);
+      }
+    }
+    if (node.type === "FunctionNode") {
+      const fn = node;
+      const fnName = fn.fn.toString();
+      const arg2 = fn.args[0];
+      const rule = elementaryDerivative(fnName, arg2, v);
+      if (rule) {
+        if (isSymbol(arg2, v)) {
+          steps2.push({
+            rule: rule.ruleName,
+            explanation: rule.explanation,
+            latex: rule.latexDirect
+          });
+          return rule.result;
+        }
+        steps2.push({
+          rule: `${rule.ruleName} \xB7 regla de la cadena`,
+          explanation: `Derivamos la funci\xF3n externa y multiplicamos por la derivada de la interna (regla de la cadena).`,
+          latex: rule.latexChain
+        });
+        const dArg = deriveStep(arg2, v, steps2);
+        return new OperatorNode("*", "multiply", [rule.result, dArg]);
+      }
+    }
+    if (node.type === "ParenthesisNode") {
+      return deriveStep(node.content, v, steps2);
+    }
+    const fallback = math6.derivative(node, v);
+    steps2.push({
+      rule: "Derivada directa",
+      explanation: "Aplicamos la regla est\xE1ndar de math.js para esta expresi\xF3n.",
+      latex: `\\frac{d}{d${v}}\\left[${toTex(node)}\\right] = ${toTex(fallback)}`
+    });
+    return fallback;
+  }
+  function elementaryDerivative(fnName, arg2, v) {
+    const argTex = toTex(arg2);
+    switch (fnName) {
+      case "sin":
+        return {
+          ruleName: "Derivada del seno",
+          explanation: `(sin u)' = cos u \xB7 u'.`,
+          result: new FunctionNode(new SymbolNode("cos"), [arg2.cloneDeep()]),
+          latexDirect: `\\frac{d}{d${v}}\\left[\\sin(${v})\\right] = \\cos(${v})`,
+          latexChain: `\\frac{d}{d${v}}\\left[\\sin(${argTex})\\right] = \\cos(${argTex})\\cdot\\frac{d}{d${v}}\\left[${argTex}\\right]`
+        };
+      case "cos":
+        return {
+          ruleName: "Derivada del coseno",
+          explanation: `(cos u)' = -sin u \xB7 u'.`,
+          result: new OperatorNode("-", "unaryMinus", [new FunctionNode(new SymbolNode("sin"), [arg2.cloneDeep()])]),
+          latexDirect: `\\frac{d}{d${v}}\\left[\\cos(${v})\\right] = -\\sin(${v})`,
+          latexChain: `\\frac{d}{d${v}}\\left[\\cos(${argTex})\\right] = -\\sin(${argTex})\\cdot\\frac{d}{d${v}}\\left[${argTex}\\right]`
+        };
+      case "tan":
+        return {
+          ruleName: "Derivada de la tangente",
+          explanation: `(tan u)' = sec\xB2(u) \xB7 u'.`,
+          result: new OperatorNode("^", "pow", [new FunctionNode(new SymbolNode("sec"), [arg2.cloneDeep()]), new ConstantNode(2)]),
+          latexDirect: `\\frac{d}{d${v}}\\left[\\tan(${v})\\right] = \\sec^{2}(${v})`,
+          latexChain: `\\frac{d}{d${v}}\\left[\\tan(${argTex})\\right] = \\sec^{2}(${argTex})\\cdot\\frac{d}{d${v}}\\left[${argTex}\\right]`
+        };
+      case "exp":
+        return {
+          ruleName: "Derivada de exp",
+          explanation: `(e^u)' = e^u \xB7 u'.`,
+          result: new FunctionNode(new SymbolNode("exp"), [arg2.cloneDeep()]),
+          latexDirect: `\\frac{d}{d${v}}\\left[e^{${v}}\\right] = e^{${v}}`,
+          latexChain: `\\frac{d}{d${v}}\\left[e^{${argTex}}\\right] = e^{${argTex}}\\cdot\\frac{d}{d${v}}\\left[${argTex}\\right]`
+        };
+      case "log":
+      case "ln":
+        return {
+          ruleName: "Derivada de ln",
+          explanation: `(ln u)' = u'/u.`,
+          result: new OperatorNode("/", "divide", [new ConstantNode(1), arg2.cloneDeep()]),
+          latexDirect: `\\frac{d}{d${v}}\\left[\\ln(${v})\\right] = \\frac{1}{${v}}`,
+          latexChain: `\\frac{d}{d${v}}\\left[\\ln(${argTex})\\right] = \\frac{1}{${argTex}}\\cdot\\frac{d}{d${v}}\\left[${argTex}\\right]`
+        };
+      case "sqrt":
+        return {
+          ruleName: "Derivada de \u221A",
+          explanation: `(\u221Au)' = u'/(2\u221Au).`,
+          result: new OperatorNode("/", "divide", [
+            new ConstantNode(1),
+            new OperatorNode("*", "multiply", [new ConstantNode(2), new FunctionNode(new SymbolNode("sqrt"), [arg2.cloneDeep()])])
+          ]),
+          latexDirect: `\\frac{d}{d${v}}\\left[\\sqrt{${v}}\\right] = \\frac{1}{2\\sqrt{${v}}}`,
+          latexChain: `\\frac{d}{d${v}}\\left[\\sqrt{${argTex}}\\right] = \\frac{1}{2\\sqrt{${argTex}}}\\cdot\\frac{d}{d${v}}\\left[${argTex}\\right]`
+        };
+      case "cbrt":
+        return {
+          ruleName: "Derivada de \u221B",
+          explanation: `(\u221Bu)' = u'/(3\xB7\u221B(u\xB2)).  Nota: usamos \u221B(u\xB2) en lugar de u^(2/3) para obtener siempre el valor real (cuando u<0, u^(2/3) seria complejo).`,
+          result: new OperatorNode("/", "divide", [
+            new ConstantNode(1),
+            new OperatorNode("*", "multiply", [
+              new ConstantNode(3),
+              new FunctionNode(new SymbolNode("cbrt"), [
+                new OperatorNode("^", "pow", [arg2.cloneDeep(), new ConstantNode(2)])
+              ])
+            ])
+          ]),
+          latexDirect: `\\frac{d}{d${v}}\\left[\\sqrt[3]{${v}}\\right] = \\frac{1}{3\\,\\sqrt[3]{${v}^{2}}}`,
+          latexChain: `\\frac{d}{d${v}}\\left[\\sqrt[3]{${argTex}}\\right] = \\frac{1}{3\\,\\sqrt[3]{\\left(${argTex}\\right)^{2}}}\\cdot\\frac{d}{d${v}}\\left[${argTex}\\right]`
+        };
+      case "asin":
+        return {
+          ruleName: "Derivada de arcsin",
+          explanation: `(arcsin u)' = u'/\u221A(1 \u2212 u\xB2).`,
+          result: new OperatorNode("/", "divide", [
+            new ConstantNode(1),
+            new FunctionNode(new SymbolNode("sqrt"), [
+              new OperatorNode("-", "subtract", [new ConstantNode(1), new OperatorNode("^", "pow", [arg2.cloneDeep(), new ConstantNode(2)])])
+            ])
+          ]),
+          latexDirect: `\\frac{d}{d${v}}\\left[\\arcsin(${v})\\right] = \\frac{1}{\\sqrt{1 - ${v}^2}}`,
+          latexChain: `\\frac{d}{d${v}}\\left[\\arcsin(${argTex})\\right] = \\frac{1}{\\sqrt{1 - (${argTex})^2}}\\cdot\\frac{d}{d${v}}\\left[${argTex}\\right]`
+        };
+      case "acos":
+        return {
+          ruleName: "Derivada de arccos",
+          explanation: `(arccos u)' = -u'/\u221A(1 \u2212 u\xB2).`,
+          result: new OperatorNode("/", "divide", [
+            new ConstantNode(-1),
+            new FunctionNode(new SymbolNode("sqrt"), [
+              new OperatorNode("-", "subtract", [new ConstantNode(1), new OperatorNode("^", "pow", [arg2.cloneDeep(), new ConstantNode(2)])])
+            ])
+          ]),
+          latexDirect: `\\frac{d}{d${v}}\\left[\\arccos(${v})\\right] = -\\frac{1}{\\sqrt{1 - ${v}^2}}`,
+          latexChain: `\\frac{d}{d${v}}\\left[\\arccos(${argTex})\\right] = -\\frac{1}{\\sqrt{1 - (${argTex})^2}}\\cdot\\frac{d}{d${v}}\\left[${argTex}\\right]`
+        };
+      case "atan":
+        return {
+          ruleName: "Derivada de arctan",
+          explanation: `(arctan u)' = u'/(1 + u\xB2).`,
+          result: new OperatorNode("/", "divide", [
+            new ConstantNode(1),
+            new OperatorNode("+", "add", [new ConstantNode(1), new OperatorNode("^", "pow", [arg2.cloneDeep(), new ConstantNode(2)])])
+          ]),
+          latexDirect: `\\frac{d}{d${v}}\\left[\\arctan(${v})\\right] = \\frac{1}{1 + ${v}^2}`,
+          latexChain: `\\frac{d}{d${v}}\\left[\\arctan(${argTex})\\right] = \\frac{1}{1 + (${argTex})^2}\\cdot\\frac{d}{d${v}}\\left[${argTex}\\right]`
+        };
+      case "sinh":
+        return {
+          ruleName: "Derivada de sinh",
+          explanation: `(sinh u)' = cosh(u)\xB7u'.`,
+          result: new FunctionNode(new SymbolNode("cosh"), [arg2.cloneDeep()]),
+          latexDirect: `\\frac{d}{d${v}}\\left[\\sinh(${v})\\right] = \\cosh(${v})`,
+          latexChain: `\\frac{d}{d${v}}\\left[\\sinh(${argTex})\\right] = \\cosh(${argTex})\\cdot\\frac{d}{d${v}}\\left[${argTex}\\right]`
+        };
+      case "cosh":
+        return {
+          ruleName: "Derivada de cosh",
+          explanation: `(cosh u)' = sinh(u)\xB7u'.`,
+          result: new FunctionNode(new SymbolNode("sinh"), [arg2.cloneDeep()]),
+          latexDirect: `\\frac{d}{d${v}}\\left[\\cosh(${v})\\right] = \\sinh(${v})`,
+          latexChain: `\\frac{d}{d${v}}\\left[\\cosh(${argTex})\\right] = \\sinh(${argTex})\\cdot\\frac{d}{d${v}}\\left[${argTex}\\right]`
+        };
+      case "tanh":
+        return {
+          ruleName: "Derivada de tanh",
+          explanation: `(tanh u)' = sech\xB2(u)\xB7u' = (1 \u2212 tanh\xB2u)\xB7u'.`,
+          result: new OperatorNode("-", "subtract", [
+            new ConstantNode(1),
+            new OperatorNode("^", "pow", [new FunctionNode(new SymbolNode("tanh"), [arg2.cloneDeep()]), new ConstantNode(2)])
+          ]),
+          latexDirect: `\\frac{d}{d${v}}\\left[\\tanh(${v})\\right] = 1 - \\tanh^{2}(${v})`,
+          latexChain: `\\frac{d}{d${v}}\\left[\\tanh(${argTex})\\right] = \\left(1 - \\tanh^{2}(${argTex})\\right)\\cdot\\frac{d}{d${v}}\\left[${argTex}\\right]`
+        };
+      default:
+        return null;
+    }
+  }
+  function symbolicIntegralSteps(expr, variable = "x") {
+    try {
+      const node = math6.parse(expr);
+      const steps2 = [];
+      const integrated = integrateWithSteps(node, variable, steps2);
+      const simplified = math6.simplify(integrated);
+      if (simplified.toString() !== integrated.toString()) {
+        steps2.push({
+          rule: "Simplificar",
+          explanation: "Reducimos el resultado a su forma m\xE1s compacta.",
+          latex: `${toTex(integrated)} \\;=\\; ${toTex(simplified)}`
+        });
+      }
+      return {
+        result: simplified.toString() + " + C",
+        resultTex: `${toTex(simplified)} + C`,
+        steps: steps2
+      };
+    } catch (e3) {
+      throw new Error(`No se pudo integrar: ${e3.message}`);
+    }
+  }
+  function integrateWithSteps(node, v, steps2) {
+    if (!containsVariable(node, v)) {
+      const result = new OperatorNode("*", "multiply", [node, new SymbolNode(v)]);
+      steps2.push({
+        rule: "Integral de una constante",
+        explanation: `\u222Bc d${v} = c\xB7${v}.`,
+        latex: `\\int ${toTex(node)}\\, d${v} = ${toTex(node)}\\cdot ${v}`
+      });
+      return result;
+    }
+    if (isSymbol(node, v)) {
+      const result = new OperatorNode("/", "divide", [
+        new OperatorNode("^", "pow", [new SymbolNode(v), new ConstantNode(2)]),
+        new ConstantNode(2)
+      ]);
+      steps2.push({
+        rule: "Regla de la potencia",
+        explanation: `\u222B${v} d${v} = ${v}\xB2/2.`,
+        latex: `\\int ${v}\\, d${v} = \\frac{${v}^{2}}{2}`
+      });
+      return result;
+    }
+    if (isOperator(node, "+")) {
+      const op2 = node;
+      steps2.push({
+        rule: "Regla de la suma",
+        explanation: "La integral de una suma es la suma de las integrales.",
+        latex: `\\int \\left[${toTex(op2.args[0])} + ${toTex(op2.args[1])}\\right] d${v} = \\int ${toTex(op2.args[0])}\\, d${v} + \\int ${toTex(op2.args[1])}\\, d${v}`
+      });
+      const a = integrateWithSteps(op2.args[0], v, steps2);
+      const b = integrateWithSteps(op2.args[1], v, steps2);
+      return new OperatorNode("+", "add", [a, b]);
+    }
+    if (isOperator(node, "-")) {
+      const op2 = node;
+      if (op2.args.length === 1) {
+        steps2.push({
+          rule: "Signo negativo",
+          explanation: "\u222B(\u2212f) = \u2212\u222Bf.",
+          latex: `\\int -${toTex(op2.args[0])}\\, d${v} = -\\int ${toTex(op2.args[0])}\\, d${v}`
+        });
+        const a2 = integrateWithSteps(op2.args[0], v, steps2);
+        return new OperatorNode("-", "unaryMinus", [a2]);
+      }
+      steps2.push({
+        rule: "Regla de la resta",
+        explanation: "La integral de una resta es la resta de las integrales.",
+        latex: `\\int \\left[${toTex(op2.args[0])} - ${toTex(op2.args[1])}\\right] d${v} = \\int ${toTex(op2.args[0])}\\, d${v} - \\int ${toTex(op2.args[1])}\\, d${v}`
+      });
+      const a = integrateWithSteps(op2.args[0], v, steps2);
+      const b = integrateWithSteps(op2.args[1], v, steps2);
+      return new OperatorNode("-", "subtract", [a, b]);
+    }
+    if (isOperator(node, "*")) {
+      const op2 = node;
+      if (!containsVariable(op2.args[0], v)) {
+        steps2.push({
+          rule: "M\xFAltiplo constante",
+          explanation: "La constante sale de la integral.",
+          latex: `\\int ${toTex(op2.args[0])}\\cdot ${toTex(op2.args[1])}\\, d${v} = ${toTex(op2.args[0])}\\int ${toTex(op2.args[1])}\\, d${v}`
+        });
+        const inner2 = integrateWithSteps(op2.args[1], v, steps2);
+        return new OperatorNode("*", "multiply", [op2.args[0], inner2]);
+      }
+      if (!containsVariable(op2.args[1], v)) {
+        steps2.push({
+          rule: "M\xFAltiplo constante",
+          explanation: "La constante sale de la integral.",
+          latex: `\\int ${toTex(op2.args[0])}\\cdot ${toTex(op2.args[1])}\\, d${v} = ${toTex(op2.args[1])}\\int ${toTex(op2.args[0])}\\, d${v}`
+        });
+        const inner2 = integrateWithSteps(op2.args[0], v, steps2);
+        return new OperatorNode("*", "multiply", [op2.args[1], inner2]);
+      }
+      return tryAdvancedIntegration(op2, v, steps2);
+    }
+    if (isOperator(node, "/")) {
+      const op2 = node;
+      if (!containsVariable(op2.args[1], v)) {
+        steps2.push({
+          rule: "Divisi\xF3n por constante",
+          explanation: "Una constante en el denominador sale multiplicando el rec\xEDproco.",
+          latex: `\\int \\frac{${toTex(op2.args[0])}}{${toTex(op2.args[1])}}\\, d${v} = \\frac{1}{${toTex(op2.args[1])}} \\int ${toTex(op2.args[0])}\\, d${v}`
+        });
+        const inner2 = integrateWithSteps(op2.args[0], v, steps2);
+        return new OperatorNode("/", "divide", [inner2, op2.args[1]]);
+      }
+      if (!containsVariable(op2.args[0], v) && isSymbol(op2.args[1], v)) {
+        const result = new OperatorNode("*", "multiply", [
+          op2.args[0],
+          new FunctionNode(new SymbolNode("log"), [new FunctionNode(new SymbolNode("abs"), [new SymbolNode(v)])])
+        ]);
+        steps2.push({
+          rule: "Integral logar\xEDtmica",
+          explanation: `\u222Bc/${v} d${v} = c\xB7ln|${v}|.`,
+          latex: `\\int \\frac{${toTex(op2.args[0])}}{${v}}\\, d${v} = ${toTex(op2.args[0])}\\,\\ln|${v}|`
+        });
+        return result;
+      }
+      if (isConstantValue(op2.args[0], 1) && isSymbol(op2.args[1], v)) {
+        const result = new FunctionNode(new SymbolNode("log"), [new FunctionNode(new SymbolNode("abs"), [new SymbolNode(v)])]);
+        steps2.push({
+          rule: "Integral logar\xEDtmica",
+          explanation: `\u222B1/${v} d${v} = ln|${v}|.`,
+          latex: `\\int \\frac{1}{${v}}\\, d${v} = \\ln|${v}|`
+        });
+        return result;
+      }
+      if (isConstantValue(op2.args[0], 1) && isPower(op2.args[1], v)) {
+        const powNode = op2.args[1];
+        const negExp = new OperatorNode("-", "unaryMinus", [powNode.args[1]]);
+        const asPow = new OperatorNode("^", "pow", [new SymbolNode(v), negExp]);
+        steps2.push({
+          rule: "Reescribir como potencia negativa",
+          explanation: `Reescribimos 1/${v}^n como ${v}^{-n}.`,
+          latex: `\\frac{1}{${toTex(op2.args[1])}} = ${v}^{-${toTex(powNode.args[1])}}`
+        });
+        return integrateWithSteps(asPow, v, steps2);
+      }
+      const numDeriv = tryMatchDerivative(op2.args[0], op2.args[1], v);
+      if (numDeriv) {
+        steps2.push({
+          rule: "Sustituci\xF3n u = " + op2.args[1].toString(),
+          explanation: `El numerador es la derivada del denominador: u = ${op2.args[1].toString()}, du = ${numDeriv} d${v}, y \u222Bdu/u = ln|u|.`,
+          latex: `\\int \\frac{${toTex(op2.args[0])}}{${toTex(op2.args[1])}}\\, d${v} = \\ln\\left|${toTex(op2.args[1])}\\right|`
+        });
+        return new FunctionNode(new SymbolNode("log"), [new FunctionNode(new SymbolNode("abs"), [op2.args[1].cloneDeep()])]);
+      }
+    }
+    if (isOperator(node, "^")) {
+      const op2 = node;
+      if (isSymbol(op2.args[0], v) && !containsVariable(op2.args[1], v)) {
+        const n = op2.args[1];
+        if (isConstantValue(n, -1)) {
+          const result2 = new FunctionNode(new SymbolNode("log"), [new FunctionNode(new SymbolNode("abs"), [new SymbolNode(v)])]);
+          steps2.push({
+            rule: "Integral logar\xEDtmica",
+            explanation: `\u222B${v}^{-1} d${v} = ln|${v}|.`,
+            latex: `\\int ${v}^{-1}\\, d${v} = \\ln|${v}|`
+          });
+          return result2;
+        }
+        const nPlus1 = new OperatorNode("+", "add", [n, new ConstantNode(1)]);
+        const result = new OperatorNode("/", "divide", [
+          new OperatorNode("^", "pow", [new SymbolNode(v), nPlus1]),
+          nPlus1
+        ]);
+        steps2.push({
+          rule: "Regla de la potencia",
+          explanation: `\u222B${v}^n d${v} = ${v}^{n+1}/(n+1), para n \u2260 \u22121.`,
+          latex: `\\int ${v}^{${toTex(n)}}\\, d${v} = \\frac{${v}^{${toTex(n)}+1}}{${toTex(n)}+1}`
+        });
+        return result;
+      }
+      if (isSymbolNamed(op2.args[0], "e") && isSymbol(op2.args[1], v)) {
+        const result = new OperatorNode("^", "pow", [new SymbolNode("e"), new SymbolNode(v)]);
+        steps2.push({
+          rule: "Integral exponencial",
+          explanation: `\u222Be^${v} d${v} = e^${v}.`,
+          latex: `\\int e^{${v}}\\, d${v} = e^{${v}}`
+        });
+        return result;
+      }
+      if (!containsVariable(op2.args[0], v) && isSymbol(op2.args[1], v)) {
+        const result = new OperatorNode("/", "divide", [
+          node,
+          new FunctionNode(new SymbolNode("log"), [op2.args[0]])
+        ]);
+        steps2.push({
+          rule: "Integral exponencial general",
+          explanation: `\u222Ba^${v} d${v} = a^${v}/ln(a).`,
+          latex: `\\int ${toTex(op2.args[0])}^{${v}}\\, d${v} = \\frac{${toTex(op2.args[0])}^{${v}}}{\\ln(${toTex(op2.args[0])})}`
+        });
+        return result;
+      }
+      if (isSymbolNamed(op2.args[0], "e") && isLinearIn(op2.args[1], v)) {
+        const { a: coeff } = getLinearCoeffs(op2.args[1], v);
+        const result = new OperatorNode("/", "divide", [
+          new OperatorNode("^", "pow", [new SymbolNode("e"), op2.args[1].cloneDeep()]),
+          coeff
+        ]);
+        steps2.push({
+          rule: "Sustituci\xF3n lineal (exponencial)",
+          explanation: `u = ${op2.args[1].toString()}, du = ${coeff.toString()}\xB7d${v}. \u222Be^u du = e^u, luego dividimos por ${coeff.toString()}.`,
+          latex: `\\int e^{${toTex(op2.args[1])}}\\, d${v} = \\frac{e^{${toTex(op2.args[1])}}}{${toTex(coeff)}}`
+        });
+        return result;
+      }
+    }
+    if (node.type === "FunctionNode") {
+      const fn = node;
+      const fnName = fn.fn.toString();
+      const arg2 = fn.args[0];
+      if (isSymbol(arg2, v)) {
+        const simple = integrateElementary(fnName, v);
+        if (simple) {
+          steps2.push({
+            rule: simple.ruleName,
+            explanation: simple.explanation,
+            latex: simple.latex
+          });
+          return simple.result;
+        }
+      }
+      if (isLinearIn(arg2, v) && !isSymbol(arg2, v)) {
+        const { a: coeff } = getLinearCoeffs(arg2, v);
+        const simple = integrateElementary(fnName, v);
+        if (simple) {
+          const substituted = replaceVar(simple.result, v, arg2);
+          const divided = new OperatorNode("/", "divide", [substituted, coeff]);
+          steps2.push({
+            rule: "Sustituci\xF3n lineal u = " + arg2.toString(),
+            explanation: `Hacemos u = ${arg2.toString()}; du = ${coeff.toString()}\xB7d${v}. Aplicamos \u222B${fnName}(u) du y dividimos por ${coeff.toString()}.`,
+            latex: `\\int ${fnName === "log" || fnName === "ln" ? "\\ln" : "\\" + fnName}\\!\\left(${toTex(arg2)}\\right) d${v} = \\frac{1}{${toTex(coeff)}}\\,${toTex(substituted)}`
+          });
+          return divided;
+        }
+      }
+    }
+    if (node.type === "ParenthesisNode") {
+      return integrateWithSteps(node.content, v, steps2);
+    }
+    throw new Error(`No se puede integrar: ${node.toString()}`);
+  }
+  function integrateElementary(fnName, v) {
+    switch (fnName) {
+      case "sin":
+        return {
+          ruleName: "Integral de sin",
+          explanation: `\u222Bsin(${v}) d${v} = \u2212cos(${v}).`,
+          result: new OperatorNode("-", "unaryMinus", [new FunctionNode(new SymbolNode("cos"), [new SymbolNode(v)])]),
+          latex: `\\int \\sin(${v})\\, d${v} = -\\cos(${v})`
+        };
+      case "cos":
+        return {
+          ruleName: "Integral de cos",
+          explanation: `\u222Bcos(${v}) d${v} = sin(${v}).`,
+          result: new FunctionNode(new SymbolNode("sin"), [new SymbolNode(v)]),
+          latex: `\\int \\cos(${v})\\, d${v} = \\sin(${v})`
+        };
+      case "tan":
+        return {
+          ruleName: "Integral de tan",
+          explanation: `\u222Btan(${v}) d${v} = \u2212ln|cos(${v})|.`,
+          result: new OperatorNode("-", "unaryMinus", [
+            new FunctionNode(new SymbolNode("log"), [new FunctionNode(new SymbolNode("abs"), [new FunctionNode(new SymbolNode("cos"), [new SymbolNode(v)])])])
+          ]),
+          latex: `\\int \\tan(${v})\\, d${v} = -\\ln|\\cos(${v})|`
+        };
+      case "exp":
+        return {
+          ruleName: "Integral de exp",
+          explanation: `\u222Be^${v} d${v} = e^${v}.`,
+          result: new FunctionNode(new SymbolNode("exp"), [new SymbolNode(v)]),
+          latex: `\\int e^{${v}}\\, d${v} = e^{${v}}`
+        };
+      case "log":
+      case "ln":
+        return {
+          ruleName: "Integral de ln (por partes)",
+          explanation: `Integraci\xF3n por partes con u = ln(${v}), dv = d${v} \u2192 \u222Bln(${v}) d${v} = ${v}\xB7ln(${v}) \u2212 ${v}.`,
+          result: new OperatorNode("-", "subtract", [
+            new OperatorNode("*", "multiply", [new SymbolNode(v), new FunctionNode(new SymbolNode("log"), [new SymbolNode(v)])]),
+            new SymbolNode(v)
+          ]),
+          latex: `\\int \\ln(${v})\\, d${v} = ${v}\\ln(${v}) - ${v}`
+        };
+      case "sqrt":
+        return {
+          ruleName: "Integral de \u221A",
+          explanation: `\u222B\u221A${v} d${v} = (2/3)\xB7${v}^(3/2).`,
+          result: new OperatorNode("*", "multiply", [
+            new OperatorNode("/", "divide", [new ConstantNode(2), new ConstantNode(3)]),
+            new OperatorNode("^", "pow", [new SymbolNode(v), new OperatorNode("/", "divide", [new ConstantNode(3), new ConstantNode(2)])])
+          ]),
+          latex: `\\int \\sqrt{${v}}\\, d${v} = \\tfrac{2}{3}\\,${v}^{3/2}`
+        };
+      default:
+        return null;
+    }
+  }
+  function tryAdvancedIntegration(op2, v, steps2) {
+    const str = op2.toString();
+    const simplified = math6.simplify(str);
+    const simpStr = simplified.toString();
+    if (simpStr !== str && !stillMixedProduct(simplified, v)) {
+      steps2.push({
+        rule: "Simplificar el producto",
+        explanation: `Simplificamos antes de integrar: ${str} = ${simpStr}.`,
+        latex: `${toTex(op2)} \\;=\\; ${toTex(simplified)}`
+      });
+      return integrateWithSteps(math6.parse(simpStr), v, steps2);
+    }
+    const uSub = tryUSubstitution(op2, v, steps2);
+    if (uSub) return uSub;
+    const byParts = tryIntegrationByParts(op2, v, steps2);
+    if (byParts) return byParts;
+    throw new Error(`No se puede integrar el producto: ${str}`);
+  }
+  function stillMixedProduct(node, v) {
+    if (isOperator(node, "*")) {
+      const op2 = node;
+      if (containsVariable(op2.args[0], v) && containsVariable(op2.args[1], v)) return true;
+    }
+    let any = false;
+    node.forEach((c) => {
+      if (stillMixedProduct(c, v)) any = true;
+    });
+    return any;
+  }
+  function tryUSubstitution(op2, v, steps2) {
+    const candidates = [];
+    for (const [a, b] of [[op2.args[0], op2.args[1]], [op2.args[1], op2.args[0]]]) {
+      if (a.type === "FunctionNode") {
+        const fn = a;
+        const arg2 = fn.args[0];
+        if (!isSymbol(arg2, v) && containsVariable(arg2, v)) {
+          const d = safeDerivative(arg2, v);
+          if (d && equivalentExprs(d, b)) {
+            candidates.push({ outer: fn, innerDeriv: b });
+          }
+        }
+      }
+      if (isOperator(a, "^")) {
+        const powOp = a;
+        const base = powOp.args[0];
+        if (!isSymbol(base, v) && containsVariable(base, v) && !containsVariable(powOp.args[1], v)) {
+          const d = safeDerivative(base, v);
+          if (d && equivalentExprs(d, b)) {
+            const nPlus1 = new OperatorNode("+", "add", [powOp.args[1], new ConstantNode(1)]);
+            const result = new OperatorNode("/", "divide", [
+              new OperatorNode("^", "pow", [base.cloneDeep(), nPlus1]),
+              nPlus1
+            ]);
+            steps2.push({
+              rule: "Sustituci\xF3n u = " + base.toString(),
+              explanation: `u = ${base.toString()}, du = ${b.toString()} d${v}. Aplicamos \u222Bu^n du = u^{n+1}/(n+1).`,
+              latex: `\\int ${toTex(a)}\\cdot ${toTex(b)}\\, d${v} = \\frac{${toTex(base)}^{${toTex(powOp.args[1])}+1}}{${toTex(powOp.args[1])}+1}`
+            });
+            return result;
+          }
+        }
+      }
+    }
+    if (candidates.length === 0) return null;
+    const cand = candidates[0];
+    const fnName = cand.outer.fn.toString();
+    const innerNode = cand.outer.args[0];
+    const simple = integrateElementary(fnName, v);
+    if (!simple) return null;
+    const substituted = replaceVar(simple.result, v, innerNode);
+    steps2.push({
+      rule: "Sustituci\xF3n u = " + innerNode.toString(),
+      explanation: `u = ${innerNode.toString()}, du = ${cand.innerDeriv.toString()} d${v}. Aplicamos \u222B${fnName}(u) du y volvemos a ${v}.`,
+      latex: `\\int ${toTex(cand.outer)}\\cdot ${toTex(cand.innerDeriv)}\\, d${v} = ${toTex(substituted)}`
+    });
+    return substituted;
+  }
+  function tryIntegrationByParts(op2, v, steps2) {
+    const f1 = op2.args[0];
+    const f2 = op2.args[1];
+    const p1 = liatePriority(f1, v);
+    const p2 = liatePriority(f2, v);
+    if (p1 === null || p2 === null) return null;
+    const [u, dv] = p1 <= p2 ? [f1, f2] : [f2, f1];
+    let du;
+    let vInt;
+    try {
+      const throwaway = [];
+      du = deriveStep(u, v, throwaway);
+      du = math6.simplify(du);
+      const throwaway2 = [];
+      vInt = integrateWithSteps(dv, v, throwaway2);
+    } catch {
+      return null;
+    }
+    steps2.push({
+      rule: "Integraci\xF3n por partes",
+      explanation: `Elegimos u = ${u.toString()} y dv = ${dv.toString()} d${v} (criterio LIATE).`,
+      latex: `\\int u\\, dv = u\\cdot v - \\int v\\, du, \\quad u = ${toTex(u)},\\; dv = ${toTex(dv)}\\, d${v}`
+    });
+    steps2.push({
+      rule: "Calcular du y v",
+      explanation: `Derivamos u e integramos dv.`,
+      latex: `du = ${toTex(du)}\\, d${v}, \\quad v = \\int ${toTex(dv)}\\, d${v} = ${toTex(vInt)}`
+    });
+    const uv = new OperatorNode("*", "multiply", [u.cloneDeep(), vInt.cloneDeep()]);
+    const vDu = new OperatorNode("*", "multiply", [vInt.cloneDeep(), du.cloneDeep()]);
+    steps2.push({
+      rule: "Sustituir en u\xB7v \u2212 \u222Bv du",
+      explanation: "Reemplazamos u, v y du en la f\xF3rmula.",
+      latex: `u\\cdot v - \\int v\\, du \\;=\\; ${toTex(uv)} - \\int ${toTex(vDu)}\\, d${v}`
+    });
+    const remaining = integrateWithSteps(vDu, v, steps2);
+    return new OperatorNode("-", "subtract", [uv, remaining]);
+  }
+  function liatePriority(node, v) {
+    if (!containsVariable(node, v)) return null;
+    if (node.type === "FunctionNode") {
+      const fnName = node.fn.toString();
+      if (fnName === "log" || fnName === "ln") return 1;
+      if (["asin", "acos", "atan"].includes(fnName)) return 2;
+      if (["sin", "cos", "tan"].includes(fnName)) return 4;
+      if (fnName === "exp") return 5;
+    }
+    if (isSymbol(node, v)) return 3;
+    if (isOperator(node, "^")) {
+      const op2 = node;
+      if (isSymbol(op2.args[0], v) && !containsVariable(op2.args[1], v)) return 3;
+      if (isSymbolNamed(op2.args[0], "e") && containsVariable(op2.args[1], v)) return 5;
+      if (!containsVariable(op2.args[0], v) && containsVariable(op2.args[1], v)) return 5;
+    }
+    return null;
+  }
+  function safeDerivative(node, v) {
+    try {
+      return math6.simplify(math6.derivative(node, v));
+    } catch {
+      return null;
+    }
+  }
+  function equivalentExprs(a, b) {
+    try {
+      const diff2 = math6.simplify(new OperatorNode("-", "subtract", [a.cloneDeep(), b.cloneDeep()]));
+      return diff2.toString() === "0";
+    } catch {
+      return false;
+    }
+  }
+  function tryMatchDerivative(num, den, v) {
+    const dDen = safeDerivative(den, v);
+    if (dDen && equivalentExprs(dDen, num)) return dDen.toString();
+    return null;
+  }
+  function toTex(node) {
+    try {
+      return node.toTex({ parenthesis: "auto" });
+    } catch {
+      return node.toString();
+    }
+  }
+  function containsVariable(node, v) {
+    if (node.type === "SymbolNode") return node.name === v;
+    if (node.type === "ConstantNode") return false;
+    let found = false;
+    node.forEach((child) => {
+      if (containsVariable(child, v)) found = true;
+    });
+    return found;
+  }
+  function isSymbol(node, v) {
+    return node.type === "SymbolNode" && node.name === v;
+  }
+  function isSymbolNamed(node, name315) {
+    return node.type === "SymbolNode" && node.name === name315;
+  }
+  function isOperator(node, op2) {
+    return node.type === "OperatorNode" && node.op === op2;
+  }
+  function isPower(node, v) {
+    return isOperator(node, "^") && isSymbol(node.args[0], v);
+  }
+  function isConstantValue(node, val) {
+    if (node.type === "ConstantNode") return node.value === val;
+    return false;
+  }
+  function isLinearIn(node, v) {
+    try {
+      getLinearCoeffs(node, v);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+  function getLinearCoeffs(node, v) {
+    if (isSymbol(node, v)) return { a: new ConstantNode(1), b: new ConstantNode(0) };
+    if (isOperator(node, "*")) {
+      const op2 = node;
+      if (!containsVariable(op2.args[0], v) && isSymbol(op2.args[1], v)) return { a: op2.args[0], b: new ConstantNode(0) };
+      if (!containsVariable(op2.args[1], v) && isSymbol(op2.args[0], v)) return { a: op2.args[1], b: new ConstantNode(0) };
+    }
+    if (isOperator(node, "+")) {
+      const op2 = node;
+      if (containsVariable(op2.args[0], v) && !containsVariable(op2.args[1], v)) {
+        const inner2 = getLinearCoeffs(op2.args[0], v);
+        return { a: inner2.a, b: new OperatorNode("+", "add", [inner2.b, op2.args[1]]) };
+      }
+      if (containsVariable(op2.args[1], v) && !containsVariable(op2.args[0], v)) {
+        const inner2 = getLinearCoeffs(op2.args[1], v);
+        return { a: inner2.a, b: new OperatorNode("+", "add", [inner2.b, op2.args[0]]) };
+      }
+    }
+    if (isOperator(node, "-")) {
+      const op2 = node;
+      if (op2.args.length === 2 && containsVariable(op2.args[0], v) && !containsVariable(op2.args[1], v)) {
+        const inner2 = getLinearCoeffs(op2.args[0], v);
+        return { a: inner2.a, b: new OperatorNode("-", "subtract", [inner2.b, op2.args[1]]) };
+      }
+    }
+    throw new Error("Not linear");
+  }
+  function replaceVar(node, v, replacement) {
+    return node.transform((n) => {
+      if (isSymbol(n, v)) return replacement.cloneDeep();
+      return n;
+    });
+  }
+
+  // src/methods/integration/monteCarloCommon.ts
   function mulberry32(seed) {
     let s = seed | 0;
     return () => {
@@ -63692,97 +64587,502 @@
     if (!isNaN(num)) return num;
     return hashString(input.trim());
   }
+  function normalInverse(p) {
+    if (p <= 0 || p >= 1) return NaN;
+    const a = [-39.6968302866538, 220.946098424521, -275.928510446969, 138.357751867269, -30.6647980661472, 2.50662827745924];
+    const b = [-54.4760987982241, 161.585836858041, -155.698979859887, 66.8013118877197, -13.2806815528857];
+    const c = [-0.00778489400243029, -0.322396458041136, -2.40075827716184, -2.54973253934373, 4.37466414146497, 2.93816398269878];
+    const d = [0.00778469570904146, 0.32246712907004, 2.445134137143, 3.75440866190742];
+    const plow = 0.02425, phigh = 1 - plow;
+    let q, r;
+    if (p < plow) {
+      q = Math.sqrt(-2 * Math.log(p));
+      return (((((c[0] * q + c[1]) * q + c[2]) * q + c[3]) * q + c[4]) * q + c[5]) / ((((d[0] * q + d[1]) * q + d[2]) * q + d[3]) * q + 1);
+    }
+    if (p <= phigh) {
+      q = p - 0.5;
+      r = q * q;
+      return (((((a[0] * r + a[1]) * r + a[2]) * r + a[3]) * r + a[4]) * r + a[5]) * q / (((((b[0] * r + b[1]) * r + b[2]) * r + b[3]) * r + b[4]) * r + 1);
+    }
+    q = Math.sqrt(-2 * Math.log(1 - p));
+    return -(((((c[0] * q + c[1]) * q + c[2]) * q + c[3]) * q + c[4]) * q + c[5]) / ((((d[0] * q + d[1]) * q + d[2]) * q + d[3]) * q + 1);
+  }
+  function zForConfidence(confPct) {
+    const conf = confPct / 100;
+    const alpha2 = 1 - conf;
+    return normalInverse(1 - alpha2 / 2);
+  }
+  function parseConfPct(raw, fallback = 95) {
+    const v = parseFloat(raw ?? "");
+    if (isNaN(v) || v <= 0 || v >= 100) return fallback;
+    return v;
+  }
+  function fmtNum2(n, p = 8) {
+    if (!isFinite(n)) return "NaN";
+    if (n === 0) return "0";
+    let s = Math.abs(n) < 1e-4 || Math.abs(n) >= 1e8 ? n.toExponential(p - 1) : n.toPrecision(p);
+    if (s.indexOf(".") >= 0 && !/e/i.test(s)) s = s.replace(/0+$/, "").replace(/\.$/, "");
+    return s;
+  }
+  function renderKRepsPanel(reps, symbol = "\\hat{I}") {
+    if (reps.length === 0) return "";
+    const rows = reps.map((r) => `
+    <tr>
+      <td>${r.k}</td>
+      <td>${fmtNum2(r.estimate, 8)}</td>
+      <td>${fmtNum2(r.runningMean, 8)}</td>
+      <td>${fmtNum2(r.runningStd, 8)}</td>
+    </tr>
+  `).join("");
+    const mean2 = reps[reps.length - 1].runningMean;
+    return `
+    <div class="theorem-panel theorem-pass">
+      <div class="theorem-header"><span class="theorem-icon">K</span> K repeticiones independientes y promedio</div>
+      <div class="theorem-body">
+        <div>Cada repeticion <code>k</code> es una simulacion Monte Carlo completa (N puntos, semilla distinta). El promedio de las K estimaciones converge al valor esperado.</div>
+        ${texBlock(`\\bar{${symbol.replace(/\\hat\{|\}/g, "")}} = \\frac{1}{K}\\sum_{k=1}^{K} ${symbol}_k`)}
+        <div class="iter-table-wrap" style="margin-top:8px">
+          <table class="iter-table">
+            <thead>
+              <tr><th>k</th><th>${symbol.replace(/\\hat\{|\}/g, "").replace(/_|\^/g, "") || "I"}<sub>k</sub></th><th>Promedio 1..k</th><th>\u03C3(1..k)</th></tr>
+            </thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>
+        <div style="margin-top:6px">
+          <code>Promedio final = ${fmtNum2(mean2, 10)}</code>
+        </div>
+      </div>
+    </div>
+  `;
+  }
+  function renderSummaryPanel(opts) {
+    const { N, K, mean: mean2, varianceEst, stdDev, stdErr, confPct, z, ciLower, ciUpper, basis } = opts;
+    const symbol = opts.symbol ?? "\\hat{I}";
+    const basisText = basis === "reps" ? `Varianza y SE calculados <b>entre las K=${K} repeticiones</b>: s\xB2 = \u03A3(${symbol}<sub>k</sub> \u2212 promedio)\xB2/(K\u22121), SE = s/\u221AK.` : basis === "bernoulli" ? `Varianza de Bernoulli: p\u0302(1\u2212p\u0302). SE del estimador escalado por el factor de la formula.` : `Varianza y SE calculados <b>dentro de la muestra</b> de N=${N} puntos: s\xB2 = Var(f), SE = (Area)\xB7s/\u221AN.`;
+    return `
+    <div class="theorem-panel theorem-pass">
+      <div class="theorem-header"><span class="theorem-icon">\u03A3</span> Resumen estadistico \u2014 intervalo de confianza ${confPct}%</div>
+      <div class="theorem-body">
+        <div>${basisText}</div>
+        <div class="iter-table-wrap" style="margin-top:8px">
+          <table class="iter-table">
+            <thead><tr><th>Estadistico</th><th>Simbolo</th><th>Valor</th></tr></thead>
+            <tbody>
+              <tr><td>Tamano de muestra</td><td>N${K > 1 ? ", K" : ""}</td><td>${N}${K > 1 ? `, K = ${K}` : ""}</td></tr>
+              <tr><td>Media muestral (estimacion)</td><td>x\u0304</td><td>${fmtNum2(mean2, 10)}</td></tr>
+              <tr><td>Varianza muestral</td><td>s\xB2</td><td>${fmtNum2(varianceEst, 8)}</td></tr>
+              <tr><td>Desviacion estandar</td><td>s</td><td>${fmtNum2(stdDev, 8)}</td></tr>
+              <tr><td>Error estandar</td><td>SE</td><td>${fmtNum2(stdErr, 8)}</td></tr>
+              <tr><td>Nivel de confianza</td><td>1 \u2212 \u03B1</td><td>${confPct}%</td></tr>
+              <tr><td>z critico</td><td>z<sub>\u03B1/2</sub></td><td>${fmtNum2(z, 6)}</td></tr>
+              <tr><td>Margen de error</td><td>z\xB7SE</td><td>\xB1 ${fmtNum2(z * stdErr, 8)}</td></tr>
+              <tr><td>IC inferior</td><td>x\u0304 \u2212 z\xB7SE</td><td>${fmtNum2(ciLower, 10)}</td></tr>
+              <tr><td>IC superior</td><td>x\u0304 + z\xB7SE</td><td>${fmtNum2(ciUpper, 10)}</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div style="margin-top:8px">
+          <b>Interpretacion:</b> si repitieras este experimento muchas veces, el ${confPct}% de los intervalos asi construidos contendria el valor verdadero.
+        </div>
+        ${texBlock(`IC_{${confPct}\\%} = \\bar{x} \\pm z_{\\alpha/2}\\cdot SE = ${fmtNum2(mean2, 8)} \\pm ${fmtNum2(z, 4)} \\cdot ${fmtNum2(stdErr, 6)} = [${fmtNum2(ciLower, 8)},\\; ${fmtNum2(ciUpper, 8)}]`)}
+      </div>
+    </div>
+  `;
+  }
+  function renderErrorHalvingPanel(opts) {
+    const { runner, N, baseSeed, currentStdErr, constantLabel, constantValue } = opts;
+    const Nnew = 4 * N;
+    const newRun = runner(Nnew, baseSeed + 777777);
+    const predicted = currentStdErr / 2;
+    const ratio = currentStdErr > 0 ? newRun.stdErr / currentStdErr : NaN;
+    const constLine = constantLabel && constantValue !== void 0 ? `<div style="margin-top:8px; font-size:0.85rem; color: var(--subtext0);">Constante <code>${constantLabel}</code> = <code>${fmtNum2(constantValue, 8)}</code>. Esta constante multiplica a <code>1/\u221An</code> en la formula del SE.</div>` : "";
+    return `
+    <div class="theorem-panel theorem-pass">
+      <div class="theorem-header"><span class="theorem-icon">\xBD</span> Reduccion del error: demostracion 1/\u221An</div>
+      <div class="theorem-body">
+        <div><b>Teorema (CLT aplicado a Monte Carlo):</b> el error estandar de la estimacion satisface</div>
+        ${texBlock(`SE(\\hat{I}_n) = \\frac{C}{\\sqrt{n}} \\;\\propto\\; \\frac{1}{\\sqrt{n}}`)}
+        <div>donde C es una constante que depende del problema (area del dominio \xD7 desviacion de f, o factor de Bernoulli).</div>
+
+        <div style="margin-top:8px"><b>Demostracion matematica</b> \u2014 reducir el error a la mitad:</div>
+        <div>Queremos <code>n'</code> tal que <code>SE(n') = SE(n) / 2</code>. Partiendo de la relacion:</div>
+        ${texBlock(`\\frac{SE(n')}{SE(n)} = \\sqrt{\\frac{n}{n'}} = \\frac{1}{2}`)}
+        ${texBlock(`\\sqrt{\\frac{n}{n'}} = \\frac{1}{2} \\;\\Longrightarrow\\; \\frac{n}{n'} = \\frac{1}{4} \\;\\Longrightarrow\\; \\boxed{\\; n' = 4n \\;}`)}
+        <div><b>Conclusion:</b> para reducir el error a la mitad se debe <b>cuadruplicar</b> el tamano de la muestra. Por eso Monte Carlo converge lento (O(1/\u221An)).</div>
+
+        <div style="margin-top:12px"><b>Verificacion empirica</b> \u2014 simulacion con n' = 4N:</div>
+        <div class="iter-table-wrap" style="margin-top:8px">
+          <table class="iter-table">
+            <thead><tr><th>Caso</th><th>n</th><th>SE</th><th>Estimacion</th></tr></thead>
+            <tbody>
+              <tr><td>Original</td><td>${N}</td><td>${fmtNum2(currentStdErr, 8)}</td><td>\u2014</td></tr>
+              <tr><td>SE predicho (SE/2)</td><td>${Nnew}</td><td>${fmtNum2(predicted, 8)}</td><td>\u2014</td></tr>
+              <tr><td>Simulado con n' = 4N</td><td>${Nnew}</td><td><b>${fmtNum2(newRun.stdErr, 8)}</b></td><td>${fmtNum2(newRun.estimate, 10)}</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div style="margin-top:8px">
+          <code>Razon SE(4N)/SE(N) = ${fmtNum2(ratio, 6)}</code> (teorico: <code>0.5</code>)
+        </div>
+        ${isFinite(ratio) && Math.abs(ratio - 0.5) < 0.2 ? `<div style="color:var(--green,#a6e3a1); margin-top:6px">El error se redujo aproximadamente a la mitad, confirmando la relacion 1/\u221An.</div>` : `<div style="color:var(--peach,#fab387); margin-top:6px">La razon se aparta de 0.5 mas de lo esperado. Aumenta N para que \u03C3 se estabilice.</div>`}
+        ${constLine}
+      </div>
+    </div>
+  `;
+  }
+  function renderAnalyticalPanel1D(fxExpr, a, b) {
+    try {
+      const { result: FExpr, steps: steps2 } = symbolicIntegralSteps(fxExpr, "x");
+      const Fclean = FExpr.replace(/\s*\+\s*C\s*$/, "");
+      let evalBlock = "";
+      try {
+        const F = parseExpression(Fclean);
+        const Fa = F(a);
+        const Fb = F(b);
+        const value = Fb - Fa;
+        evalBlock = `
+        <div style="margin-top:10px"><b>Evaluar en los limites</b> (regla de Barrow):</div>
+        ${texBlock(`\\int_{${fmtNum2(a, 6)}}^{${fmtNum2(b, 6)}} ${exprToTex(fxExpr)}\\, dx = F(${fmtNum2(b, 6)}) - F(${fmtNum2(a, 6)}) = ${fmtNum2(Fb, 8)} - (${fmtNum2(Fa, 8)}) = ${fmtNum2(value, 10)}`)}
+      `;
+      } catch {
+        evalBlock = `<div><em>No se pudo evaluar numericamente la primitiva en [a, b].</em></div>`;
+      }
+      const stepsHtml = steps2.map((s, i2) => `
+      <div style="margin-top:8px; padding-left:10px; border-left:2px solid var(--surface1, #45475a);">
+        <div><b>${i2 + 1}. ${s.rule}</b> \u2014 <span style="color:var(--subtext0)">${s.explanation}</span></div>
+        ${texBlock(s.latex)}
+      </div>
+    `).join("");
+      return `
+      <div class="theorem-panel theorem-pass">
+        <div class="theorem-header"><span class="theorem-icon">\u222B</span> Solucion analitica paso a paso</div>
+        <div class="theorem-body">
+          <div>Integral indefinida:</div>
+          ${texBlock(`\\int ${exprToTex(fxExpr)}\\, dx = ${exprToTex(Fclean)} + C`)}
+          <div style="margin-top:10px"><b>Procedimiento:</b></div>
+          ${stepsHtml}
+          ${evalBlock}
+        </div>
+      </div>
+    `;
+    } catch (e3) {
+      return `
+      <div class="theorem-panel theorem-fail">
+        <div class="theorem-header"><span class="theorem-icon">\u222B</span> Solucion analitica</div>
+        <div class="theorem-body">
+          <div>No se pudo obtener la primitiva simbolica para <code>${fxExpr}</code>. ${e3.message ?? ""}</div>
+        </div>
+      </div>
+    `;
+    }
+  }
+  function renderAnalyticalPanel2D(fxyExpr, a, b, c, d) {
+    try {
+      const innerResult = symbolicIntegralSteps(fxyExpr, "y");
+      const Fy = innerResult.result.replace(/\s*\+\s*C\s*$/, "");
+      let innerEvaluated = "";
+      let outerIntegrandExpr = "";
+      let finalValue = NaN;
+      let outerSteps = [];
+      let outerAntiExpr = "";
+      try {
+        const Fy_fn = parseExpression2(Fy);
+        const FyAtD = fxyExpr.includes("y") ? `(${Fy.replace(/\by\b/g, `(${d})`)})` : `(${Fy})`;
+        const FyAtC = fxyExpr.includes("y") ? `(${Fy.replace(/\by\b/g, `(${c})`)})` : `(${Fy})`;
+        outerIntegrandExpr = `${FyAtD} - ${FyAtC}`;
+        innerEvaluated = `
+        ${texBlock(`\\int_{${fmtNum2(c, 6)}}^{${fmtNum2(d, 6)}} ${exprToTex(fxyExpr)}\\, dy = \\Big[${exprToTex(Fy)}\\Big]_{y=${fmtNum2(c, 6)}}^{y=${fmtNum2(d, 6)}}`)}
+      `;
+        const outer = symbolicIntegralSteps(outerIntegrandExpr, "x");
+        outerAntiExpr = outer.result.replace(/\s*\+\s*C\s*$/, "");
+        outerSteps = outer.steps;
+        const Fx_fn = parseExpression(outerAntiExpr);
+        finalValue = Fx_fn(b) - Fx_fn(a);
+        if (!isFinite(finalValue)) {
+          const top = Fy_fn(0, d);
+          if (!isFinite(top)) throw new Error("invalid inner result");
+        }
+      } catch {
+        return `
+        <div class="theorem-panel theorem-fail">
+          <div class="theorem-header"><span class="theorem-icon">\u222B\u222B</span> Solucion analitica (integral iterada)</div>
+          <div class="theorem-body">
+            <div>La primitiva simbolica respecto a <code>y</code> se obtuvo:</div>
+            ${texBlock(`\\int ${exprToTex(fxyExpr)}\\, dy = ${exprToTex(Fy)} + C`)}
+            <div>pero la integracion posterior respecto a <code>x</code> no fue factible simbolicamente. Usa Wolfram Alpha o una doble cuadratura numerica como referencia.</div>
+          </div>
+        </div>
+      `;
+      }
+      const innerStepsHtml = innerResult.steps.map((s, i2) => `
+      <div style="margin-top:6px; padding-left:10px; border-left:2px solid var(--surface1, #45475a);">
+        <div><b>${i2 + 1}. ${s.rule}</b> \u2014 <span style="color:var(--subtext0)">${s.explanation}</span></div>
+        ${texBlock(s.latex)}
+      </div>
+    `).join("");
+      const outerStepsHtml = outerSteps.map((s, i2) => `
+      <div style="margin-top:6px; padding-left:10px; border-left:2px solid var(--surface1, #45475a);">
+        <div><b>${i2 + 1}. ${s.rule}</b> \u2014 <span style="color:var(--subtext0)">${s.explanation}</span></div>
+        ${texBlock(s.latex)}
+      </div>
+    `).join("");
+      return `
+      <div class="theorem-panel theorem-pass">
+        <div class="theorem-header"><span class="theorem-icon">\u222B\u222B</span> Solucion analitica paso a paso (integral iterada)</div>
+        <div class="theorem-body">
+          <div><b>Metodo:</b> por el teorema de Fubini, <code>\u222B\u222B f dA = \u222B<sub>a</sub><sup>b</sup> (\u222B<sub>c</sub><sup>d</sup> f dy) dx</code>.</div>
+          ${texBlock(`\\iint_{[${fmtNum2(a, 6)},${fmtNum2(b, 6)}]\\times[${fmtNum2(c, 6)},${fmtNum2(d, 6)}]} ${exprToTex(fxyExpr)}\\,dA = \\int_{${fmtNum2(a, 6)}}^{${fmtNum2(b, 6)}} \\left( \\int_{${fmtNum2(c, 6)}}^{${fmtNum2(d, 6)}} ${exprToTex(fxyExpr)}\\, dy \\right) dx`)}
+
+          <div style="margin-top:12px"><b>Paso A \u2014 integral interna respecto a y</b> (tratando x como constante):</div>
+          ${texBlock(`\\int ${exprToTex(fxyExpr)}\\, dy = ${exprToTex(Fy)} + C_1`)}
+          ${innerStepsHtml}
+          ${innerEvaluated}
+
+          <div style="margin-top:12px"><b>Paso B \u2014 integrar el resultado respecto a x</b>:</div>
+          <div>Integrando <code>g(x) = F<sub>y</sub>(x, ${fmtNum2(d, 6)}) \u2212 F<sub>y</sub>(x, ${fmtNum2(c, 6)})</code>:</div>
+          ${texBlock(`\\int ${exprToTex(outerIntegrandExpr)}\\, dx = ${exprToTex(outerAntiExpr)} + C_2`)}
+          ${outerStepsHtml}
+
+          <div style="margin-top:12px"><b>Paso C \u2014 evaluar en los limites</b>:</div>
+          ${texBlock(`\\iint f\\, dA = \\Big[${exprToTex(outerAntiExpr)}\\Big]_{x=${fmtNum2(a, 6)}}^{x=${fmtNum2(b, 6)}} = ${fmtNum2(finalValue, 10)}`)}
+        </div>
+      </div>
+    `;
+    } catch (e3) {
+      return `
+      <div class="theorem-panel theorem-fail">
+        <div class="theorem-header"><span class="theorem-icon">\u222B\u222B</span> Solucion analitica</div>
+        <div class="theorem-body">
+          <div>No se pudo obtener la primitiva simbolica para <code>${fxyExpr}</code>. ${e3.message ?? ""}</div>
+        </div>
+      </div>
+    `;
+    }
+  }
+  function renderAnalyticalPanelDifference(fxExpr, gxExpr, a, b) {
+    const diffExpr = `(${fxExpr}) - (${gxExpr})`;
+    try {
+      const { result: FExpr, steps: steps2 } = symbolicIntegralSteps(diffExpr, "x");
+      const Fclean = FExpr.replace(/\s*\+\s*C\s*$/, "");
+      let evalBlock = "";
+      try {
+        const F = parseExpression(Fclean);
+        const Fa = F(a);
+        const Fb = F(b);
+        const value = Fb - Fa;
+        evalBlock = `
+        <div style="margin-top:10px"><b>Evaluar en los limites</b>:</div>
+        ${texBlock(`\\int_{${fmtNum2(a, 6)}}^{${fmtNum2(b, 6)}} \\bigl(${exprToTex(fxExpr)} - (${exprToTex(gxExpr)})\\bigr) dx = ${fmtNum2(value, 10)}`)}
+      `;
+      } catch {
+        evalBlock = `<div><em>No se pudo evaluar numericamente la primitiva.</em></div>`;
+      }
+      const stepsHtml = steps2.map((s, i2) => `
+      <div style="margin-top:6px; padding-left:10px; border-left:2px solid var(--surface1, #45475a);">
+        <div><b>${i2 + 1}. ${s.rule}</b> \u2014 <span style="color:var(--subtext0)">${s.explanation}</span></div>
+        ${texBlock(s.latex)}
+      </div>
+    `).join("");
+      return `
+      <div class="theorem-panel theorem-pass">
+        <div class="theorem-header"><span class="theorem-icon">\u222B</span> Solucion analitica \u2014 area entre curvas</div>
+        <div class="theorem-body">
+          <div>Area = <code>\u222B<sub>a</sub><sup>b</sup> (f(x) \u2212 g(x)) dx</code> (cuando f \u2265 g; si se cruzan, usar |f \u2212 g|).</div>
+          ${texBlock(`\\int_{${fmtNum2(a, 6)}}^{${fmtNum2(b, 6)}} \\bigl(${exprToTex(fxExpr)} - ${exprToTex(gxExpr)}\\bigr)\\, dx = \\Big[${exprToTex(Fclean)}\\Big]_{${fmtNum2(a, 6)}}^{${fmtNum2(b, 6)}}`)}
+          <div style="margin-top:10px"><b>Procedimiento:</b></div>
+          ${stepsHtml}
+          ${evalBlock}
+        </div>
+      </div>
+    `;
+    } catch (e3) {
+      return `
+      <div class="theorem-panel theorem-fail">
+        <div class="theorem-header"><span class="theorem-icon">\u222B</span> Solucion analitica</div>
+        <div class="theorem-body">
+          <div>No se pudo obtener la primitiva simbolica. ${e3.message ?? ""}</div>
+        </div>
+      </div>
+    `;
+    }
+  }
+
+  // src/methods/integration/montecarlo.ts
+  function runMC(f, a, b, N, seed) {
+    const rand = mulberry32(seed);
+    const width = b - a;
+    let sum3 = 0;
+    let sumSq = 0;
+    for (let i2 = 0; i2 < N; i2++) {
+      const xi = a + rand() * width;
+      const fi = f(xi);
+      sum3 += fi;
+      sumSq += fi * fi;
+    }
+    const mean2 = sum3 / N;
+    const integral = width * mean2;
+    const varF = Math.max(0, sumSq / N - mean2 * mean2);
+    const stdDevF = Math.sqrt(varF);
+    const stdErr = width * stdDevF / Math.sqrt(N);
+    return { integral, varF, stdDevF, stdErr };
+  }
   var montecarlo = {
     id: "montecarlo",
     name: "Monte Carlo",
     category: "integration",
     formula: "\u222Bf(x)dx \u2248 (b-a)/N \xB7 \u03A3 f(x_i), x_i aleatorio en [a,b]",
     latexFormula: "\\int_a^b f(x)\\,dx \\approx \\frac{b-a}{N} \\sum_{i=1}^{N} f(x_i), \\quad x_i \\sim U(a,b)",
-    description: "Aproxima la integral usando puntos aleatorios uniformes. Convergencia O(1/\u221AN). Semilla opcional para reproducibilidad.",
+    description: "Aproxima la integral usando puntos aleatorios uniformes. Convergencia O(1/\u221AN). Soporta K repeticiones y nivel de confianza configurable.",
     inputs: [
       { id: "fx", label: "f(x)", placeholder: "x^2", defaultValue: "x^2" },
       { id: "a", label: "a (limite inferior)", placeholder: "0", type: "number", defaultValue: "0" },
       { id: "b", label: "b (limite superior)", placeholder: "1", type: "number", defaultValue: "1" },
-      { id: "n", label: "N (puntos)", placeholder: "10000", type: "number", defaultValue: "10000" },
+      { id: "n", label: "N (puntos por repeticion)", placeholder: "10000", type: "number", defaultValue: "10000" },
+      { id: "K", label: "K (repeticiones, 1 = sin promediar)", placeholder: "1", type: "number", defaultValue: "1", hint: "Si K>1 se promedian K simulaciones independientes." },
+      { id: "conf", label: "Nivel de confianza (%)", placeholder: "95", type: "number", defaultValue: "95", hint: "Ej: 90, 95, 99. La app calcula el z critico correspondiente." },
+      { id: "exact", label: "Valor exacto (opcional)", placeholder: "p.ej. 0.333333", type: "number", hint: "Si se provee, se calcula el error relativo vs exacto." },
       { id: "seed", label: "Semilla (opcional)", placeholder: "Vacio = aleatorio", hint: "Numero o texto. Misma semilla = mismos resultados." }
     ],
     tableColumns: [
       { key: "batch", label: "Lote", latex: "\\text{Lote}" },
       { key: "nAccum", label: "N acumulado", latex: "N_{\\text{acum}}" },
       { key: "estimate", label: "Estimacion", latex: "\\hat{I}" },
-      { key: "stdDev", label: "Desv. Estandar", latex: "\\sigma(f)" },
-      { key: "stdErr", label: "Error Estandar", latex: "SE" },
-      { key: "ci95Lower", label: "IC 95% inf", latex: "IC_{95}^{\\text{inf}}" },
-      { key: "ci95Upper", label: "IC 95% sup", latex: "IC_{95}^{\\text{sup}}" }
+      { key: "stdDev", label: "\u03C3(f)", latex: "\\sigma(f)" },
+      { key: "stdErr", label: "SE", latex: "SE" },
+      { key: "ciLower", label: "IC inf", latex: "IC^{\\text{inf}}" },
+      { key: "ciUpper", label: "IC sup", latex: "IC^{\\text{sup}}" }
     ],
     steps: [
-      "Escribe <code>f(x)</code> y limites <code>[a, b]</code>. Para el <b>parcial 02/07/2025</b>: <code>exp(x^2)</code> sobre <code>[0, 2]</code>. Para <b>Prueba Evaluativa</b>: la funcion que te pidan.",
-      "Elige <code>N</code> = cantidad de puntos aleatorios. Parcial tipico: <code>N = 1000</code> o <code>N = 10000</code>. <em>Mas N \u2192 menor error</em> pero la convergencia es <b>O(1/\u221AN)</b> (lento vs Simpson <code>O(h\u2074)</code>).",
-      "Introduce una <b>semilla</b> (numero o texto). Misma semilla \u2192 mismos resultados, util para <em>reproducibilidad del informe</em>. Deja vacio para semilla aleatoria.",
-      "Pulsa <b>Resolver</b>. La formula es: <code>I \u2248 (b-a)/N \xB7 \u03A3\u1D62 f(x_i)</code>, donde cada <code>x_i</code> es uniforme en <code>[a, b]</code>.",
-      "La tabla muestra la estimacion en <b>lotes</b> (cada N/20 puntos) para visualizar como converge el promedio.",
-      "<b>Desviacion estandar</b> \u03C3(f): variabilidad de los valores muestreados <code>f(x_i)</code>. <b>Error estandar</b> SE = (b-a)\xB7\u03C3(f)/\u221AN \u2014 es la incertidumbre de la estimacion.",
-      "<b>Intervalo de confianza 95%</b>: <code>IC = estimacion \xB1 1.96\xB7SE</code>. El <em>valor verdadero</em> de la integral debe caer en este rango el 95% de las veces. Si te piden K repeticiones, el IC se aproxima mejor con <code>s/\u221AK</code> (usa el metodo <b>Monte Carlo 1D (K reps)</b>).",
-      "Para el informe: reporta (a) estimacion final, (b) \u03C3(f), (c) SE, (d) IC 95%, (e) semilla usada. Compara con Simpson del mismo ejercicio: Simpson sera <em>mucho mas preciso</em> pero Monte Carlo maneja bien dimensiones altas donde Simpson explota."
+      "Escribe <code>f(x)</code> y limites <code>[a, b]</code>. Para el <b>parcial 02/07/2025</b>: <code>exp(x^2)</code> sobre <code>[0, 2]</code>.",
+      "Elige <code>N</code> = puntos aleatorios por repeticion. Tipico: <code>1000</code> o <code>10000</code>. Convergencia <b>O(1/\u221AN)</b>.",
+      '<b>K</b>: numero de repeticiones independientes. Si <code>K = 1</code>, solo corre una simulacion (usa SE "dentro de muestra"). Si <code>K > 1</code>, corre K simulaciones y promedia \u2014 el error estandar se calcula <em>entre repeticiones</em>.',
+      "<b>Nivel de confianza</b>: 90, 95 (default) o 99. La app calcula automaticamente <code>z_{\u03B1/2}</code>: 90\u21921.645, 95\u21921.96, 99\u21922.576.",
+      "Pulsa <b>Resolver</b>. Se muestran: (1) <b>Solucion analitica paso a paso</b> (primitiva + Barrow); (2) tabla de repeticiones (si K>1); (3) <b>Resumen estadistico</b> con media, varianza, SE, IC; (4) <b>demostracion de reduccion 1/\u221An</b> con simulacion a 4N.",
+      "Para el informe: reporta (a) estimacion; (b) media y \u03C3 entre repeticiones; (c) IC al nivel elegido; (d) comparacion vs valor analitico; (e) evidencia de que doblar la precision requiere 4\xD7 muestras."
     ],
     solve(params) {
       const f = parseExpression(params.fx);
       const a = parseFloat(params.a);
       const b = parseFloat(params.b);
       const N = parseInt(params.n) || 1e4;
+      const K = Math.max(1, parseInt(params.K) || 1);
+      const confPct = parseConfPct(params.conf, 95);
       if (isNaN(a) || isNaN(b)) throw new Error("a y b deben ser numeros validos");
       if (a >= b) throw new Error("a debe ser menor que b");
       if (N < 1) throw new Error("N debe ser >= 1");
+      const exactRaw = (params.exact ?? "").trim();
+      const exact = exactRaw === "" ? void 0 : parseFloat(exactRaw);
       const seedVal = parseSeed(params.seed);
-      const actualSeed = seedVal !== null ? seedVal : Date.now() ^ Math.random() * 4294967295;
-      const rand = mulberry32(actualSeed);
+      const baseSeed = seedVal !== null ? seedVal : Date.now() ^ Math.random() * 4294967295;
+      const z = zForConfidence(confPct);
       const width = b - a;
+      const rand0 = mulberry32(baseSeed);
       let sum3 = 0;
       let sumSq = 0;
       const iterations = [];
       const batchSize = Math.max(1, Math.floor(N / 20));
       for (let i2 = 1; i2 <= N; i2++) {
-        const xi = a + rand() * width;
+        const xi = a + rand0() * width;
         const fi = f(xi);
         sum3 += fi;
         sumSq += fi * fi;
         if (i2 % batchSize === 0 || i2 === N) {
           const mean2 = sum3 / i2;
-          const integral2 = width * mean2;
-          const varF2 = Math.max(0, sumSq / i2 - mean2 * mean2);
-          const stdDevF2 = Math.sqrt(varF2);
-          const stdDev2 = width * stdDevF2;
-          const stdErr2 = stdDev2 / Math.sqrt(i2);
-          const z952 = 1.96;
-          const ci95Lower2 = integral2 - z952 * stdErr2;
-          const ci95Upper2 = integral2 + z952 * stdErr2;
+          const integral = width * mean2;
+          const varF = Math.max(0, sumSq / i2 - mean2 * mean2);
+          const stdDevF = Math.sqrt(varF);
+          const stdErr = width * stdDevF / Math.sqrt(i2);
           iterations.push({
             batch: iterations.length + 1,
             nAccum: i2,
-            estimate: integral2,
-            stdDev: stdDevF2,
-            stdErr: stdErr2,
-            ci95Lower: ci95Lower2,
-            ci95Upper: ci95Upper2
+            estimate: integral,
+            stdDev: stdDevF,
+            stdErr,
+            ciLower: integral - z * stdErr,
+            ciUpper: integral + z * stdErr
           });
         }
       }
-      const finalMean = sum3 / N;
-      const integral = width * finalMean;
-      const varF = Math.max(0, sumSq / N - finalMean * finalMean);
-      const stdDevF = Math.sqrt(varF);
-      const stdDev = width * stdDevF;
-      const stdErr = stdDev / Math.sqrt(N);
-      const z95 = 1.96;
-      const ci95Lower = integral - z95 * stdErr;
-      const ci95Upper = integral + z95 * stdErr;
+      const mean1 = sum3 / N;
+      const integral1 = width * mean1;
+      const varF1 = Math.max(0, sumSq / N - mean1 * mean1);
+      const stdDevF1 = Math.sqrt(varF1);
+      const stdErr1 = width * stdDevF1 / Math.sqrt(N);
+      const reps = [];
+      let finalMean = integral1;
+      let finalSE = stdErr1;
+      let finalVar = Math.pow(width * stdDevF1, 2);
+      let finalStd = width * stdDevF1;
+      let basis = "within";
+      if (K > 1) {
+        let sumK = 0;
+        let sumKSq = 0;
+        for (let k = 1; k <= K; k++) {
+          const run = runMC(f, a, b, N, baseSeed + k * 10007);
+          sumK += run.integral;
+          sumKSq += run.integral * run.integral;
+          const runningMean = sumK / k;
+          const varRun = k > 1 ? Math.max(0, (sumKSq - k * runningMean * runningMean) / (k - 1)) : 0;
+          const runningStd = Math.sqrt(varRun);
+          reps.push({ k, estimate: run.integral, runningMean, runningStd });
+        }
+        finalMean = reps[K - 1].runningMean;
+        const sampleVarK = Math.max(0, (sumKSq - K * finalMean * finalMean) / (K - 1));
+        finalStd = Math.sqrt(sampleVarK);
+        finalVar = sampleVarK;
+        finalSE = finalStd / Math.sqrt(K);
+        basis = "reps";
+      }
+      const ciLower = finalMean - z * finalSE;
+      const ciUpper = finalMean + z * finalSE;
+      const errRelPct = exact !== void 0 && !isNaN(exact) && exact !== 0 ? Math.abs((finalMean - exact) / exact) * 100 : void 0;
+      const panels = [];
+      panels.push(renderAnalyticalPanel1D(params.fx, a, b));
+      if (K > 1) panels.push(renderKRepsPanel(reps, "\\hat{I}"));
+      panels.push(renderSummaryPanel({
+        N,
+        K,
+        mean: finalMean,
+        varianceEst: finalVar,
+        stdDev: finalStd,
+        stdErr: finalSE,
+        confPct,
+        z,
+        ciLower,
+        ciUpper,
+        basis,
+        symbol: "\\hat{I}"
+      }));
+      panels.push(renderErrorHalvingPanel({
+        runner: (Nn, seed) => {
+          const r = runMC(f, a, b, Nn, seed);
+          return { estimate: r.integral, stdErr: r.stdErr };
+        },
+        N,
+        baseSeed,
+        currentStdErr: finalSE,
+        constantLabel: "(b-a)\\cdot \\sigma(f)",
+        constantValue: width * stdDevF1
+      }));
       const seedMsg = seedVal !== null ? `semilla = ${seedVal}` : "semilla aleatoria";
+      const msgParts = [
+        `N=${N}`,
+        K > 1 ? `K=${K}` : null,
+        seedMsg,
+        `\u03C3(f)=${fmtNum2(stdDevF1, 6)}`,
+        `IC ${confPct}%: [${fmtNum2(ciLower, 8)}, ${fmtNum2(ciUpper, 8)}]`,
+        errRelPct !== void 0 ? `error vs exacto: ${fmtNum2(errRelPct, 4)}%` : null
+      ].filter(Boolean);
       return {
-        integral,
+        integral: finalMean,
         iterations,
         converged: true,
-        error: stdErr,
-        message: `N=${N}, ${seedMsg} | \u03C3(f)=${stdDevF.toPrecision(6)} | IC 95%: [${ci95Lower.toPrecision(8)}, ${ci95Upper.toPrecision(8)}]`
+        error: finalSE,
+        exact,
+        relativeErrorPercent: errRelPct,
+        message: msgParts.join(" | "),
+        theoremPanels: panels
       };
     },
     getCharts(params, result) {
@@ -63790,6 +65090,9 @@
       const a = parseFloat(params.a);
       const b = parseFloat(params.b);
       const N = parseInt(params.n) || 1e4;
+      const K = Math.max(1, parseInt(params.K) || 1);
+      const confPct = parseConfPct(params.conf, 95);
+      const z = zForConfidence(confPct);
       const width = b - a;
       const seedVal = parseSeed(params.seed);
       const chartSeed = seedVal !== null ? seedVal + 1 : Date.now() ^ 43981;
@@ -63815,90 +65118,84 @@
         xLabel: "x",
         yLabel: "f(x)"
       };
-      const yMin = Math.min(0, ...ys.filter((v) => isFinite(v)));
-      const yMax = Math.max(0, ...ys.filter((v) => isFinite(v))) * 1.1;
-      const hitX = [];
-      const hitY = [];
-      const missX = [];
-      const missY = [];
-      const nVis = Math.min(N, 300);
-      for (let i2 = 0; i2 < nVis; i2++) {
-        const xi = a + rand() * width;
-        const yi = yMin + rand() * (yMax - yMin);
-        const fxi = f(xi);
-        if (fxi >= 0 && yi >= 0 && yi <= fxi || fxi < 0 && yi < 0 && yi >= fxi) {
-          hitX.push(xi);
-          hitY.push(yi);
-        } else {
-          missX.push(xi);
-          missY.push(yi);
-        }
-      }
-      const chart2 = {
-        title: "Hit-or-Miss (puntos bajo la curva)",
-        type: "scatter",
-        datasets: [
-          { label: "f(x)", x: xs, y: ys, color: "#89b4fa", pointRadius: 0 },
-          { label: "Bajo curva", x: hitX, y: hitY, color: "#a6e3a1", pointRadius: 2, showLine: false },
-          { label: "Fuera", x: missX, y: missY, color: "#f38ba8", pointRadius: 2, showLine: false }
-        ],
-        xLabel: "x",
-        yLabel: "y"
-      };
       const batchNs = result.iterations.map((r) => r.nAccum);
       const estimates = result.iterations.map((r) => r.estimate);
-      const ci95Lowers = result.iterations.map((r) => r.ci95Lower);
-      const ci95Uppers = result.iterations.map((r) => r.ci95Upper);
-      const chart3 = {
-        title: "Convergencia con intervalo de confianza 95%",
+      const stdErrs = result.iterations.map((r) => r.stdErr);
+      const ciLowers = estimates.map((e3, i2) => e3 - z * stdErrs[i2]);
+      const ciUppers = estimates.map((e3, i2) => e3 + z * stdErrs[i2]);
+      const chart2 = {
+        title: `Convergencia con IC ${confPct}%`,
         type: "line",
         datasets: [
-          { label: "IC 95% sup", x: batchNs, y: ci95Uppers, color: "#a6e3a1", dashed: true, pointRadius: 0 },
+          { label: `IC ${confPct}% sup`, x: batchNs, y: ciUppers, color: "#a6e3a1", dashed: true, pointRadius: 0 },
           { label: "Estimacion", x: batchNs, y: estimates, color: "#cba6f7", pointRadius: 3 },
-          { label: "IC 95% inf", x: batchNs, y: ci95Lowers, color: "#a6e3a1", dashed: true, pointRadius: 0 }
+          { label: `IC ${confPct}% inf`, x: batchNs, y: ciLowers, color: "#a6e3a1", dashed: true, pointRadius: 0 }
         ],
         xLabel: "N (muestras)",
         yLabel: "Integral estimada"
       };
-      const stdDevs = result.iterations.map((r) => r.stdDev);
-      const stdErrs = result.iterations.map((r) => r.stdErr).filter((e3) => e3 > 0);
-      const chart4 = {
-        title: "Desviacion estandar y error estandar vs N",
+      const seTheoretical = batchNs.map((n) => stdErrs.length > 0 ? stdErrs[0] * Math.sqrt(batchNs[0] / n) : 0);
+      const chart3 = {
+        title: "Error estandar SE vs N (pendiente teorica 1/\u221AN)",
         type: "line",
         datasets: [
-          { label: "\u03C3(f) desv. est.", x: batchNs.slice(0, stdDevs.length), y: stdDevs, color: "#f9e2af", pointRadius: 2 },
-          { label: "SE (error est.)", x: batchNs.slice(0, stdErrs.length), y: stdErrs, color: "#fab387", pointRadius: 2 }
+          { label: "SE observado", x: batchNs, y: stdErrs, color: "#fab387", pointRadius: 2 },
+          { label: "SE teorico (\u221D 1/\u221AN)", x: batchNs, y: seTheoretical, color: "#94e2d5", dashed: true, pointRadius: 0 }
         ],
         xLabel: "N",
-        yLabel: "Valor",
+        yLabel: "SE",
         yLog: true
       };
+      let chart4;
+      if (K > 1) {
+        const reps = [];
+        let sumK = 0;
+        for (let k = 1; k <= K; k++) {
+          const run = runMC(f, a, b, N, (seedVal ?? chartSeed) + k * 10007);
+          sumK += run.integral;
+          reps.push({ k, est: run.integral, mean: sumK / k });
+        }
+        chart4 = {
+          title: `K = ${K} repeticiones y promedio acumulado`,
+          type: "line",
+          datasets: [
+            { label: "\xCE_k", x: reps.map((r) => r.k), y: reps.map((r) => r.est), color: "#f38ba8", pointRadius: 4, showLine: false },
+            { label: "Promedio 1..k", x: reps.map((r) => r.k), y: reps.map((r) => r.mean), color: "#cba6f7", pointRadius: 2 }
+          ],
+          xLabel: "k",
+          yLabel: "\xCE"
+        };
+      } else {
+        const stdDevs = result.iterations.map((r) => r.stdDev);
+        chart4 = {
+          title: "\u03C3(f) y SE vs N",
+          type: "line",
+          datasets: [
+            { label: "\u03C3(f)", x: batchNs, y: stdDevs, color: "#f9e2af", pointRadius: 2 },
+            { label: "SE", x: batchNs, y: stdErrs, color: "#fab387", pointRadius: 2 }
+          ],
+          xLabel: "N",
+          yLabel: "Valor",
+          yLog: true
+        };
+      }
       return [chart1, chart2, chart3, chart4];
     }
   };
 
   // src/methods/integration/montecarloPi.ts
-  function mulberry322(seed) {
-    let s = seed | 0;
-    return () => {
-      s = s + 1831565813 | 0;
-      let t = Math.imul(s ^ s >>> 15, 1 | s);
-      t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
-      return ((t ^ t >>> 14) >>> 0) / 4294967296;
-    };
-  }
-  function hashString2(str) {
-    let hash = 0;
-    for (let i2 = 0; i2 < str.length; i2++) {
-      hash = (hash << 5) - hash + str.charCodeAt(i2) | 0;
+  function runPi(N, seed) {
+    const rand = mulberry32(seed);
+    let inside = 0;
+    for (let i2 = 0; i2 < N; i2++) {
+      const x = rand() * 2 - 1;
+      const y = rand() * 2 - 1;
+      if (x * x + y * y <= 1) inside++;
     }
-    return hash;
-  }
-  function parseSeed2(input) {
-    if (!input || input.trim() === "") return null;
-    const num = Number(input.trim());
-    if (!isNaN(num)) return num;
-    return hashString2(input.trim());
+    const pHat = inside / N;
+    const estimate = 4 * pHat;
+    const stdErr = 4 * Math.sqrt(pHat * (1 - pHat) / N);
+    return { estimate, stdErr, pHat };
   }
   var montecarloPi = {
     id: "montecarloPi",
@@ -63906,9 +65203,11 @@
     category: "integration",
     formula: "\u03C0 \u2248 4 \xB7 (puntos en circulo) / (puntos totales)",
     latexFormula: "\\pi \\approx 4 \\cdot \\frac{\\#\\{(x_i, y_i) : x_i^2 + y_i^2 \\le 1\\}}{N}, \\quad (x_i, y_i) \\sim U([-1,1]^2)",
-    description: "Aproxima \u03C0 por muestreo por rechazo: puntos aleatorios en un cuadrado de lado 2, se cuentan los que caen dentro del circulo unitario.",
+    description: "Aproxima \u03C0 por muestreo por rechazo: puntos aleatorios en un cuadrado de lado 2, se cuentan los que caen dentro del circulo unitario. Soporta K repeticiones y nivel de confianza configurable.",
     inputs: [
-      { id: "n", label: "N (puntos aleatorios)", placeholder: "10000", type: "number", defaultValue: "10000" },
+      { id: "n", label: "N (puntos por repeticion)", placeholder: "10000", type: "number", defaultValue: "10000" },
+      { id: "K", label: "K (repeticiones, 1 = sin promediar)", placeholder: "1", type: "number", defaultValue: "1", hint: "Si K>1 se promedian K simulaciones independientes." },
+      { id: "conf", label: "Nivel de confianza (%)", placeholder: "95", type: "number", defaultValue: "95", hint: "Ej: 90, 95, 99." },
       { id: "seed", label: "Semilla (opcional)", placeholder: "Vacio = aleatorio", hint: "Misma semilla = mismos resultados" }
     ],
     tableColumns: [
@@ -63921,44 +65220,40 @@
       { key: "stdDev", label: "\u03C3 (desv. est.)", latex: "\\sigma" },
       { key: "stdErr", label: "SE (err. est.)", latex: "SE" },
       { key: "error", label: "|\u03C0_est - \u03C0|", latex: "|\\hat{\\pi} - \\pi|" },
-      { key: "ci95Lower", label: "IC 95% inf", latex: "IC_{95}^{\\text{inf}}" },
-      { key: "ci95Upper", label: "IC 95% sup", latex: "IC_{95}^{\\text{sup}}" }
+      { key: "ci95Lower", label: "IC inf", latex: "IC^{\\text{inf}}" },
+      { key: "ci95Upper", label: "IC sup", latex: "IC^{\\text{sup}}" }
     ],
     steps: [
-      "Este es el ejemplo clasico del <b>parcial Prueba Evaluativa</b>: aproximar <code>\u03C0</code> por muestreo por rechazo. <em>No necesita funcion</em> \u2014 solo N.",
-      "Elige <code>N</code> (puntos aleatorios). Recomendado: <code>N = 10000</code> como punto inicial. Para precision ~2 decimales, N \u2248 10\u2074; para 3 decimales, N \u2248 10\u2076.",
-      "<b>Semilla</b>: usa un valor fijo (ej. <code>42</code>) para reproducir la tabla exacta en tu informe.",
-      "Pulsa <b>Resolver</b>. El algoritmo:<br>&nbsp;&nbsp;1. Genera punto aleatorio <code>(x, y)</code> en el cuadrado <code>[-1, 1] \xD7 [-1, 1]</code> (lado 2).<br>&nbsp;&nbsp;2. Verifica si cae dentro del circulo unitario: <code>x\xB2 + y\xB2 \u2264 1</code>.<br>&nbsp;&nbsp;3. Cuenta <code>M</code> = puntos dentro, <code>N</code> = total.<br>&nbsp;&nbsp;4. Ratio <code>p\u0302 = M/N</code> aproxima <code>\u03C0/4</code>.",
-      "Por lo tanto: <code>\u03C0 \u2248 4 \xB7 M/N</code>. La grafica 1 visualiza el cuadrado con circulo y los puntos coloreados (verde = dentro, rojo = fuera).",
-      "<b>Probabilidad</b>: cada punto es Bernoulli con <code>p = \u03C0/4 \u2248 0.7854</code>. Varianza <code>p(1-p) \u2248 0.1686</code>. Error estandar de \u03C0\u0302: <code>SE = 4\xB7\u221A(p\u0302(1-p\u0302)/N)</code>.",
-      "<b>Intervalo de confianza 95%</b>: <code>\u03C0\u0302 \xB1 1.96\xB7SE</code>. Deberia contener a <code>\u03C0 = 3.14159...</code>.",
-      "La convergencia es <code>O(1/\u221AN)</code>: duplicar precision requiere 4\xD7 mas puntos. En la grafica 4 veras que <code>|error real|</code> sigue la curva teorica <code>1/\u221AN</code>.",
-      "Para el informe: reporta (a) N, (b) M, (c) p\u0302, (d) \u03C0\u0302, (e) |error|, (f) SE, (g) IC 95%, (h) semilla. Contrasta el IC con el valor verdadero \u03C0."
+      "Ejemplo clasico del <b>parcial Prueba Evaluativa</b>: aproximar <code>\u03C0</code> por muestreo por rechazo. <em>No necesita funcion</em> \u2014 solo N, K y nivel de confianza.",
+      "Elige <code>N</code> (puntos por repeticion). Recomendado: <code>10000</code>. Para 3 decimales, N \u2248 10\u2076.",
+      "<b>K</b>: repeticiones independientes. Si K=1 usa SE de Bernoulli de una sola muestra; si K>1 promedia y calcula SE entre repeticiones.",
+      "<b>Nivel de confianza</b>: 90, 95 (default) o 99. Se calcula <code>z_{\u03B1/2}</code> automaticamente.",
+      "Pulsa <b>Resolver</b>. Se muestran: (1) solucion analitica del problema; (2) tabla de K repeticiones (si K>1); (3) <b>Resumen estadistico</b> (p\u0302, \u03C3, SE, IC); (4) <b>demostracion 1/\u221An</b> con simulacion a 4N.",
+      "Para el informe: reporta (a) N, K, semilla; (b) M y p\u0302 finales; (c) \u03C0\u0302; (d) |error|; (e) SE; (f) IC al nivel elegido."
     ],
     solve(params) {
       const N = parseInt(params.n) || 1e4;
+      const K = Math.max(1, parseInt(params.K) || 1);
+      const confPct = parseConfPct(params.conf, 95);
+      const z = zForConfidence(confPct);
       if (N < 1) throw new Error("N debe ser >= 1");
-      const seedVal = parseSeed2(params.seed);
-      const actualSeed = seedVal !== null ? seedVal : Date.now() ^ Math.random() * 4294967295;
-      const rand = mulberry322(actualSeed);
+      const seedVal = parseSeed(params.seed);
+      const baseSeed = seedVal !== null ? seedVal : Date.now() ^ Math.random() * 4294967295;
+      const rand = mulberry32(baseSeed);
       const iterations = [];
       const batchSize = Math.max(1, Math.floor(N / 20));
       let insideCount = 0;
       for (let i2 = 1; i2 <= N; i2++) {
         const x = rand() * 2 - 1;
         const y = rand() * 2 - 1;
-        if (x * x + y * y <= 1) {
-          insideCount++;
-        }
+        if (x * x + y * y <= 1) insideCount++;
         if (i2 % batchSize === 0 || i2 === N) {
           const pHat = insideCount / i2;
           const piEst = 4 * pHat;
           const error = Math.abs(piEst - Math.PI);
           const variance2 = pHat * (1 - pHat);
           const stdDev = Math.sqrt(variance2);
-          const stdErrP = stdDev / Math.sqrt(i2);
-          const stdErr2 = 4 * stdErrP;
-          const z95 = 1.96;
+          const stdErr = 4 * stdDev / Math.sqrt(i2);
           iterations.push({
             batch: iterations.length + 1,
             nAccum: i2,
@@ -63967,33 +65262,105 @@
             piEstimate: piEst,
             variance: variance2,
             stdDev,
-            stdErr: stdErr2,
+            stdErr,
             error,
-            ci95Lower: piEst - z95 * stdErr2,
-            ci95Upper: piEst + z95 * stdErr2
+            ci95Lower: piEst - z * stdErr,
+            ci95Upper: piEst + z * stdErr
           });
         }
       }
-      const piEstimate = 4 * insideCount / N;
-      const pHatFinal = insideCount / N;
-      const varianceFinal = pHatFinal * (1 - pHatFinal);
-      const stdDevFinal = Math.sqrt(varianceFinal);
-      const stdErr = 4 * stdDevFinal / Math.sqrt(N);
-      const finalError = Math.abs(piEstimate - Math.PI);
+      const piEstimate1 = 4 * insideCount / N;
+      const pHat1 = insideCount / N;
+      const stdErr1 = 4 * Math.sqrt(pHat1 * (1 - pHat1) / N);
+      const reps = [];
+      let finalMean = piEstimate1;
+      let finalVar = pHat1 * (1 - pHat1);
+      let finalStd = Math.sqrt(finalVar);
+      let finalSE = stdErr1;
+      let basis = "bernoulli";
+      if (K > 1) {
+        let sumK = 0, sumKSq = 0;
+        for (let k = 1; k <= K; k++) {
+          const run = runPi(N, baseSeed + k * 10007);
+          sumK += run.estimate;
+          sumKSq += run.estimate * run.estimate;
+          const runningMean = sumK / k;
+          const varRun = k > 1 ? Math.max(0, (sumKSq - k * runningMean * runningMean) / (k - 1)) : 0;
+          const runningStd = Math.sqrt(varRun);
+          reps.push({ k, estimate: run.estimate, runningMean, runningStd });
+        }
+        finalMean = reps[K - 1].runningMean;
+        finalVar = Math.max(0, (sumKSq - K * finalMean * finalMean) / (K - 1));
+        finalStd = Math.sqrt(finalVar);
+        finalSE = finalStd / Math.sqrt(K);
+        basis = "reps";
+      }
+      const ciLower = finalMean - z * finalSE;
+      const ciUpper = finalMean + z * finalSE;
+      const finalError = Math.abs(finalMean - Math.PI);
+      const analyticalPanel = `
+      <div class="theorem-panel theorem-pass">
+        <div class="theorem-header"><span class="theorem-icon">\u222B</span> Solucion analitica \u2014 \xBFpor que \u03C0 \u2248 4\xB7M/N?</div>
+        <div class="theorem-body">
+          <div>El cuadrado <code>[-1, 1] \xD7 [-1, 1]</code> tiene area <code>4</code>. El circulo unitario inscrito tiene area <code>\u03C0\xB71\xB2 = \u03C0</code>.</div>
+          ${texBlock("P\\bigl((X, Y) \\in \\text{circulo}\\bigr) = \\frac{\\text{area del circulo}}{\\text{area del cuadrado}} = \\frac{\\pi}{4}")}
+          <div>Para puntos <code>(x<sub>i</sub>, y<sub>i</sub>) ~ U([-1, 1]\xB2)</code>, la variable indicadora</div>
+          ${texBlock("Z_i = \\begin{cases} 1 & \\text{si } x_i^2 + y_i^2 \\le 1 \\\\ 0 & \\text{en otro caso} \\end{cases}")}
+          <div>es Bernoulli con parametro <code>p = \u03C0/4</code>. Por la Ley de los Grandes Numeros:</div>
+          ${texBlock("\\hat{p} = \\frac{1}{N}\\sum_{i=1}^{N} Z_i \\;\\xrightarrow{\\,N\\to\\infty\\,}\\; p = \\frac{\\pi}{4}")}
+          <div>Por lo tanto <code>\u03C0 \u2248 4\xB7p\u0302 = 4\xB7M/N</code> donde M es el numero de puntos dentro del circulo.</div>
+          <div style="margin-top:8px"><b>Varianza de Bernoulli:</b> <code>Var(Z) = p(1-p) \u2248 0.7854\xB70.2146 \u2248 0.1686</code>.</div>
+          ${texBlock("SE(\\hat{\\pi}) = 4 \\cdot SE(\\hat{p}) = 4 \\cdot \\sqrt{\\frac{\\hat{p}(1-\\hat{p})}{N}}")}
+        </div>
+      </div>
+    `;
+      const panels = [];
+      panels.push(analyticalPanel);
+      if (K > 1) panels.push(renderKRepsPanel(reps, "\\hat{\\pi}"));
+      panels.push(renderSummaryPanel({
+        N,
+        K,
+        mean: finalMean,
+        varianceEst: finalVar,
+        stdDev: finalStd,
+        stdErr: finalSE,
+        confPct,
+        z,
+        ciLower,
+        ciUpper,
+        basis,
+        symbol: "\\hat{\\pi}"
+      }));
+      panels.push(renderErrorHalvingPanel({
+        runner: (Nn, seed) => {
+          const r = runPi(Nn, seed);
+          return { estimate: r.estimate, stdErr: r.stdErr };
+        },
+        N,
+        baseSeed,
+        currentStdErr: finalSE,
+        constantLabel: "4\\cdot \\sqrt{p(1-p)}",
+        constantValue: 4 * Math.sqrt(pHat1 * (1 - pHat1))
+      }));
       const seedMsg = seedVal !== null ? `semilla=${seedVal}` : "semilla aleatoria";
+      const message = `\u03C0 \u2248 ${fmtNum2(finalMean, 8)} | N=${N}${K > 1 ? `, K=${K}` : ""} | ${seedMsg} | |error|=${fmtNum2(finalError, 6)} | SE=${fmtNum2(finalSE, 6)} | IC ${confPct}%: [${fmtNum2(ciLower, 6)}, ${fmtNum2(ciUpper, 6)}]`;
       return {
-        root: piEstimate,
+        root: finalMean,
         iterations,
         converged: true,
         error: finalError,
-        message: `\u03C0 \u2248 ${piEstimate.toFixed(8)} | ${seedMsg} | ${insideCount}/${N} dentro | \u03C3=${stdDevFinal.toFixed(6)} | SE=${stdErr.toFixed(6)} | IC 95%: [${(piEstimate - 1.96 * stdErr).toFixed(6)}, ${(piEstimate + 1.96 * stdErr).toFixed(6)}]`
+        message,
+        theoremPanels: panels
       };
     },
     getCharts(params, result) {
       const N = parseInt(params.n) || 1e4;
-      const seedVal = parseSeed2(params.seed);
+      const K = Math.max(1, parseInt(params.K) || 1);
+      const confPct = parseConfPct(params.conf, 95);
+      const z = zForConfidence(confPct);
+      const seedVal = parseSeed(params.seed);
       const chartSeed = seedVal !== null ? seedVal : Date.now() ^ 43981;
-      const rand = mulberry322(chartSeed);
+      const rand = mulberry32(chartSeed);
       const nShow = Math.min(N, 3e3);
       const hitX = [];
       const hitY = [];
@@ -64030,19 +65397,19 @@
       };
       const batchNs = result.iterations.map((r) => r.nAccum);
       const piEsts = result.iterations.map((r) => r.piEstimate);
-      const ci95Lowers = result.iterations.map((r) => r.ci95Lower);
-      const ci95Uppers = result.iterations.map((r) => r.ci95Upper);
+      const stdErrs = result.iterations.map((r) => r.stdErr);
+      const ciLowers = piEsts.map((e3, i2) => e3 - z * stdErrs[i2]);
+      const ciUppers = piEsts.map((e3, i2) => e3 + z * stdErrs[i2]);
       const variances = result.iterations.map((r) => r.variance);
       const stdDevs = result.iterations.map((r) => r.stdDev);
-      const stdErrs = result.iterations.map((r) => r.stdErr);
       const errors = result.iterations.map((r) => r.error);
       const chart2 = {
-        title: "Convergencia a \u03C0 con IC 95%",
+        title: `Convergencia a \u03C0 con IC ${confPct}%`,
         type: "line",
         datasets: [
-          { label: "IC 95% sup", x: batchNs, y: ci95Uppers, color: "#a6e3a1", dashed: true, pointRadius: 0 },
+          { label: `IC ${confPct}% sup`, x: batchNs, y: ciUppers, color: "#a6e3a1", dashed: true, pointRadius: 0 },
           { label: "\u03C0 estimado", x: batchNs, y: piEsts, color: "#cba6f7", pointRadius: 3 },
-          { label: "IC 95% inf", x: batchNs, y: ci95Lowers, color: "#a6e3a1", dashed: true, pointRadius: 0 },
+          { label: `IC ${confPct}% inf`, x: batchNs, y: ciLowers, color: "#a6e3a1", dashed: true, pointRadius: 0 },
           { label: "\u03C0 real", x: [batchNs[0], batchNs[batchNs.length - 1]], y: [Math.PI, Math.PI], color: "#f9e2af", dashed: true, pointRadius: 0 }
         ],
         xLabel: "N",
@@ -64058,48 +65425,67 @@
         xLabel: "N",
         yLabel: "Valor"
       };
-      const errFiltered = errors.filter((e3) => e3 > 0);
-      const seFiltered = stdErrs.filter((e3) => e3 > 0);
-      const theorN = batchNs.filter((n) => n > 0);
-      const theor1sqrtN = theorN.map((n) => 4 * 0.5 / Math.sqrt(n));
-      const chart4 = {
-        title: "|Error real| vs Error Estandar vs N (log)",
-        type: "line",
-        datasets: [
-          { label: "|\u03C0\u0302 - \u03C0|", x: batchNs.slice(0, errFiltered.length), y: errFiltered, color: "#f38ba8", pointRadius: 2 },
-          { label: "SE (error est.)", x: batchNs.slice(0, seFiltered.length), y: seFiltered, color: "#fab387", pointRadius: 2 },
-          { label: "~1/\u221AN (teorico)", x: theorN, y: theor1sqrtN, color: "#585b70", dashed: true, pointRadius: 0 }
-        ],
-        xLabel: "N",
-        yLabel: "Error",
-        yLog: true
-      };
+      let chart4;
+      if (K > 1) {
+        const repsSim = [];
+        let sumK = 0;
+        for (let k = 1; k <= K; k++) {
+          const r = runPi(N, (seedVal ?? chartSeed) + k * 10007);
+          sumK += r.estimate;
+          repsSim.push({ k, est: r.estimate, mean: sumK / k });
+        }
+        chart4 = {
+          title: `K = ${K} repeticiones y promedio acumulado`,
+          type: "line",
+          datasets: [
+            { label: "\u03C0\u0302_k", x: repsSim.map((r) => r.k), y: repsSim.map((r) => r.est), color: "#f38ba8", pointRadius: 4, showLine: false },
+            { label: "Promedio 1..k", x: repsSim.map((r) => r.k), y: repsSim.map((r) => r.mean), color: "#cba6f7", pointRadius: 2 },
+            { label: "\u03C0 real", x: [1, K], y: [Math.PI, Math.PI], color: "#f9e2af", dashed: true, pointRadius: 0 }
+          ],
+          xLabel: "k",
+          yLabel: "\u03C0\u0302"
+        };
+      } else {
+        const errFiltered = errors.filter((e3) => e3 > 0);
+        const seFiltered = stdErrs.filter((e3) => e3 > 0);
+        const theorN = batchNs.filter((n) => n > 0);
+        const theor1sqrtN = theorN.map((n) => 4 * 0.5 / Math.sqrt(n));
+        chart4 = {
+          title: "|Error real| vs Error Estandar vs N (log)",
+          type: "line",
+          datasets: [
+            { label: "|\u03C0\u0302 - \u03C0|", x: batchNs.slice(0, errFiltered.length), y: errFiltered, color: "#f38ba8", pointRadius: 2 },
+            { label: "SE (error est.)", x: batchNs.slice(0, seFiltered.length), y: seFiltered, color: "#fab387", pointRadius: 2 },
+            { label: "~1/\u221AN (teorico)", x: theorN, y: theor1sqrtN, color: "#585b70", dashed: true, pointRadius: 0 }
+          ],
+          xLabel: "N",
+          yLabel: "Error",
+          yLog: true
+        };
+      }
       return [chart1, chart2, chart3, chart4];
     }
   };
 
   // src/methods/integration/montecarlo2D.ts
-  function mulberry323(seed) {
-    let s = seed | 0;
-    return () => {
-      s = s + 1831565813 | 0;
-      let t = Math.imul(s ^ s >>> 15, 1 | s);
-      t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
-      return ((t ^ t >>> 14) >>> 0) / 4294967296;
-    };
-  }
-  function hashString3(str) {
-    let hash = 0;
-    for (let i2 = 0; i2 < str.length; i2++) {
-      hash = (hash << 5) - hash + str.charCodeAt(i2) | 0;
+  function run2D(f, a, b, c, d, N, seed) {
+    const rand = mulberry32(seed);
+    const wx = b - a, wy = d - c;
+    const area = wx * wy;
+    let sum3 = 0, sumSq = 0;
+    for (let i2 = 0; i2 < N; i2++) {
+      const xi = a + rand() * wx;
+      const yi = c + rand() * wy;
+      const fi = f(xi, yi);
+      sum3 += fi;
+      sumSq += fi * fi;
     }
-    return hash;
-  }
-  function parseSeed3(input) {
-    if (!input || input.trim() === "") return null;
-    const num = Number(input.trim());
-    if (!isNaN(num)) return num;
-    return hashString3(input.trim());
+    const mean2 = sum3 / N;
+    const estimate = area * mean2;
+    const varF = Math.max(0, sumSq / N - mean2 * mean2);
+    const stdDevF = Math.sqrt(varF);
+    const stdErr = area * stdDevF / Math.sqrt(N);
+    return { estimate, stdErr, stdDevF };
   }
   var montecarlo2D = {
     id: "montecarlo2D",
@@ -64116,6 +65502,7 @@
       { id: "d", label: "d (y max)", placeholder: "1", type: "number", defaultValue: "1" },
       { id: "n", label: "N (puntos por repeticion)", placeholder: "10000", type: "number", defaultValue: "10000" },
       { id: "K", label: "K (repeticiones a promediar)", placeholder: "10", type: "number", defaultValue: "10" },
+      { id: "conf", label: "Nivel de confianza (%)", placeholder: "95", type: "number", defaultValue: "95", hint: "Ej: 90, 95, 99." },
       { id: "exact", label: "Valor exacto (opcional)", placeholder: "", hint: "Para comparar con el promedio." },
       { id: "seed", label: "Semilla (opcional)", placeholder: "Vacio = aleatorio", hint: "Numero o texto. Misma semilla = mismos resultados." }
     ],
@@ -64129,13 +65516,10 @@
     steps: [
       "Para el <b>parcial 2025-I (IMG_5755)</b> \u2014 integral doble Monte Carlo: introduce <code>f(x, y)</code>. Ejemplo: <code>x^2 + y^2</code> o la funcion que pida el parcial.",
       "Define el dominio rectangular: <code>x \u2208 [a, b]</code> y <code>y \u2208 [c, d]</code>. Area = <code>(b-a)(d-c)</code>.",
-      "Configura <code>N</code> (puntos por repeticion) y <code>K</code> (numero de repeticiones independientes). Tipico del parcial: <code>N = 10000</code>, <code>K = 10</code>. Cada repeticion usa <b>semilla distinta</b> para ser estadisticamente independiente.",
-      "Formula: <code>I_k \u2248 (Area)/N \xB7 \u03A3\u1D62 f(x_i, y_i)</code> con <code>x_i</code>, <code>y_i</code> uniformes en [a,b] y [c,d]. El estimador final es <code>\xCE = (1/K) \u03A3\u2096 I_k</code>.",
-      "Si tienes <b>valor exacto</b>, ponlo para comparar cada <code>I_k</code> y el promedio. Exacto de <code>x\xB2 + y\xB2</code> en <code>[0,1]\xB2</code>: <code>2/3 \u2248 0.6667</code>.",
-      "Pulsa <b>Resolver</b>. La tabla muestra por cada repeticion <code>k</code>:<br>&nbsp;&nbsp;\u2022 <code>I_k</code>: estimacion individual.<br>&nbsp;&nbsp;\u2022 <em>Promedio acumulado</em>: media de <code>I_1, ..., I_k</code> (se estabiliza).<br>&nbsp;&nbsp;\u2022 <em>\u03C3 entre repeticiones</em>: variabilidad (deberia ser peque\xF1a si N es grande).",
-      "<b>Error estandar del promedio</b>: <code>SE = s / \u221AK</code> donde <code>s = \u03C3</code> entre repeticiones. <em>Este es el estimador correcto cuando repites K veces</em>.",
-      "Ventaja de K repeticiones: reduce la varianza global y permite <em>intervalo de confianza empirico</em>. Dobla K \u2192 SE se reduce \u221A2 \u2248 1.41\xD7 (mas realista que asumir distribucion normal).",
-      "Para el informe: (1) <code>N</code>, <code>K</code>, semilla base; (2) tabla de <code>I_k</code>; (3) promedio final <code>\xCE</code>; (4) \u03C3 entre repeticiones; (5) SE; (6) si hay exacto: |error| y error relativo %."
+      "Configura <code>N</code> (puntos por repeticion), <code>K</code> (repeticiones independientes) y <b>nivel de confianza</b> (90/95/99).",
+      "Formula: <code>I_k \u2248 (Area)/N \xB7 \u03A3\u1D62 f(x_i, y_i)</code>. Estimador final <code>\xCE = (1/K) \u03A3\u2096 I_k</code>.",
+      "Pulsa <b>Resolver</b>. Se muestran: (1) <b>Solucion analitica paso a paso</b> (integral iterada por Fubini); (2) tabla de K repeticiones; (3) <b>Resumen estadistico</b> con media, varianza, SE e IC al nivel configurado; (4) <b>demostracion 1/\u221An</b> con simulacion a 4N.",
+      "Para el informe: (1) <code>N, K</code>, semilla, nivel de confianza; (2) tabla de <code>I_k</code>; (3) promedio <code>\xCE</code>; (4) \u03C3 entre repeticiones; (5) IC; (6) si hay exacto, error relativo."
     ],
     solve(params) {
       const f = parseExpression2(params.fxy);
@@ -64145,6 +65529,7 @@
       const d = parseFloat(params.d);
       const N = parseInt(params.n) || 1e4;
       const K = Math.max(1, parseInt(params.K) || 10);
+      const confPct = parseConfPct(params.conf, 95);
       if ([a, b, c, d].some(isNaN)) throw new Error("a, b, c, d deben ser numeros validos");
       if (a >= b) throw new Error("a debe ser menor que b");
       if (c >= d) throw new Error("c debe ser menor que d");
@@ -64152,52 +65537,102 @@
       const area = (b - a) * (d - c);
       const widthX = b - a;
       const heightY = d - c;
+      const z = zForConfidence(confPct);
       let exactVal;
       if (params.exact && params.exact.trim() !== "") {
         const parsed = parseFloat(params.exact);
         if (!isNaN(parsed)) exactVal = parsed;
       }
-      const seedVal = parseSeed3(params.seed);
+      const seedVal = parseSeed(params.seed);
       const baseSeed = seedVal !== null ? seedVal : Date.now() ^ Math.random() * 4294967295;
       const iterations = [];
-      const estimates = [];
+      const reps = [];
       let sumEst = 0;
       let sumEstSq = 0;
+      let lastStdDevF = 0;
       for (let k = 1; k <= K; k++) {
-        const rand = mulberry323(baseSeed + k * 10007);
+        const rand = mulberry32(baseSeed + k * 10007);
         let sum3 = 0;
+        let sumSq = 0;
         for (let i2 = 0; i2 < N; i2++) {
           const xi = a + rand() * widthX;
           const yi = c + rand() * heightY;
-          sum3 += f(xi, yi);
+          const fi = f(xi, yi);
+          sum3 += fi;
+          sumSq += fi * fi;
         }
-        const I_k = area * (sum3 / N);
-        estimates.push(I_k);
+        const meanF = sum3 / N;
+        const I_k = area * meanF;
+        const varFk = Math.max(0, sumSq / N - meanF * meanF);
+        lastStdDevF = Math.sqrt(varFk);
         sumEst += I_k;
         sumEstSq += I_k * I_k;
         const runningMean = sumEst / k;
-        const varRun = k > 1 ? Math.max(0, sumEstSq / k - runningMean * runningMean) : 0;
-        const stdDevRun = Math.sqrt(varRun);
+        const varRun = k > 1 ? Math.max(0, (sumEstSq - k * runningMean * runningMean) / (k - 1)) : 0;
+        const runningStd = Math.sqrt(varRun);
         const exactDiff = exactVal !== void 0 ? Math.abs(I_k - exactVal) : null;
         iterations.push({
           k,
           estimate: I_k,
           runningMean,
-          stdDevRun,
+          stdDevRun: runningStd,
           exactDiff
         });
+        reps.push({ k, estimate: I_k, runningMean, runningStd });
       }
       const avgEstimate = sumEst / K;
-      const varK = K > 1 ? Math.max(0, sumEstSq / K - avgEstimate * avgEstimate) : 0;
-      const stdDevK = Math.sqrt(varK);
-      const stdErrK = stdDevK / Math.sqrt(K);
+      let varK;
+      let stdDevK;
+      let stdErrK;
+      let basis;
+      if (K > 1) {
+        varK = Math.max(0, (sumEstSq - K * avgEstimate * avgEstimate) / (K - 1));
+        stdDevK = Math.sqrt(varK);
+        stdErrK = stdDevK / Math.sqrt(K);
+        basis = "reps";
+      } else {
+        stdErrK = area * lastStdDevF / Math.sqrt(N);
+        stdDevK = area * lastStdDevF;
+        varK = stdDevK * stdDevK;
+        basis = "within";
+      }
+      const ciLower = avgEstimate - z * stdErrK;
+      const ciUpper = avgEstimate + z * stdErrK;
       let relativeErrorPercent;
-      let message = `I \u2248 ${avgEstimate.toPrecision(8)} (promedio de K=${K}) | \u03C3 entre repeticiones = ${stdDevK.toPrecision(6)} | SE = ${stdErrK.toPrecision(6)}`;
+      let message = `I \u2248 ${fmtNum2(avgEstimate, 8)} (promedio de K=${K}) | \u03C3 entre repeticiones = ${fmtNum2(stdDevK, 6)} | SE = ${fmtNum2(stdErrK, 6)} | IC ${confPct}%: [${fmtNum2(ciLower, 8)}, ${fmtNum2(ciUpper, 8)}]`;
       if (exactVal !== void 0) {
         const absErr = Math.abs(avgEstimate - exactVal);
         relativeErrorPercent = Math.abs(exactVal) > 1e-14 ? absErr / Math.abs(exactVal) * 100 : absErr * 100;
-        message += ` | Exacto = ${exactVal.toPrecision(8)} | |error| = ${absErr.toPrecision(6)}`;
+        message += ` | Exacto = ${fmtNum2(exactVal, 8)} | |error| = ${fmtNum2(absErr, 6)}`;
       }
+      const panels = [];
+      panels.push(renderAnalyticalPanel2D(params.fxy, a, b, c, d));
+      if (K > 1) panels.push(renderKRepsPanel(reps, "\\hat{I}"));
+      panels.push(renderSummaryPanel({
+        N,
+        K,
+        mean: avgEstimate,
+        varianceEst: varK,
+        stdDev: stdDevK,
+        stdErr: stdErrK,
+        confPct,
+        z,
+        ciLower,
+        ciUpper,
+        basis,
+        symbol: "\\hat{I}"
+      }));
+      panels.push(renderErrorHalvingPanel({
+        runner: (Nn, seed) => {
+          const r = run2D(f, a, b, c, d, Nn, seed);
+          return { estimate: r.estimate, stdErr: r.stdErr };
+        },
+        N,
+        baseSeed,
+        currentStdErr: stdErrK,
+        constantLabel: "(b-a)(d-c)\\cdot \\sigma(f)",
+        constantValue: area * lastStdDevF
+      }));
       return {
         integral: avgEstimate,
         iterations,
@@ -64205,7 +65640,8 @@
         error: stdErrK,
         exact: exactVal,
         relativeErrorPercent,
-        message
+        message,
+        theoremPanels: panels
       };
     },
     getCharts(params, result) {
@@ -64214,7 +65650,7 @@
       const c = parseFloat(params.c);
       const d = parseFloat(params.d);
       const N = parseInt(params.n) || 1e4;
-      const seedVal = parseSeed3(params.seed);
+      const seedVal = parseSeed(params.seed);
       const baseSeed = seedVal !== null ? seedVal : Date.now() ^ 43981;
       const ks = result.iterations.map((r) => r.k);
       const estimates = result.iterations.map((r) => r.estimate);
@@ -64235,7 +65671,7 @@
         xLabel: "k (repeticion)",
         yLabel: "I"
       };
-      const rand = mulberry323(baseSeed + 1);
+      const rand = mulberry32(baseSeed + 1);
       const nShow = Math.min(N, 500);
       const sampleX = [];
       const sampleY = [];
@@ -64295,27 +65731,23 @@
   };
 
   // src/methods/integration/montecarloArea.ts
-  function mulberry324(seed) {
-    let s = seed | 0;
-    return () => {
-      s = s + 1831565813 | 0;
-      let t = Math.imul(s ^ s >>> 15, 1 | s);
-      t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
-      return ((t ^ t >>> 14) >>> 0) / 4294967296;
-    };
-  }
-  function hashString4(str) {
-    let hash = 0;
-    for (let i2 = 0; i2 < str.length; i2++) {
-      hash = (hash << 5) - hash + str.charCodeAt(i2) | 0;
+  function runArea(f, g, a, b, yLo, yHi, N, seed) {
+    const rand = mulberry32(seed);
+    const rectArea = (b - a) * (yHi - yLo);
+    let hits = 0;
+    for (let i2 = 0; i2 < N; i2++) {
+      const xi = a + rand() * (b - a);
+      const yi = yLo + rand() * (yHi - yLo);
+      const fv = f(xi);
+      const gv = g(xi);
+      const top = Math.max(fv, gv);
+      const bot = Math.min(fv, gv);
+      if (yi >= bot && yi <= top) hits++;
     }
-    return hash;
-  }
-  function parseSeed4(input) {
-    if (!input || input.trim() === "") return null;
-    const num = Number(input.trim());
-    if (!isNaN(num)) return num;
-    return hashString4(input.trim());
+    const p = hits / N;
+    const estimate = rectArea * p;
+    const stdErr = rectArea * Math.sqrt(p * (1 - p) / N);
+    return { estimate, hits, stdErr };
   }
   var montecarloArea = {
     id: "montecarloArea",
@@ -64323,7 +65755,7 @@
     category: "integration",
     formula: "A = \u222B_a^b (f(x) - g(x)) dx \u2014 Hit-or-Miss sobre rectangulo circunscrito",
     latexFormula: "A = \\int_a^b \\bigl(f(x) - g(x)\\bigr)\\,dx \\approx A_{\\text{rect}} \\cdot \\frac{\\#\\{\\text{puntos dentro}\\}}{N}",
-    description: "Estima el area entre f(x) y g(x) sobre [a,b] lanzando puntos aleatorios y contando cuantos caen en la region. Promedia K repeticiones.",
+    description: "Estima el area entre f(x) y g(x) sobre [a,b] lanzando puntos aleatorios y contando cuantos caen en la region. Promedia K repeticiones. Nivel de confianza configurable.",
     inputs: [
       { id: "fx", label: "f(x) (curva superior)", placeholder: "x^2", defaultValue: "x^2" },
       { id: "gx", label: "g(x) (curva inferior)", placeholder: "x^3", defaultValue: "x^3" },
@@ -64331,6 +65763,7 @@
       { id: "b", label: "b (limite superior x)", placeholder: "1", type: "number", defaultValue: "1" },
       { id: "n", label: "N (puntos por repeticion)", placeholder: "10000", type: "number", defaultValue: "10000" },
       { id: "K", label: "K (repeticiones a promediar)", placeholder: "10", type: "number", defaultValue: "10" },
+      { id: "conf", label: "Nivel de confianza (%)", placeholder: "95", type: "number", defaultValue: "95", hint: "Ej: 90, 95, 99." },
       { id: "exact", label: "Valor exacto (opcional)", placeholder: "", hint: "Para comparar con el promedio." },
       { id: "seed", label: "Semilla (opcional)", placeholder: "Vacio = aleatorio", hint: "Numero o texto." }
     ],
@@ -64343,15 +65776,12 @@
       { key: "exactDiff", label: "|A_k - Exacto|", latex: "|A_k - A^*|" }
     ],
     steps: [
-      "Para el <b>parcial 30/04/2025</b> (area entre curvas por Monte Carlo): escribe <code>f(x)</code> (curva <em>superior</em>) y <code>g(x)</code> (curva <em>inferior</em>). Ejemplo parcial: <code>f(x) = x\xB2</code>, <code>g(x) = x\xB3</code> en <code>[0, 1]</code>.",
-      "Define <code>[a, b]</code>. <em>Consejo</em>: verifica graficamente que <code>f \u2265 g</code> en todo el intervalo antes de correr \u2014 si se cruzan, la app usa <code>|f - g|</code> automaticamente.",
-      "Configura <code>N</code> (puntos por repeticion) y <code>K</code> (cantidad de repeticiones). Tipico: <code>N = 10000</code>, <code>K = 10</code>.",
-      "<b>Estrategia Hit-or-Miss</b>: la app construye un rectangulo circunscrito <code>[a, b] \xD7 [y_min, y_max]</code> que contiene ambas curvas. Lanza puntos uniformes en ese rectangulo y cuenta los que caen <em>entre</em> las curvas. Area \u2248 <code>(Area rect) \xB7 (hits / N)</code>.",
-      "Pulsa <b>Resolver</b>. Se muestran K repeticiones independientes, cada una con distintas semillas. Promedio de las K da la estimacion final.",
-      "Si tienes <b>valor exacto</b>: pone el valor analitico <code>A = \u222B(f - g) dx</code>. Para <code>x\xB2 - x\xB3</code> en <code>[0, 1]</code>: <code>A = 1/3 - 1/4 = 1/12 \u2248 0.0833</code>.",
-      "<b>Error estandar</b>: <code>SE = \u03C3_K / \u221AK</code> donde <code>\u03C3_K</code> es la desviacion estandar entre las K estimaciones.",
-      "Para el informe: (1) tabla de <code>A_k</code>; (2) promedio final; (3) \u03C3 entre repeticiones; (4) IC 95%: <code>\xC2 \xB1 1.96\xB7SE</code>; (5) comparacion con exacto si se tiene. Discutir por que N=10000 suele dar precision ~3 decimales.",
-      "Interpretacion visual: la grafica Hit-or-Miss muestra <em>verde</em> = puntos entre las curvas (cuentan), <em>rojo</em> = puntos fuera (no cuentan). Mientras mas verdes aciertos proporcionales, mejor la estimacion."
+      "Para el <b>parcial 30/04/2025</b>: escribe <code>f(x)</code> (superior) y <code>g(x)</code> (inferior). Ej: <code>f = x\xB2</code>, <code>g = x\xB3</code> en <code>[0, 1]</code>.",
+      "Define <code>[a, b]</code>. Si las curvas se cruzan, la app usa <code>|f - g|</code> automaticamente (toma el max y min en cada x).",
+      "Configura <code>N</code>, <code>K</code> y el <b>nivel de confianza</b> (90/95/99).",
+      "<b>Estrategia Hit-or-Miss</b>: rectangulo circunscrito <code>[a, b] \xD7 [y_min, y_max]</code>. Puntos uniformes, cuenta los que caen entre las curvas. <code>A \u2248 (Area rect) \xB7 (hits / N)</code>.",
+      "Pulsa <b>Resolver</b>. Se muestran: (1) <b>Solucion analitica paso a paso</b> (\u222B(f-g)dx); (2) tabla de K repeticiones; (3) <b>Resumen estadistico</b> con media, varianza, SE, IC; (4) <b>demostracion 1/\u221An</b> con simulacion a 4N.",
+      "Para el informe: (1) tabla de A_k; (2) promedio; (3) \u03C3 entre repeticiones; (4) IC; (5) comparacion con exacto si lo hay."
     ],
     solve(params) {
       const f = parseExpression(params.fx);
@@ -64360,6 +65790,8 @@
       const b = parseFloat(params.b);
       const N = parseInt(params.n) || 1e4;
       const K = Math.max(1, parseInt(params.K) || 10);
+      const confPct = parseConfPct(params.conf, 95);
+      const z = zForConfidence(confPct);
       if (isNaN(a) || isNaN(b)) throw new Error("a y b deben ser numeros validos");
       if (a >= b) throw new Error("a debe ser menor que b");
       if (N < 1) throw new Error("N debe ser >= 1");
@@ -64377,50 +65809,86 @@
         const parsed = parseFloat(params.exact);
         if (!isNaN(parsed)) exactVal = parsed;
       }
-      const seedVal = parseSeed4(params.seed);
+      const seedVal = parseSeed(params.seed);
       const baseSeed = seedVal !== null ? seedVal : Date.now() ^ Math.random() * 4294967295;
       const iterations = [];
+      const reps = [];
       let sumEst = 0;
       let sumEstSq = 0;
+      let lastPHat = 0;
       for (let k = 1; k <= K; k++) {
-        const rand = mulberry324(baseSeed + k * 10007);
-        let hits = 0;
-        for (let i2 = 0; i2 < N; i2++) {
-          const xi = a + rand() * (b - a);
-          const yi = yMin + rand() * (yMax - yMin);
-          const fv = f(xi);
-          const gv = g(xi);
-          const top = Math.max(fv, gv);
-          const bot = Math.min(fv, gv);
-          if (yi >= bot && yi <= top) hits++;
-        }
-        const A_k = rectArea * (hits / N);
+        const run = runArea(f, g, a, b, yMin, yMax, N, baseSeed + k * 10007);
+        const A_k = run.estimate;
+        lastPHat = run.hits / N;
         sumEst += A_k;
         sumEstSq += A_k * A_k;
         const runningMean = sumEst / k;
-        const varRun = k > 1 ? Math.max(0, sumEstSq / k - runningMean * runningMean) : 0;
-        const stdDevRun = Math.sqrt(varRun);
+        const varRun = k > 1 ? Math.max(0, (sumEstSq - k * runningMean * runningMean) / (k - 1)) : 0;
+        const runningStd = Math.sqrt(varRun);
         const exactDiff = exactVal !== void 0 ? Math.abs(A_k - exactVal) : null;
         iterations.push({
           k,
-          hits,
+          hits: run.hits,
           estimate: A_k,
           runningMean,
-          stdDevRun,
+          stdDevRun: runningStd,
           exactDiff
         });
+        reps.push({ k, estimate: A_k, runningMean, runningStd });
       }
       const avgEstimate = sumEst / K;
-      const varK = K > 1 ? Math.max(0, sumEstSq / K - avgEstimate * avgEstimate) : 0;
-      const stdDevK = Math.sqrt(varK);
-      const stdErrK = stdDevK / Math.sqrt(K);
+      let varK;
+      let stdDevK;
+      let stdErrK;
+      let basis;
+      if (K > 1) {
+        varK = Math.max(0, (sumEstSq - K * avgEstimate * avgEstimate) / (K - 1));
+        stdDevK = Math.sqrt(varK);
+        stdErrK = stdDevK / Math.sqrt(K);
+        basis = "reps";
+      } else {
+        stdErrK = rectArea * Math.sqrt(lastPHat * (1 - lastPHat) / N);
+        stdDevK = rectArea * Math.sqrt(lastPHat * (1 - lastPHat));
+        varK = stdDevK * stdDevK;
+        basis = "bernoulli";
+      }
+      const ciLower = avgEstimate - z * stdErrK;
+      const ciUpper = avgEstimate + z * stdErrK;
       let relativeErrorPercent;
-      let message = `A \u2248 ${avgEstimate.toPrecision(8)} (promedio K=${K}, N=${N}) | \u03C3 repeticiones = ${stdDevK.toPrecision(6)} | rect area = ${rectArea.toPrecision(6)}`;
+      let message = `A \u2248 ${fmtNum2(avgEstimate, 8)} (K=${K}, N=${N}) | \u03C3 reps = ${fmtNum2(stdDevK, 6)} | SE = ${fmtNum2(stdErrK, 6)} | IC ${confPct}%: [${fmtNum2(ciLower, 8)}, ${fmtNum2(ciUpper, 8)}]`;
       if (exactVal !== void 0) {
         const absErr = Math.abs(avgEstimate - exactVal);
         relativeErrorPercent = Math.abs(exactVal) > 1e-14 ? absErr / Math.abs(exactVal) * 100 : absErr * 100;
-        message += ` | Exacto = ${exactVal.toPrecision(8)} | |error| = ${absErr.toPrecision(6)}`;
+        message += ` | Exacto = ${fmtNum2(exactVal, 8)} | |error| = ${fmtNum2(absErr, 6)}`;
       }
+      const panels = [];
+      panels.push(renderAnalyticalPanelDifference(params.fx, params.gx, a, b));
+      if (K > 1) panels.push(renderKRepsPanel(reps, "\\hat{A}"));
+      panels.push(renderSummaryPanel({
+        N,
+        K,
+        mean: avgEstimate,
+        varianceEst: varK,
+        stdDev: stdDevK,
+        stdErr: stdErrK,
+        confPct,
+        z,
+        ciLower,
+        ciUpper,
+        basis,
+        symbol: "\\hat{A}"
+      }));
+      panels.push(renderErrorHalvingPanel({
+        runner: (Nn, seed) => {
+          const r = runArea(f, g, a, b, yMin, yMax, Nn, seed);
+          return { estimate: r.estimate, stdErr: r.stdErr };
+        },
+        N,
+        baseSeed,
+        currentStdErr: stdErrK,
+        constantLabel: "A_{\\text{rect}}\\cdot \\sqrt{p(1-p)}",
+        constantValue: rectArea * Math.sqrt(lastPHat * (1 - lastPHat))
+      }));
       return {
         integral: avgEstimate,
         iterations,
@@ -64428,7 +65896,8 @@
         error: stdErrK,
         exact: exactVal,
         relativeErrorPercent,
-        message
+        message,
+        theoremPanels: panels
       };
     },
     getCharts(params, result) {
@@ -64437,7 +65906,7 @@
       const a = parseFloat(params.a);
       const b = parseFloat(params.b);
       const N = parseInt(params.n) || 1e4;
-      const seedVal = parseSeed4(params.seed);
+      const seedVal = parseSeed(params.seed);
       const baseSeed = seedVal !== null ? seedVal : Date.now() ^ 43981;
       const xsPlot = linspace(a, b, 400);
       const fYs = xsPlot.map((x) => f(x));
@@ -64447,7 +65916,7 @@
       const yPad = (yMax - yMin) * 0.05 || 1;
       const yLo = yMin - yPad;
       const yHi = yMax + yPad;
-      const rand = mulberry324(baseSeed + 1);
+      const rand = mulberry32(baseSeed + 1);
       const nShow = Math.min(N, 600);
       const hitX = [];
       const hitY = [];
@@ -64914,8 +66383,8 @@
   }
 
   // src/methods/interpolation/lagrange.ts
-  var math6 = create(all);
-  registerMathAliases(math6);
+  var math7 = create(all);
+  registerMathAliases(math7);
   function evalLagrange(xs, ys, x) {
     const n = xs.length;
     const basis = [];
@@ -65118,14 +66587,14 @@
   }
   function safeToTex(expr) {
     try {
-      return math6.parse(expr).toTex();
+      return math7.parse(expr).toTex();
     } catch {
       return expr;
     }
   }
   function safeSimplifyToTex(expr) {
     try {
-      const simp = math6.simplify(expr);
+      const simp = math7.simplify(expr);
       return simp.toTex();
     } catch {
       return safeToTex(expr);
@@ -82793,901 +84262,6 @@ ${blocks.join("\n\n")}`;
   function setStatus(msg) {
     const el = document.getElementById("ggb-status");
     if (el) el.textContent = msg;
-  }
-
-  // src/symbolic.ts
-  var math7 = create(all);
-  registerMathAliases(math7);
-  function symbolicDerivativeSteps(expr, variable = "x") {
-    try {
-      const node = math7.parse(expr);
-      const steps2 = [];
-      const derived = deriveStep(node, variable, steps2);
-      const simplified = math7.simplify(derived);
-      const derivedStr = derived.toString();
-      const simpStr = simplified.toString();
-      if (simpStr !== derivedStr) {
-        steps2.push({
-          rule: "Simplificar",
-          explanation: "Agrupamos t\xE9rminos semejantes y reducimos la expresi\xF3n.",
-          latex: `${toTex(derived)} \\;=\\; ${toTex(simplified)}`
-        });
-      }
-      return {
-        result: simpStr,
-        resultTex: toTex(simplified),
-        steps: steps2
-      };
-    } catch (e3) {
-      throw new Error(`No se pudo derivar: ${e3.message}`);
-    }
-  }
-  function deriveStep(node, v, steps2) {
-    if (!containsVariable(node, v)) {
-      const result = new ConstantNode(0);
-      steps2.push({
-        rule: "Derivada de una constante",
-        explanation: `La derivada de cualquier constante respecto de ${v} es 0.`,
-        latex: `\\frac{d}{d${v}}\\left[${toTex(node)}\\right] = 0`
-      });
-      return result;
-    }
-    if (isSymbol(node, v)) {
-      const result = new ConstantNode(1);
-      steps2.push({
-        rule: "Derivada de la variable",
-        explanation: `La derivada de la variable respecto de s\xED misma es 1.`,
-        latex: `\\frac{d}{d${v}}\\left[${v}\\right] = 1`
-      });
-      return result;
-    }
-    if (isOperator(node, "+") || isOperator(node, "-")) {
-      const op2 = node;
-      if (op2.args.length === 2) {
-        const sign5 = op2.op;
-        const opName = sign5 === "+" ? "add" : "subtract";
-        steps2.push({
-          rule: sign5 === "+" ? "Regla de la suma" : "Regla de la resta",
-          explanation: `La derivada de una ${sign5 === "+" ? "suma" : "resta"} es la ${sign5 === "+" ? "suma" : "resta"} de las derivadas.`,
-          latex: `\\frac{d}{d${v}}\\left[${toTex(op2.args[0])} ${sign5} ${toTex(op2.args[1])}\\right] = \\frac{d}{d${v}}\\left[${toTex(op2.args[0])}\\right] ${sign5} \\frac{d}{d${v}}\\left[${toTex(op2.args[1])}\\right]`
-        });
-        const a = deriveStep(op2.args[0], v, steps2);
-        const b = deriveStep(op2.args[1], v, steps2);
-        return new OperatorNode(sign5, opName, [a, b]);
-      }
-      if (op2.args.length === 1) {
-        steps2.push({
-          rule: "Signo negativo",
-          explanation: "Una constante (\u22121) sale de la derivada.",
-          latex: `\\frac{d}{d${v}}\\left[-${toTex(op2.args[0])}\\right] = -\\frac{d}{d${v}}\\left[${toTex(op2.args[0])}\\right]`
-        });
-        const a = deriveStep(op2.args[0], v, steps2);
-        return new OperatorNode("-", "unaryMinus", [a]);
-      }
-    }
-    if (isOperator(node, "*")) {
-      const op2 = node;
-      if (!containsVariable(op2.args[0], v)) {
-        steps2.push({
-          rule: "M\xFAltiplo constante",
-          explanation: "Una constante sale de la derivada multiplicando.",
-          latex: `\\frac{d}{d${v}}\\left[${toTex(op2.args[0])} \\cdot ${toTex(op2.args[1])}\\right] = ${toTex(op2.args[0])} \\cdot \\frac{d}{d${v}}\\left[${toTex(op2.args[1])}\\right]`
-        });
-        const inner2 = deriveStep(op2.args[1], v, steps2);
-        return new OperatorNode("*", "multiply", [op2.args[0], inner2]);
-      }
-      if (!containsVariable(op2.args[1], v)) {
-        steps2.push({
-          rule: "M\xFAltiplo constante",
-          explanation: "Una constante sale de la derivada multiplicando.",
-          latex: `\\frac{d}{d${v}}\\left[${toTex(op2.args[0])} \\cdot ${toTex(op2.args[1])}\\right] = ${toTex(op2.args[1])} \\cdot \\frac{d}{d${v}}\\left[${toTex(op2.args[0])}\\right]`
-        });
-        const inner2 = deriveStep(op2.args[0], v, steps2);
-        return new OperatorNode("*", "multiply", [op2.args[1], inner2]);
-      }
-      steps2.push({
-        rule: "Regla del producto",
-        explanation: `Aplicamos (f\xB7g)' = f'\xB7g + f\xB7g'.`,
-        latex: `\\frac{d}{d${v}}\\left[${toTex(op2.args[0])} \\cdot ${toTex(op2.args[1])}\\right] = \\frac{d}{d${v}}\\left[${toTex(op2.args[0])}\\right]\\cdot ${toTex(op2.args[1])} + ${toTex(op2.args[0])}\\cdot\\frac{d}{d${v}}\\left[${toTex(op2.args[1])}\\right]`
-      });
-      const df = deriveStep(op2.args[0], v, steps2);
-      const dg = deriveStep(op2.args[1], v, steps2);
-      return new OperatorNode("+", "add", [
-        new OperatorNode("*", "multiply", [df, op2.args[1]]),
-        new OperatorNode("*", "multiply", [op2.args[0], dg])
-      ]);
-    }
-    if (isOperator(node, "/")) {
-      const op2 = node;
-      if (!containsVariable(op2.args[1], v)) {
-        steps2.push({
-          rule: "Divisi\xF3n por constante",
-          explanation: "La constante del denominador sale multiplicando por su rec\xEDproco.",
-          latex: `\\frac{d}{d${v}}\\left[\\frac{${toTex(op2.args[0])}}{${toTex(op2.args[1])}}\\right] = \\frac{1}{${toTex(op2.args[1])}}\\cdot\\frac{d}{d${v}}\\left[${toTex(op2.args[0])}\\right]`
-        });
-        const inner2 = deriveStep(op2.args[0], v, steps2);
-        return new OperatorNode("/", "divide", [inner2, op2.args[1]]);
-      }
-      steps2.push({
-        rule: "Regla del cociente",
-        explanation: `(f/g)' = (f'\xB7g \u2212 f\xB7g') / g\xB2`,
-        latex: `\\frac{d}{d${v}}\\left[\\frac{${toTex(op2.args[0])}}{${toTex(op2.args[1])}}\\right] = \\frac{\\frac{d}{d${v}}\\left[${toTex(op2.args[0])}\\right]\\cdot ${toTex(op2.args[1])} - ${toTex(op2.args[0])}\\cdot\\frac{d}{d${v}}\\left[${toTex(op2.args[1])}\\right]}{${toTex(op2.args[1])}^2}`
-      });
-      const df = deriveStep(op2.args[0], v, steps2);
-      const dg = deriveStep(op2.args[1], v, steps2);
-      return new OperatorNode("/", "divide", [
-        new OperatorNode("-", "subtract", [
-          new OperatorNode("*", "multiply", [df, op2.args[1]]),
-          new OperatorNode("*", "multiply", [op2.args[0], dg])
-        ]),
-        new OperatorNode("^", "pow", [op2.args[1], new ConstantNode(2)])
-      ]);
-    }
-    if (isOperator(node, "^")) {
-      const op2 = node;
-      const base = op2.args[0];
-      const exp3 = op2.args[1];
-      if (isSymbol(base, v) && !containsVariable(exp3, v)) {
-        steps2.push({
-          rule: "Regla de la potencia",
-          explanation: `(${v}^n)' = n\xB7${v}^(n\u22121).`,
-          latex: `\\frac{d}{d${v}}\\left[${v}^{${toTex(exp3)}}\\right] = ${toTex(exp3)}\\cdot ${v}^{${toTex(exp3)}-1}`
-        });
-        return new OperatorNode("*", "multiply", [
-          exp3,
-          new OperatorNode("^", "pow", [new SymbolNode(v), new OperatorNode("-", "subtract", [exp3, new ConstantNode(1)])])
-        ]);
-      }
-      if (containsVariable(base, v) && !containsVariable(exp3, v)) {
-        steps2.push({
-          rule: "Potencia con regla de la cadena",
-          explanation: `(f^n)' = n\xB7f^(n\u22121)\xB7f'.`,
-          latex: `\\frac{d}{d${v}}\\left[\\left(${toTex(base)}\\right)^{${toTex(exp3)}}\\right] = ${toTex(exp3)}\\cdot\\left(${toTex(base)}\\right)^{${toTex(exp3)}-1}\\cdot\\frac{d}{d${v}}\\left[${toTex(base)}\\right]`
-        });
-        const db = deriveStep(base, v, steps2);
-        return new OperatorNode("*", "multiply", [
-          new OperatorNode("*", "multiply", [
-            exp3,
-            new OperatorNode("^", "pow", [base, new OperatorNode("-", "subtract", [exp3, new ConstantNode(1)])])
-          ]),
-          db
-        ]);
-      }
-      if (!containsVariable(base, v) && isSymbol(exp3, v)) {
-        if (isSymbolNamed(base, "e")) {
-          steps2.push({
-            rule: "Exponencial natural",
-            explanation: `(e^${v})' = e^${v}.`,
-            latex: `\\frac{d}{d${v}}\\left[e^{${v}}\\right] = e^{${v}}`
-          });
-          return node.cloneDeep();
-        }
-        steps2.push({
-          rule: "Exponencial general",
-          explanation: `(a^${v})' = a^${v}\xB7ln(a).`,
-          latex: `\\frac{d}{d${v}}\\left[${toTex(base)}^{${v}}\\right] = ${toTex(base)}^{${v}}\\cdot\\ln\\left(${toTex(base)}\\right)`
-        });
-        return new OperatorNode("*", "multiply", [
-          node.cloneDeep(),
-          new FunctionNode(new SymbolNode("log"), [base.cloneDeep()])
-        ]);
-      }
-      if (!containsVariable(base, v) && containsVariable(exp3, v)) {
-        steps2.push({
-          rule: "Exponencial con cadena",
-          explanation: `(a^f)' = a^f\xB7ln(a)\xB7f'.`,
-          latex: `\\frac{d}{d${v}}\\left[${toTex(base)}^{${toTex(exp3)}}\\right] = ${toTex(base)}^{${toTex(exp3)}}\\cdot\\ln\\left(${toTex(base)}\\right)\\cdot\\frac{d}{d${v}}\\left[${toTex(exp3)}\\right]`
-        });
-        const de = deriveStep(exp3, v, steps2);
-        return new OperatorNode("*", "multiply", [
-          new OperatorNode("*", "multiply", [
-            node.cloneDeep(),
-            new FunctionNode(new SymbolNode("log"), [base.cloneDeep()])
-          ]),
-          de
-        ]);
-      }
-    }
-    if (node.type === "FunctionNode") {
-      const fn = node;
-      const fnName = fn.fn.toString();
-      const arg2 = fn.args[0];
-      const rule = elementaryDerivative(fnName, arg2, v);
-      if (rule) {
-        if (isSymbol(arg2, v)) {
-          steps2.push({
-            rule: rule.ruleName,
-            explanation: rule.explanation,
-            latex: rule.latexDirect
-          });
-          return rule.result;
-        }
-        steps2.push({
-          rule: `${rule.ruleName} \xB7 regla de la cadena`,
-          explanation: `Derivamos la funci\xF3n externa y multiplicamos por la derivada de la interna (regla de la cadena).`,
-          latex: rule.latexChain
-        });
-        const dArg = deriveStep(arg2, v, steps2);
-        return new OperatorNode("*", "multiply", [rule.result, dArg]);
-      }
-    }
-    if (node.type === "ParenthesisNode") {
-      return deriveStep(node.content, v, steps2);
-    }
-    const fallback = math7.derivative(node, v);
-    steps2.push({
-      rule: "Derivada directa",
-      explanation: "Aplicamos la regla est\xE1ndar de math.js para esta expresi\xF3n.",
-      latex: `\\frac{d}{d${v}}\\left[${toTex(node)}\\right] = ${toTex(fallback)}`
-    });
-    return fallback;
-  }
-  function elementaryDerivative(fnName, arg2, v) {
-    const argTex = toTex(arg2);
-    switch (fnName) {
-      case "sin":
-        return {
-          ruleName: "Derivada del seno",
-          explanation: `(sin u)' = cos u \xB7 u'.`,
-          result: new FunctionNode(new SymbolNode("cos"), [arg2.cloneDeep()]),
-          latexDirect: `\\frac{d}{d${v}}\\left[\\sin(${v})\\right] = \\cos(${v})`,
-          latexChain: `\\frac{d}{d${v}}\\left[\\sin(${argTex})\\right] = \\cos(${argTex})\\cdot\\frac{d}{d${v}}\\left[${argTex}\\right]`
-        };
-      case "cos":
-        return {
-          ruleName: "Derivada del coseno",
-          explanation: `(cos u)' = -sin u \xB7 u'.`,
-          result: new OperatorNode("-", "unaryMinus", [new FunctionNode(new SymbolNode("sin"), [arg2.cloneDeep()])]),
-          latexDirect: `\\frac{d}{d${v}}\\left[\\cos(${v})\\right] = -\\sin(${v})`,
-          latexChain: `\\frac{d}{d${v}}\\left[\\cos(${argTex})\\right] = -\\sin(${argTex})\\cdot\\frac{d}{d${v}}\\left[${argTex}\\right]`
-        };
-      case "tan":
-        return {
-          ruleName: "Derivada de la tangente",
-          explanation: `(tan u)' = sec\xB2(u) \xB7 u'.`,
-          result: new OperatorNode("^", "pow", [new FunctionNode(new SymbolNode("sec"), [arg2.cloneDeep()]), new ConstantNode(2)]),
-          latexDirect: `\\frac{d}{d${v}}\\left[\\tan(${v})\\right] = \\sec^{2}(${v})`,
-          latexChain: `\\frac{d}{d${v}}\\left[\\tan(${argTex})\\right] = \\sec^{2}(${argTex})\\cdot\\frac{d}{d${v}}\\left[${argTex}\\right]`
-        };
-      case "exp":
-        return {
-          ruleName: "Derivada de exp",
-          explanation: `(e^u)' = e^u \xB7 u'.`,
-          result: new FunctionNode(new SymbolNode("exp"), [arg2.cloneDeep()]),
-          latexDirect: `\\frac{d}{d${v}}\\left[e^{${v}}\\right] = e^{${v}}`,
-          latexChain: `\\frac{d}{d${v}}\\left[e^{${argTex}}\\right] = e^{${argTex}}\\cdot\\frac{d}{d${v}}\\left[${argTex}\\right]`
-        };
-      case "log":
-      case "ln":
-        return {
-          ruleName: "Derivada de ln",
-          explanation: `(ln u)' = u'/u.`,
-          result: new OperatorNode("/", "divide", [new ConstantNode(1), arg2.cloneDeep()]),
-          latexDirect: `\\frac{d}{d${v}}\\left[\\ln(${v})\\right] = \\frac{1}{${v}}`,
-          latexChain: `\\frac{d}{d${v}}\\left[\\ln(${argTex})\\right] = \\frac{1}{${argTex}}\\cdot\\frac{d}{d${v}}\\left[${argTex}\\right]`
-        };
-      case "sqrt":
-        return {
-          ruleName: "Derivada de \u221A",
-          explanation: `(\u221Au)' = u'/(2\u221Au).`,
-          result: new OperatorNode("/", "divide", [
-            new ConstantNode(1),
-            new OperatorNode("*", "multiply", [new ConstantNode(2), new FunctionNode(new SymbolNode("sqrt"), [arg2.cloneDeep()])])
-          ]),
-          latexDirect: `\\frac{d}{d${v}}\\left[\\sqrt{${v}}\\right] = \\frac{1}{2\\sqrt{${v}}}`,
-          latexChain: `\\frac{d}{d${v}}\\left[\\sqrt{${argTex}}\\right] = \\frac{1}{2\\sqrt{${argTex}}}\\cdot\\frac{d}{d${v}}\\left[${argTex}\\right]`
-        };
-      case "cbrt":
-        return {
-          ruleName: "Derivada de \u221B",
-          explanation: `(\u221Bu)' = u'/(3\xB7\u221B(u\xB2)).  Nota: usamos \u221B(u\xB2) en lugar de u^(2/3) para obtener siempre el valor real (cuando u<0, u^(2/3) seria complejo).`,
-          result: new OperatorNode("/", "divide", [
-            new ConstantNode(1),
-            new OperatorNode("*", "multiply", [
-              new ConstantNode(3),
-              new FunctionNode(new SymbolNode("cbrt"), [
-                new OperatorNode("^", "pow", [arg2.cloneDeep(), new ConstantNode(2)])
-              ])
-            ])
-          ]),
-          latexDirect: `\\frac{d}{d${v}}\\left[\\sqrt[3]{${v}}\\right] = \\frac{1}{3\\,\\sqrt[3]{${v}^{2}}}`,
-          latexChain: `\\frac{d}{d${v}}\\left[\\sqrt[3]{${argTex}}\\right] = \\frac{1}{3\\,\\sqrt[3]{\\left(${argTex}\\right)^{2}}}\\cdot\\frac{d}{d${v}}\\left[${argTex}\\right]`
-        };
-      case "asin":
-        return {
-          ruleName: "Derivada de arcsin",
-          explanation: `(arcsin u)' = u'/\u221A(1 \u2212 u\xB2).`,
-          result: new OperatorNode("/", "divide", [
-            new ConstantNode(1),
-            new FunctionNode(new SymbolNode("sqrt"), [
-              new OperatorNode("-", "subtract", [new ConstantNode(1), new OperatorNode("^", "pow", [arg2.cloneDeep(), new ConstantNode(2)])])
-            ])
-          ]),
-          latexDirect: `\\frac{d}{d${v}}\\left[\\arcsin(${v})\\right] = \\frac{1}{\\sqrt{1 - ${v}^2}}`,
-          latexChain: `\\frac{d}{d${v}}\\left[\\arcsin(${argTex})\\right] = \\frac{1}{\\sqrt{1 - (${argTex})^2}}\\cdot\\frac{d}{d${v}}\\left[${argTex}\\right]`
-        };
-      case "acos":
-        return {
-          ruleName: "Derivada de arccos",
-          explanation: `(arccos u)' = -u'/\u221A(1 \u2212 u\xB2).`,
-          result: new OperatorNode("/", "divide", [
-            new ConstantNode(-1),
-            new FunctionNode(new SymbolNode("sqrt"), [
-              new OperatorNode("-", "subtract", [new ConstantNode(1), new OperatorNode("^", "pow", [arg2.cloneDeep(), new ConstantNode(2)])])
-            ])
-          ]),
-          latexDirect: `\\frac{d}{d${v}}\\left[\\arccos(${v})\\right] = -\\frac{1}{\\sqrt{1 - ${v}^2}}`,
-          latexChain: `\\frac{d}{d${v}}\\left[\\arccos(${argTex})\\right] = -\\frac{1}{\\sqrt{1 - (${argTex})^2}}\\cdot\\frac{d}{d${v}}\\left[${argTex}\\right]`
-        };
-      case "atan":
-        return {
-          ruleName: "Derivada de arctan",
-          explanation: `(arctan u)' = u'/(1 + u\xB2).`,
-          result: new OperatorNode("/", "divide", [
-            new ConstantNode(1),
-            new OperatorNode("+", "add", [new ConstantNode(1), new OperatorNode("^", "pow", [arg2.cloneDeep(), new ConstantNode(2)])])
-          ]),
-          latexDirect: `\\frac{d}{d${v}}\\left[\\arctan(${v})\\right] = \\frac{1}{1 + ${v}^2}`,
-          latexChain: `\\frac{d}{d${v}}\\left[\\arctan(${argTex})\\right] = \\frac{1}{1 + (${argTex})^2}\\cdot\\frac{d}{d${v}}\\left[${argTex}\\right]`
-        };
-      case "sinh":
-        return {
-          ruleName: "Derivada de sinh",
-          explanation: `(sinh u)' = cosh(u)\xB7u'.`,
-          result: new FunctionNode(new SymbolNode("cosh"), [arg2.cloneDeep()]),
-          latexDirect: `\\frac{d}{d${v}}\\left[\\sinh(${v})\\right] = \\cosh(${v})`,
-          latexChain: `\\frac{d}{d${v}}\\left[\\sinh(${argTex})\\right] = \\cosh(${argTex})\\cdot\\frac{d}{d${v}}\\left[${argTex}\\right]`
-        };
-      case "cosh":
-        return {
-          ruleName: "Derivada de cosh",
-          explanation: `(cosh u)' = sinh(u)\xB7u'.`,
-          result: new FunctionNode(new SymbolNode("sinh"), [arg2.cloneDeep()]),
-          latexDirect: `\\frac{d}{d${v}}\\left[\\cosh(${v})\\right] = \\sinh(${v})`,
-          latexChain: `\\frac{d}{d${v}}\\left[\\cosh(${argTex})\\right] = \\sinh(${argTex})\\cdot\\frac{d}{d${v}}\\left[${argTex}\\right]`
-        };
-      case "tanh":
-        return {
-          ruleName: "Derivada de tanh",
-          explanation: `(tanh u)' = sech\xB2(u)\xB7u' = (1 \u2212 tanh\xB2u)\xB7u'.`,
-          result: new OperatorNode("-", "subtract", [
-            new ConstantNode(1),
-            new OperatorNode("^", "pow", [new FunctionNode(new SymbolNode("tanh"), [arg2.cloneDeep()]), new ConstantNode(2)])
-          ]),
-          latexDirect: `\\frac{d}{d${v}}\\left[\\tanh(${v})\\right] = 1 - \\tanh^{2}(${v})`,
-          latexChain: `\\frac{d}{d${v}}\\left[\\tanh(${argTex})\\right] = \\left(1 - \\tanh^{2}(${argTex})\\right)\\cdot\\frac{d}{d${v}}\\left[${argTex}\\right]`
-        };
-      default:
-        return null;
-    }
-  }
-  function symbolicIntegralSteps(expr, variable = "x") {
-    try {
-      const node = math7.parse(expr);
-      const steps2 = [];
-      const integrated = integrateWithSteps(node, variable, steps2);
-      const simplified = math7.simplify(integrated);
-      if (simplified.toString() !== integrated.toString()) {
-        steps2.push({
-          rule: "Simplificar",
-          explanation: "Reducimos el resultado a su forma m\xE1s compacta.",
-          latex: `${toTex(integrated)} \\;=\\; ${toTex(simplified)}`
-        });
-      }
-      return {
-        result: simplified.toString() + " + C",
-        resultTex: `${toTex(simplified)} + C`,
-        steps: steps2
-      };
-    } catch (e3) {
-      throw new Error(`No se pudo integrar: ${e3.message}`);
-    }
-  }
-  function integrateWithSteps(node, v, steps2) {
-    if (!containsVariable(node, v)) {
-      const result = new OperatorNode("*", "multiply", [node, new SymbolNode(v)]);
-      steps2.push({
-        rule: "Integral de una constante",
-        explanation: `\u222Bc d${v} = c\xB7${v}.`,
-        latex: `\\int ${toTex(node)}\\, d${v} = ${toTex(node)}\\cdot ${v}`
-      });
-      return result;
-    }
-    if (isSymbol(node, v)) {
-      const result = new OperatorNode("/", "divide", [
-        new OperatorNode("^", "pow", [new SymbolNode(v), new ConstantNode(2)]),
-        new ConstantNode(2)
-      ]);
-      steps2.push({
-        rule: "Regla de la potencia",
-        explanation: `\u222B${v} d${v} = ${v}\xB2/2.`,
-        latex: `\\int ${v}\\, d${v} = \\frac{${v}^{2}}{2}`
-      });
-      return result;
-    }
-    if (isOperator(node, "+")) {
-      const op2 = node;
-      steps2.push({
-        rule: "Regla de la suma",
-        explanation: "La integral de una suma es la suma de las integrales.",
-        latex: `\\int \\left[${toTex(op2.args[0])} + ${toTex(op2.args[1])}\\right] d${v} = \\int ${toTex(op2.args[0])}\\, d${v} + \\int ${toTex(op2.args[1])}\\, d${v}`
-      });
-      const a = integrateWithSteps(op2.args[0], v, steps2);
-      const b = integrateWithSteps(op2.args[1], v, steps2);
-      return new OperatorNode("+", "add", [a, b]);
-    }
-    if (isOperator(node, "-")) {
-      const op2 = node;
-      if (op2.args.length === 1) {
-        steps2.push({
-          rule: "Signo negativo",
-          explanation: "\u222B(\u2212f) = \u2212\u222Bf.",
-          latex: `\\int -${toTex(op2.args[0])}\\, d${v} = -\\int ${toTex(op2.args[0])}\\, d${v}`
-        });
-        const a2 = integrateWithSteps(op2.args[0], v, steps2);
-        return new OperatorNode("-", "unaryMinus", [a2]);
-      }
-      steps2.push({
-        rule: "Regla de la resta",
-        explanation: "La integral de una resta es la resta de las integrales.",
-        latex: `\\int \\left[${toTex(op2.args[0])} - ${toTex(op2.args[1])}\\right] d${v} = \\int ${toTex(op2.args[0])}\\, d${v} - \\int ${toTex(op2.args[1])}\\, d${v}`
-      });
-      const a = integrateWithSteps(op2.args[0], v, steps2);
-      const b = integrateWithSteps(op2.args[1], v, steps2);
-      return new OperatorNode("-", "subtract", [a, b]);
-    }
-    if (isOperator(node, "*")) {
-      const op2 = node;
-      if (!containsVariable(op2.args[0], v)) {
-        steps2.push({
-          rule: "M\xFAltiplo constante",
-          explanation: "La constante sale de la integral.",
-          latex: `\\int ${toTex(op2.args[0])}\\cdot ${toTex(op2.args[1])}\\, d${v} = ${toTex(op2.args[0])}\\int ${toTex(op2.args[1])}\\, d${v}`
-        });
-        const inner2 = integrateWithSteps(op2.args[1], v, steps2);
-        return new OperatorNode("*", "multiply", [op2.args[0], inner2]);
-      }
-      if (!containsVariable(op2.args[1], v)) {
-        steps2.push({
-          rule: "M\xFAltiplo constante",
-          explanation: "La constante sale de la integral.",
-          latex: `\\int ${toTex(op2.args[0])}\\cdot ${toTex(op2.args[1])}\\, d${v} = ${toTex(op2.args[1])}\\int ${toTex(op2.args[0])}\\, d${v}`
-        });
-        const inner2 = integrateWithSteps(op2.args[0], v, steps2);
-        return new OperatorNode("*", "multiply", [op2.args[1], inner2]);
-      }
-      return tryAdvancedIntegration(op2, v, steps2);
-    }
-    if (isOperator(node, "/")) {
-      const op2 = node;
-      if (!containsVariable(op2.args[1], v)) {
-        steps2.push({
-          rule: "Divisi\xF3n por constante",
-          explanation: "Una constante en el denominador sale multiplicando el rec\xEDproco.",
-          latex: `\\int \\frac{${toTex(op2.args[0])}}{${toTex(op2.args[1])}}\\, d${v} = \\frac{1}{${toTex(op2.args[1])}} \\int ${toTex(op2.args[0])}\\, d${v}`
-        });
-        const inner2 = integrateWithSteps(op2.args[0], v, steps2);
-        return new OperatorNode("/", "divide", [inner2, op2.args[1]]);
-      }
-      if (!containsVariable(op2.args[0], v) && isSymbol(op2.args[1], v)) {
-        const result = new OperatorNode("*", "multiply", [
-          op2.args[0],
-          new FunctionNode(new SymbolNode("log"), [new FunctionNode(new SymbolNode("abs"), [new SymbolNode(v)])])
-        ]);
-        steps2.push({
-          rule: "Integral logar\xEDtmica",
-          explanation: `\u222Bc/${v} d${v} = c\xB7ln|${v}|.`,
-          latex: `\\int \\frac{${toTex(op2.args[0])}}{${v}}\\, d${v} = ${toTex(op2.args[0])}\\,\\ln|${v}|`
-        });
-        return result;
-      }
-      if (isConstantValue(op2.args[0], 1) && isSymbol(op2.args[1], v)) {
-        const result = new FunctionNode(new SymbolNode("log"), [new FunctionNode(new SymbolNode("abs"), [new SymbolNode(v)])]);
-        steps2.push({
-          rule: "Integral logar\xEDtmica",
-          explanation: `\u222B1/${v} d${v} = ln|${v}|.`,
-          latex: `\\int \\frac{1}{${v}}\\, d${v} = \\ln|${v}|`
-        });
-        return result;
-      }
-      if (isConstantValue(op2.args[0], 1) && isPower(op2.args[1], v)) {
-        const powNode = op2.args[1];
-        const negExp = new OperatorNode("-", "unaryMinus", [powNode.args[1]]);
-        const asPow = new OperatorNode("^", "pow", [new SymbolNode(v), negExp]);
-        steps2.push({
-          rule: "Reescribir como potencia negativa",
-          explanation: `Reescribimos 1/${v}^n como ${v}^{-n}.`,
-          latex: `\\frac{1}{${toTex(op2.args[1])}} = ${v}^{-${toTex(powNode.args[1])}}`
-        });
-        return integrateWithSteps(asPow, v, steps2);
-      }
-      const numDeriv = tryMatchDerivative(op2.args[0], op2.args[1], v);
-      if (numDeriv) {
-        steps2.push({
-          rule: "Sustituci\xF3n u = " + op2.args[1].toString(),
-          explanation: `El numerador es la derivada del denominador: u = ${op2.args[1].toString()}, du = ${numDeriv} d${v}, y \u222Bdu/u = ln|u|.`,
-          latex: `\\int \\frac{${toTex(op2.args[0])}}{${toTex(op2.args[1])}}\\, d${v} = \\ln\\left|${toTex(op2.args[1])}\\right|`
-        });
-        return new FunctionNode(new SymbolNode("log"), [new FunctionNode(new SymbolNode("abs"), [op2.args[1].cloneDeep()])]);
-      }
-    }
-    if (isOperator(node, "^")) {
-      const op2 = node;
-      if (isSymbol(op2.args[0], v) && !containsVariable(op2.args[1], v)) {
-        const n = op2.args[1];
-        if (isConstantValue(n, -1)) {
-          const result2 = new FunctionNode(new SymbolNode("log"), [new FunctionNode(new SymbolNode("abs"), [new SymbolNode(v)])]);
-          steps2.push({
-            rule: "Integral logar\xEDtmica",
-            explanation: `\u222B${v}^{-1} d${v} = ln|${v}|.`,
-            latex: `\\int ${v}^{-1}\\, d${v} = \\ln|${v}|`
-          });
-          return result2;
-        }
-        const nPlus1 = new OperatorNode("+", "add", [n, new ConstantNode(1)]);
-        const result = new OperatorNode("/", "divide", [
-          new OperatorNode("^", "pow", [new SymbolNode(v), nPlus1]),
-          nPlus1
-        ]);
-        steps2.push({
-          rule: "Regla de la potencia",
-          explanation: `\u222B${v}^n d${v} = ${v}^{n+1}/(n+1), para n \u2260 \u22121.`,
-          latex: `\\int ${v}^{${toTex(n)}}\\, d${v} = \\frac{${v}^{${toTex(n)}+1}}{${toTex(n)}+1}`
-        });
-        return result;
-      }
-      if (isSymbolNamed(op2.args[0], "e") && isSymbol(op2.args[1], v)) {
-        const result = new OperatorNode("^", "pow", [new SymbolNode("e"), new SymbolNode(v)]);
-        steps2.push({
-          rule: "Integral exponencial",
-          explanation: `\u222Be^${v} d${v} = e^${v}.`,
-          latex: `\\int e^{${v}}\\, d${v} = e^{${v}}`
-        });
-        return result;
-      }
-      if (!containsVariable(op2.args[0], v) && isSymbol(op2.args[1], v)) {
-        const result = new OperatorNode("/", "divide", [
-          node,
-          new FunctionNode(new SymbolNode("log"), [op2.args[0]])
-        ]);
-        steps2.push({
-          rule: "Integral exponencial general",
-          explanation: `\u222Ba^${v} d${v} = a^${v}/ln(a).`,
-          latex: `\\int ${toTex(op2.args[0])}^{${v}}\\, d${v} = \\frac{${toTex(op2.args[0])}^{${v}}}{\\ln(${toTex(op2.args[0])})}`
-        });
-        return result;
-      }
-      if (isSymbolNamed(op2.args[0], "e") && isLinearIn(op2.args[1], v)) {
-        const { a: coeff } = getLinearCoeffs(op2.args[1], v);
-        const result = new OperatorNode("/", "divide", [
-          new OperatorNode("^", "pow", [new SymbolNode("e"), op2.args[1].cloneDeep()]),
-          coeff
-        ]);
-        steps2.push({
-          rule: "Sustituci\xF3n lineal (exponencial)",
-          explanation: `u = ${op2.args[1].toString()}, du = ${coeff.toString()}\xB7d${v}. \u222Be^u du = e^u, luego dividimos por ${coeff.toString()}.`,
-          latex: `\\int e^{${toTex(op2.args[1])}}\\, d${v} = \\frac{e^{${toTex(op2.args[1])}}}{${toTex(coeff)}}`
-        });
-        return result;
-      }
-    }
-    if (node.type === "FunctionNode") {
-      const fn = node;
-      const fnName = fn.fn.toString();
-      const arg2 = fn.args[0];
-      if (isSymbol(arg2, v)) {
-        const simple = integrateElementary(fnName, v);
-        if (simple) {
-          steps2.push({
-            rule: simple.ruleName,
-            explanation: simple.explanation,
-            latex: simple.latex
-          });
-          return simple.result;
-        }
-      }
-      if (isLinearIn(arg2, v) && !isSymbol(arg2, v)) {
-        const { a: coeff } = getLinearCoeffs(arg2, v);
-        const simple = integrateElementary(fnName, v);
-        if (simple) {
-          const substituted = replaceVar(simple.result, v, arg2);
-          const divided = new OperatorNode("/", "divide", [substituted, coeff]);
-          steps2.push({
-            rule: "Sustituci\xF3n lineal u = " + arg2.toString(),
-            explanation: `Hacemos u = ${arg2.toString()}; du = ${coeff.toString()}\xB7d${v}. Aplicamos \u222B${fnName}(u) du y dividimos por ${coeff.toString()}.`,
-            latex: `\\int ${fnName === "log" || fnName === "ln" ? "\\ln" : "\\" + fnName}\\!\\left(${toTex(arg2)}\\right) d${v} = \\frac{1}{${toTex(coeff)}}\\,${toTex(substituted)}`
-          });
-          return divided;
-        }
-      }
-    }
-    if (node.type === "ParenthesisNode") {
-      return integrateWithSteps(node.content, v, steps2);
-    }
-    throw new Error(`No se puede integrar: ${node.toString()}`);
-  }
-  function integrateElementary(fnName, v) {
-    switch (fnName) {
-      case "sin":
-        return {
-          ruleName: "Integral de sin",
-          explanation: `\u222Bsin(${v}) d${v} = \u2212cos(${v}).`,
-          result: new OperatorNode("-", "unaryMinus", [new FunctionNode(new SymbolNode("cos"), [new SymbolNode(v)])]),
-          latex: `\\int \\sin(${v})\\, d${v} = -\\cos(${v})`
-        };
-      case "cos":
-        return {
-          ruleName: "Integral de cos",
-          explanation: `\u222Bcos(${v}) d${v} = sin(${v}).`,
-          result: new FunctionNode(new SymbolNode("sin"), [new SymbolNode(v)]),
-          latex: `\\int \\cos(${v})\\, d${v} = \\sin(${v})`
-        };
-      case "tan":
-        return {
-          ruleName: "Integral de tan",
-          explanation: `\u222Btan(${v}) d${v} = \u2212ln|cos(${v})|.`,
-          result: new OperatorNode("-", "unaryMinus", [
-            new FunctionNode(new SymbolNode("log"), [new FunctionNode(new SymbolNode("abs"), [new FunctionNode(new SymbolNode("cos"), [new SymbolNode(v)])])])
-          ]),
-          latex: `\\int \\tan(${v})\\, d${v} = -\\ln|\\cos(${v})|`
-        };
-      case "exp":
-        return {
-          ruleName: "Integral de exp",
-          explanation: `\u222Be^${v} d${v} = e^${v}.`,
-          result: new FunctionNode(new SymbolNode("exp"), [new SymbolNode(v)]),
-          latex: `\\int e^{${v}}\\, d${v} = e^{${v}}`
-        };
-      case "log":
-      case "ln":
-        return {
-          ruleName: "Integral de ln (por partes)",
-          explanation: `Integraci\xF3n por partes con u = ln(${v}), dv = d${v} \u2192 \u222Bln(${v}) d${v} = ${v}\xB7ln(${v}) \u2212 ${v}.`,
-          result: new OperatorNode("-", "subtract", [
-            new OperatorNode("*", "multiply", [new SymbolNode(v), new FunctionNode(new SymbolNode("log"), [new SymbolNode(v)])]),
-            new SymbolNode(v)
-          ]),
-          latex: `\\int \\ln(${v})\\, d${v} = ${v}\\ln(${v}) - ${v}`
-        };
-      case "sqrt":
-        return {
-          ruleName: "Integral de \u221A",
-          explanation: `\u222B\u221A${v} d${v} = (2/3)\xB7${v}^(3/2).`,
-          result: new OperatorNode("*", "multiply", [
-            new OperatorNode("/", "divide", [new ConstantNode(2), new ConstantNode(3)]),
-            new OperatorNode("^", "pow", [new SymbolNode(v), new OperatorNode("/", "divide", [new ConstantNode(3), new ConstantNode(2)])])
-          ]),
-          latex: `\\int \\sqrt{${v}}\\, d${v} = \\tfrac{2}{3}\\,${v}^{3/2}`
-        };
-      default:
-        return null;
-    }
-  }
-  function tryAdvancedIntegration(op2, v, steps2) {
-    const str = op2.toString();
-    const simplified = math7.simplify(str);
-    const simpStr = simplified.toString();
-    if (simpStr !== str && !stillMixedProduct(simplified, v)) {
-      steps2.push({
-        rule: "Simplificar el producto",
-        explanation: `Simplificamos antes de integrar: ${str} = ${simpStr}.`,
-        latex: `${toTex(op2)} \\;=\\; ${toTex(simplified)}`
-      });
-      return integrateWithSteps(math7.parse(simpStr), v, steps2);
-    }
-    const uSub = tryUSubstitution(op2, v, steps2);
-    if (uSub) return uSub;
-    const byParts = tryIntegrationByParts(op2, v, steps2);
-    if (byParts) return byParts;
-    throw new Error(`No se puede integrar el producto: ${str}`);
-  }
-  function stillMixedProduct(node, v) {
-    if (isOperator(node, "*")) {
-      const op2 = node;
-      if (containsVariable(op2.args[0], v) && containsVariable(op2.args[1], v)) return true;
-    }
-    let any = false;
-    node.forEach((c) => {
-      if (stillMixedProduct(c, v)) any = true;
-    });
-    return any;
-  }
-  function tryUSubstitution(op2, v, steps2) {
-    const candidates = [];
-    for (const [a, b] of [[op2.args[0], op2.args[1]], [op2.args[1], op2.args[0]]]) {
-      if (a.type === "FunctionNode") {
-        const fn = a;
-        const arg2 = fn.args[0];
-        if (!isSymbol(arg2, v) && containsVariable(arg2, v)) {
-          const d = safeDerivative(arg2, v);
-          if (d && equivalentExprs(d, b)) {
-            candidates.push({ outer: fn, innerDeriv: b });
-          }
-        }
-      }
-      if (isOperator(a, "^")) {
-        const powOp = a;
-        const base = powOp.args[0];
-        if (!isSymbol(base, v) && containsVariable(base, v) && !containsVariable(powOp.args[1], v)) {
-          const d = safeDerivative(base, v);
-          if (d && equivalentExprs(d, b)) {
-            const nPlus1 = new OperatorNode("+", "add", [powOp.args[1], new ConstantNode(1)]);
-            const result = new OperatorNode("/", "divide", [
-              new OperatorNode("^", "pow", [base.cloneDeep(), nPlus1]),
-              nPlus1
-            ]);
-            steps2.push({
-              rule: "Sustituci\xF3n u = " + base.toString(),
-              explanation: `u = ${base.toString()}, du = ${b.toString()} d${v}. Aplicamos \u222Bu^n du = u^{n+1}/(n+1).`,
-              latex: `\\int ${toTex(a)}\\cdot ${toTex(b)}\\, d${v} = \\frac{${toTex(base)}^{${toTex(powOp.args[1])}+1}}{${toTex(powOp.args[1])}+1}`
-            });
-            return result;
-          }
-        }
-      }
-    }
-    if (candidates.length === 0) return null;
-    const cand = candidates[0];
-    const fnName = cand.outer.fn.toString();
-    const innerNode = cand.outer.args[0];
-    const simple = integrateElementary(fnName, v);
-    if (!simple) return null;
-    const substituted = replaceVar(simple.result, v, innerNode);
-    steps2.push({
-      rule: "Sustituci\xF3n u = " + innerNode.toString(),
-      explanation: `u = ${innerNode.toString()}, du = ${cand.innerDeriv.toString()} d${v}. Aplicamos \u222B${fnName}(u) du y volvemos a ${v}.`,
-      latex: `\\int ${toTex(cand.outer)}\\cdot ${toTex(cand.innerDeriv)}\\, d${v} = ${toTex(substituted)}`
-    });
-    return substituted;
-  }
-  function tryIntegrationByParts(op2, v, steps2) {
-    const f1 = op2.args[0];
-    const f2 = op2.args[1];
-    const p1 = liatePriority(f1, v);
-    const p2 = liatePriority(f2, v);
-    if (p1 === null || p2 === null) return null;
-    const [u, dv] = p1 <= p2 ? [f1, f2] : [f2, f1];
-    let du;
-    let vInt;
-    try {
-      const throwaway = [];
-      du = deriveStep(u, v, throwaway);
-      du = math7.simplify(du);
-      const throwaway2 = [];
-      vInt = integrateWithSteps(dv, v, throwaway2);
-    } catch {
-      return null;
-    }
-    steps2.push({
-      rule: "Integraci\xF3n por partes",
-      explanation: `Elegimos u = ${u.toString()} y dv = ${dv.toString()} d${v} (criterio LIATE).`,
-      latex: `\\int u\\, dv = u\\cdot v - \\int v\\, du, \\quad u = ${toTex(u)},\\; dv = ${toTex(dv)}\\, d${v}`
-    });
-    steps2.push({
-      rule: "Calcular du y v",
-      explanation: `Derivamos u e integramos dv.`,
-      latex: `du = ${toTex(du)}\\, d${v}, \\quad v = \\int ${toTex(dv)}\\, d${v} = ${toTex(vInt)}`
-    });
-    const uv = new OperatorNode("*", "multiply", [u.cloneDeep(), vInt.cloneDeep()]);
-    const vDu = new OperatorNode("*", "multiply", [vInt.cloneDeep(), du.cloneDeep()]);
-    steps2.push({
-      rule: "Sustituir en u\xB7v \u2212 \u222Bv du",
-      explanation: "Reemplazamos u, v y du en la f\xF3rmula.",
-      latex: `u\\cdot v - \\int v\\, du \\;=\\; ${toTex(uv)} - \\int ${toTex(vDu)}\\, d${v}`
-    });
-    const remaining = integrateWithSteps(vDu, v, steps2);
-    return new OperatorNode("-", "subtract", [uv, remaining]);
-  }
-  function liatePriority(node, v) {
-    if (!containsVariable(node, v)) return null;
-    if (node.type === "FunctionNode") {
-      const fnName = node.fn.toString();
-      if (fnName === "log" || fnName === "ln") return 1;
-      if (["asin", "acos", "atan"].includes(fnName)) return 2;
-      if (["sin", "cos", "tan"].includes(fnName)) return 4;
-      if (fnName === "exp") return 5;
-    }
-    if (isSymbol(node, v)) return 3;
-    if (isOperator(node, "^")) {
-      const op2 = node;
-      if (isSymbol(op2.args[0], v) && !containsVariable(op2.args[1], v)) return 3;
-      if (isSymbolNamed(op2.args[0], "e") && containsVariable(op2.args[1], v)) return 5;
-      if (!containsVariable(op2.args[0], v) && containsVariable(op2.args[1], v)) return 5;
-    }
-    return null;
-  }
-  function safeDerivative(node, v) {
-    try {
-      return math7.simplify(math7.derivative(node, v));
-    } catch {
-      return null;
-    }
-  }
-  function equivalentExprs(a, b) {
-    try {
-      const diff2 = math7.simplify(new OperatorNode("-", "subtract", [a.cloneDeep(), b.cloneDeep()]));
-      return diff2.toString() === "0";
-    } catch {
-      return false;
-    }
-  }
-  function tryMatchDerivative(num, den, v) {
-    const dDen = safeDerivative(den, v);
-    if (dDen && equivalentExprs(dDen, num)) return dDen.toString();
-    return null;
-  }
-  function toTex(node) {
-    try {
-      return node.toTex({ parenthesis: "auto" });
-    } catch {
-      return node.toString();
-    }
-  }
-  function containsVariable(node, v) {
-    if (node.type === "SymbolNode") return node.name === v;
-    if (node.type === "ConstantNode") return false;
-    let found = false;
-    node.forEach((child) => {
-      if (containsVariable(child, v)) found = true;
-    });
-    return found;
-  }
-  function isSymbol(node, v) {
-    return node.type === "SymbolNode" && node.name === v;
-  }
-  function isSymbolNamed(node, name315) {
-    return node.type === "SymbolNode" && node.name === name315;
-  }
-  function isOperator(node, op2) {
-    return node.type === "OperatorNode" && node.op === op2;
-  }
-  function isPower(node, v) {
-    return isOperator(node, "^") && isSymbol(node.args[0], v);
-  }
-  function isConstantValue(node, val) {
-    if (node.type === "ConstantNode") return node.value === val;
-    return false;
-  }
-  function isLinearIn(node, v) {
-    try {
-      getLinearCoeffs(node, v);
-      return true;
-    } catch {
-      return false;
-    }
-  }
-  function getLinearCoeffs(node, v) {
-    if (isSymbol(node, v)) return { a: new ConstantNode(1), b: new ConstantNode(0) };
-    if (isOperator(node, "*")) {
-      const op2 = node;
-      if (!containsVariable(op2.args[0], v) && isSymbol(op2.args[1], v)) return { a: op2.args[0], b: new ConstantNode(0) };
-      if (!containsVariable(op2.args[1], v) && isSymbol(op2.args[0], v)) return { a: op2.args[1], b: new ConstantNode(0) };
-    }
-    if (isOperator(node, "+")) {
-      const op2 = node;
-      if (containsVariable(op2.args[0], v) && !containsVariable(op2.args[1], v)) {
-        const inner2 = getLinearCoeffs(op2.args[0], v);
-        return { a: inner2.a, b: new OperatorNode("+", "add", [inner2.b, op2.args[1]]) };
-      }
-      if (containsVariable(op2.args[1], v) && !containsVariable(op2.args[0], v)) {
-        const inner2 = getLinearCoeffs(op2.args[1], v);
-        return { a: inner2.a, b: new OperatorNode("+", "add", [inner2.b, op2.args[0]]) };
-      }
-    }
-    if (isOperator(node, "-")) {
-      const op2 = node;
-      if (op2.args.length === 2 && containsVariable(op2.args[0], v) && !containsVariable(op2.args[1], v)) {
-        const inner2 = getLinearCoeffs(op2.args[0], v);
-        return { a: inner2.a, b: new OperatorNode("-", "subtract", [inner2.b, op2.args[1]]) };
-      }
-    }
-    throw new Error("Not linear");
-  }
-  function replaceVar(node, v, replacement) {
-    return node.transform((n) => {
-      if (isSymbol(n, v)) return replacement.cloneDeep();
-      return n;
-    });
   }
 
   // src/views/calculator.ts

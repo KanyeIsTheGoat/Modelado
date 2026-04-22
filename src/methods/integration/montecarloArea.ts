@@ -1,29 +1,42 @@
 import type { MethodDefinition, MethodResult, ChartData } from '../types';
 import { parseExpression, linspace } from '../../parser';
+import {
+  mulberry32,
+  parseSeed,
+  zForConfidence,
+  parseConfPct,
+  fmtNum,
+  renderKRepsPanel,
+  renderSummaryPanel,
+  renderErrorHalvingPanel,
+  renderAnalyticalPanelDifference,
+} from './monteCarloCommon';
 
-function mulberry32(seed: number): () => number {
-  let s = seed | 0;
-  return () => {
-    s = (s + 0x6D2B79F5) | 0;
-    let t = Math.imul(s ^ (s >>> 15), 1 | s);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
-
-function hashString(str: string): number {
-  let hash = 0;
-  for (let i = 0; i < str.length; i++) {
-    hash = ((hash << 5) - hash + str.charCodeAt(i)) | 0;
+/**
+ * Run one Hit-or-Miss simulation between f and g over [a,b], within bounding rectangle [yLo, yHi].
+ */
+function runArea(
+  f: (x: number) => number, g: (x: number) => number,
+  a: number, b: number, yLo: number, yHi: number,
+  N: number, seed: number,
+): { estimate: number; hits: number; stdErr: number } {
+  const rand = mulberry32(seed);
+  const rectArea = (b - a) * (yHi - yLo);
+  let hits = 0;
+  for (let i = 0; i < N; i++) {
+    const xi = a + rand() * (b - a);
+    const yi = yLo + rand() * (yHi - yLo);
+    const fv = f(xi);
+    const gv = g(xi);
+    const top = Math.max(fv, gv);
+    const bot = Math.min(fv, gv);
+    if (yi >= bot && yi <= top) hits++;
   }
-  return hash;
-}
-
-function parseSeed(input: string | undefined): number | null {
-  if (!input || input.trim() === '') return null;
-  const num = Number(input.trim());
-  if (!isNaN(num)) return num;
-  return hashString(input.trim());
+  const p = hits / N;
+  const estimate = rectArea * p;
+  // Bernoulli SE scaled by rectangle area.
+  const stdErr = rectArea * Math.sqrt(p * (1 - p) / N);
+  return { estimate, hits, stdErr };
 }
 
 export const montecarloArea: MethodDefinition = {
@@ -32,7 +45,7 @@ export const montecarloArea: MethodDefinition = {
   category: 'integration',
   formula: 'A = ∫_a^b (f(x) - g(x)) dx — Hit-or-Miss sobre rectangulo circunscrito',
   latexFormula: 'A = \\int_a^b \\bigl(f(x) - g(x)\\bigr)\\,dx \\approx A_{\\text{rect}} \\cdot \\frac{\\#\\{\\text{puntos dentro}\\}}{N}',
-  description: 'Estima el area entre f(x) y g(x) sobre [a,b] lanzando puntos aleatorios y contando cuantos caen en la region. Promedia K repeticiones.',
+  description: 'Estima el area entre f(x) y g(x) sobre [a,b] lanzando puntos aleatorios y contando cuantos caen en la region. Promedia K repeticiones. Nivel de confianza configurable.',
   inputs: [
     { id: 'fx', label: 'f(x) (curva superior)', placeholder: 'x^2', defaultValue: 'x^2' },
     { id: 'gx', label: 'g(x) (curva inferior)', placeholder: 'x^3', defaultValue: 'x^3' },
@@ -40,6 +53,7 @@ export const montecarloArea: MethodDefinition = {
     { id: 'b', label: 'b (limite superior x)', placeholder: '1', type: 'number', defaultValue: '1' },
     { id: 'n', label: 'N (puntos por repeticion)', placeholder: '10000', type: 'number', defaultValue: '10000' },
     { id: 'K', label: 'K (repeticiones a promediar)', placeholder: '10', type: 'number', defaultValue: '10' },
+    { id: 'conf', label: 'Nivel de confianza (%)', placeholder: '95', type: 'number', defaultValue: '95', hint: 'Ej: 90, 95, 99.' },
     { id: 'exact', label: 'Valor exacto (opcional)', placeholder: '', hint: 'Para comparar con el promedio.' },
     { id: 'seed', label: 'Semilla (opcional)', placeholder: 'Vacio = aleatorio', hint: 'Numero o texto.' },
   ],
@@ -52,15 +66,12 @@ export const montecarloArea: MethodDefinition = {
     { key: 'exactDiff', label: '|A_k - Exacto|', latex: '|A_k - A^*|' },
   ],
   steps: [
-    'Para el <b>parcial 30/04/2025</b> (area entre curvas por Monte Carlo): escribe <code>f(x)</code> (curva <em>superior</em>) y <code>g(x)</code> (curva <em>inferior</em>). Ejemplo parcial: <code>f(x) = x²</code>, <code>g(x) = x³</code> en <code>[0, 1]</code>.',
-    'Define <code>[a, b]</code>. <em>Consejo</em>: verifica graficamente que <code>f ≥ g</code> en todo el intervalo antes de correr — si se cruzan, la app usa <code>|f - g|</code> automaticamente.',
-    'Configura <code>N</code> (puntos por repeticion) y <code>K</code> (cantidad de repeticiones). Tipico: <code>N = 10000</code>, <code>K = 10</code>.',
-    '<b>Estrategia Hit-or-Miss</b>: la app construye un rectangulo circunscrito <code>[a, b] × [y_min, y_max]</code> que contiene ambas curvas. Lanza puntos uniformes en ese rectangulo y cuenta los que caen <em>entre</em> las curvas. Area ≈ <code>(Area rect) · (hits / N)</code>.',
-    'Pulsa <b>Resolver</b>. Se muestran K repeticiones independientes, cada una con distintas semillas. Promedio de las K da la estimacion final.',
-    'Si tienes <b>valor exacto</b>: pone el valor analitico <code>A = ∫(f - g) dx</code>. Para <code>x² - x³</code> en <code>[0, 1]</code>: <code>A = 1/3 - 1/4 = 1/12 ≈ 0.0833</code>.',
-    '<b>Error estandar</b>: <code>SE = σ_K / √K</code> donde <code>σ_K</code> es la desviacion estandar entre las K estimaciones.',
-    'Para el informe: (1) tabla de <code>A_k</code>; (2) promedio final; (3) σ entre repeticiones; (4) IC 95%: <code>Â ± 1.96·SE</code>; (5) comparacion con exacto si se tiene. Discutir por que N=10000 suele dar precision ~3 decimales.',
-    'Interpretacion visual: la grafica Hit-or-Miss muestra <em>verde</em> = puntos entre las curvas (cuentan), <em>rojo</em> = puntos fuera (no cuentan). Mientras mas verdes aciertos proporcionales, mejor la estimacion.',
+    'Para el <b>parcial 30/04/2025</b>: escribe <code>f(x)</code> (superior) y <code>g(x)</code> (inferior). Ej: <code>f = x²</code>, <code>g = x³</code> en <code>[0, 1]</code>.',
+    'Define <code>[a, b]</code>. Si las curvas se cruzan, la app usa <code>|f - g|</code> automaticamente (toma el max y min en cada x).',
+    'Configura <code>N</code>, <code>K</code> y el <b>nivel de confianza</b> (90/95/99).',
+    '<b>Estrategia Hit-or-Miss</b>: rectangulo circunscrito <code>[a, b] × [y_min, y_max]</code>. Puntos uniformes, cuenta los que caen entre las curvas. <code>A ≈ (Area rect) · (hits / N)</code>.',
+    'Pulsa <b>Resolver</b>. Se muestran: (1) <b>Solucion analitica paso a paso</b> (∫(f-g)dx); (2) tabla de K repeticiones; (3) <b>Resumen estadistico</b> con media, varianza, SE, IC; (4) <b>demostracion 1/√n</b> con simulacion a 4N.',
+    'Para el informe: (1) tabla de A_k; (2) promedio; (3) σ entre repeticiones; (4) IC; (5) comparacion con exacto si lo hay.',
   ],
 
   solve(params) {
@@ -70,6 +81,8 @@ export const montecarloArea: MethodDefinition = {
     const b = parseFloat(params.b);
     const N = parseInt(params.n) || 10000;
     const K = Math.max(1, parseInt(params.K) || 10);
+    const confPct = parseConfPct(params.conf, 95);
+    const z = zForConfidence(confPct);
 
     if (isNaN(a) || isNaN(b)) throw new Error('a y b deben ser numeros validos');
     if (a >= b) throw new Error('a debe ser menor que b');
@@ -97,52 +110,81 @@ export const montecarloArea: MethodDefinition = {
     const baseSeed = seedVal !== null ? seedVal : (Date.now() ^ (Math.random() * 0xFFFFFFFF));
 
     const iterations: MethodResult['iterations'] = [];
+    const reps: { k: number; estimate: number; runningMean: number; runningStd: number }[] = [];
     let sumEst = 0;
     let sumEstSq = 0;
+    let lastPHat = 0;
 
     for (let k = 1; k <= K; k++) {
-      const rand = mulberry32(baseSeed + k * 10007);
-      let hits = 0;
-      for (let i = 0; i < N; i++) {
-        const xi = a + rand() * (b - a);
-        const yi = yMin + rand() * (yMax - yMin);
-        const fv = f(xi);
-        const gv = g(xi);
-        const top = Math.max(fv, gv);
-        const bot = Math.min(fv, gv);
-        if (yi >= bot && yi <= top) hits++;
-      }
-      const A_k = rectArea * (hits / N);
+      const run = runArea(f, g, a, b, yMin, yMax, N, baseSeed + k * 10007);
+      const A_k = run.estimate;
+      lastPHat = run.hits / N;
       sumEst += A_k;
       sumEstSq += A_k * A_k;
 
       const runningMean = sumEst / k;
-      const varRun = k > 1 ? Math.max(0, (sumEstSq / k) - runningMean * runningMean) : 0;
-      const stdDevRun = Math.sqrt(varRun);
+      const varRun = k > 1 ? Math.max(0, (sumEstSq - k * runningMean * runningMean) / (k - 1)) : 0;
+      const runningStd = Math.sqrt(varRun);
       const exactDiff = exactVal !== undefined ? Math.abs(A_k - exactVal) : null;
 
       iterations.push({
         k,
-        hits,
+        hits: run.hits,
         estimate: A_k,
         runningMean,
-        stdDevRun,
+        stdDevRun: runningStd,
         exactDiff,
       });
+      reps.push({ k, estimate: A_k, runningMean, runningStd });
     }
 
     const avgEstimate = sumEst / K;
-    const varK = K > 1 ? Math.max(0, (sumEstSq / K) - avgEstimate * avgEstimate) : 0;
-    const stdDevK = Math.sqrt(varK);
-    const stdErrK = stdDevK / Math.sqrt(K);
+    let varK: number;
+    let stdDevK: number;
+    let stdErrK: number;
+    let basis: 'within' | 'reps' | 'bernoulli';
+    if (K > 1) {
+      varK = Math.max(0, (sumEstSq - K * avgEstimate * avgEstimate) / (K - 1));
+      stdDevK = Math.sqrt(varK);
+      stdErrK = stdDevK / Math.sqrt(K);
+      basis = 'reps';
+    } else {
+      // Bernoulli SE from the single run
+      stdErrK = rectArea * Math.sqrt(lastPHat * (1 - lastPHat) / N);
+      stdDevK = rectArea * Math.sqrt(lastPHat * (1 - lastPHat));
+      varK = stdDevK * stdDevK;
+      basis = 'bernoulli';
+    }
+
+    const ciLower = avgEstimate - z * stdErrK;
+    const ciUpper = avgEstimate + z * stdErrK;
 
     let relativeErrorPercent: number | undefined;
-    let message = `A ≈ ${avgEstimate.toPrecision(8)} (promedio K=${K}, N=${N}) | σ repeticiones = ${stdDevK.toPrecision(6)} | rect area = ${rectArea.toPrecision(6)}`;
+    let message = `A ≈ ${fmtNum(avgEstimate, 8)} (K=${K}, N=${N}) | σ reps = ${fmtNum(stdDevK, 6)} | SE = ${fmtNum(stdErrK, 6)} | IC ${confPct}%: [${fmtNum(ciLower, 8)}, ${fmtNum(ciUpper, 8)}]`;
     if (exactVal !== undefined) {
       const absErr = Math.abs(avgEstimate - exactVal);
       relativeErrorPercent = Math.abs(exactVal) > 1e-14 ? absErr / Math.abs(exactVal) * 100 : absErr * 100;
-      message += ` | Exacto = ${exactVal.toPrecision(8)} | |error| = ${absErr.toPrecision(6)}`;
+      message += ` | Exacto = ${fmtNum(exactVal, 8)} | |error| = ${fmtNum(absErr, 6)}`;
     }
+
+    const panels: string[] = [];
+    panels.push(renderAnalyticalPanelDifference(params.fx, params.gx, a, b));
+    if (K > 1) panels.push(renderKRepsPanel(reps, '\\hat{A}'));
+    panels.push(renderSummaryPanel({
+      N, K,
+      mean: avgEstimate, varianceEst: varK, stdDev: stdDevK,
+      stdErr: stdErrK, confPct, z, ciLower, ciUpper, basis,
+      symbol: '\\hat{A}',
+    }));
+    panels.push(renderErrorHalvingPanel({
+      runner: (Nn, seed) => {
+        const r = runArea(f, g, a, b, yMin, yMax, Nn, seed);
+        return { estimate: r.estimate, stdErr: r.stdErr };
+      },
+      N, baseSeed, currentStdErr: stdErrK,
+      constantLabel: 'A_{\\text{rect}}\\cdot \\sqrt{p(1-p)}',
+      constantValue: rectArea * Math.sqrt(lastPHat * (1 - lastPHat)),
+    }));
 
     return {
       integral: avgEstimate,
@@ -152,6 +194,7 @@ export const montecarloArea: MethodDefinition = {
       exact: exactVal,
       relativeErrorPercent,
       message,
+      theoremPanels: panels,
     };
   },
 
@@ -173,7 +216,6 @@ export const montecarloArea: MethodDefinition = {
     const yLo = yMin - yPad;
     const yHi = yMax + yPad;
 
-    // Chart 1: Region with hit/miss points
     const rand = mulberry32(baseSeed + 1);
     const nShow = Math.min(N, 600);
     const hitX: number[] = [];
@@ -205,7 +247,6 @@ export const montecarloArea: MethodDefinition = {
       xLabel: 'x', yLabel: 'y',
     };
 
-    // Chart 2: Repetitions and running mean
     const ks = result.iterations.map(r => r.k as number);
     const estimates = result.iterations.map(r => r.estimate as number);
     const runningMeans = result.iterations.map(r => r.runningMean as number);
@@ -225,7 +266,6 @@ export const montecarloArea: MethodDefinition = {
       xLabel: 'k (repeticion)', yLabel: 'Area',
     };
 
-    // Chart 3: σ running
     const stdDevRuns = result.iterations.map(r => r.stdDevRun as number);
     const chart3: ChartData = {
       title: 'σ(A_1..A_k) — dispersion entre repeticiones',
@@ -236,7 +276,6 @@ export const montecarloArea: MethodDefinition = {
       xLabel: 'k', yLabel: 'σ',
     };
 
-    // Chart 4: |error| vs k
     let chart4: ChartData;
     if (result.exact !== undefined) {
       const absErrs = runningMeans.map(v => Math.abs(v - result.exact!));

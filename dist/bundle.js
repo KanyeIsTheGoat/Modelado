@@ -47664,1946 +47664,6 @@
     }
   };
 
-  // src/integrationHelpers.ts
-  var math3 = create(all);
-  function maxAbsDerivative(expr, order, a, b, samples = 400) {
-    let derivedFn = null;
-    let derivedStr = null;
-    try {
-      let node = math3.parse(expr);
-      for (let k = 0; k < order; k++) {
-        node = math3.derivative(node, "x");
-      }
-      derivedStr = math3.simplify(node).toString();
-      const compiled = math3.compile(derivedStr);
-      derivedFn = (x) => {
-        const v = compiled.evaluate({ x, e: Math.E, pi: Math.PI });
-        return typeof v === "number" ? v : NaN;
-      };
-    } catch {
-      const f = parseExpression(expr);
-      derivedFn = (x) => numericalHighOrderDerivative(f, x, order);
-    }
-    const xs = linspace(a, b, samples);
-    let maxAbs = 0;
-    let xAtMax = a;
-    for (const x of xs) {
-      const v = derivedFn(x);
-      if (isFinite(v) && Math.abs(v) > maxAbs) {
-        maxAbs = Math.abs(v);
-        xAtMax = x;
-      }
-    }
-    return { max: maxAbs, xAtMax, derivativeExpr: derivedStr };
-  }
-  function numericalHighOrderDerivative(f, x, order, h = 1e-3) {
-    if (order === 0) return f(x);
-    if (order === 1) return (f(x + h) - f(x - h)) / (2 * h);
-    if (order === 2) return (f(x + h) - 2 * f(x) + f(x - h)) / (h * h);
-    if (order === 3) {
-      return (f(x + 2 * h) - 2 * f(x + h) + 2 * f(x - h) - f(x - 2 * h)) / (2 * h * h * h);
-    }
-    if (order === 4) {
-      return (f(x + 2 * h) - 4 * f(x + h) + 6 * f(x) - 4 * f(x - h) + f(x - 2 * h)) / (h * h * h * h);
-    }
-    const g = (t) => numericalHighOrderDerivative(f, t, order - 1, h);
-    return (g(x + h) - g(x - h)) / (2 * h);
-  }
-  function relativeErrorPercent(approx, exact) {
-    const denom = Math.abs(exact) > 1e-14 ? Math.abs(exact) : Math.abs(approx);
-    if (denom === 0) return 0;
-    return Math.abs(approx - exact) / denom * 100;
-  }
-  function trapecioError(fxExpr, a, b, h) {
-    const d = maxAbsDerivative(fxExpr, 2, a, b);
-    const bound = (b - a) * h * h / 12 * d.max;
-    return { bound, max: d.max, xAtMax: d.xAtMax, derivativeExpr: d.derivativeExpr, order: 2 };
-  }
-  function midpointError(fxExpr, a, b, h) {
-    const d = maxAbsDerivative(fxExpr, 2, a, b);
-    const bound = (b - a) * h * h / 24 * d.max;
-    return { bound, max: d.max, xAtMax: d.xAtMax, derivativeExpr: d.derivativeExpr, order: 2 };
-  }
-  function simpson13Error(fxExpr, a, b, h) {
-    const d = maxAbsDerivative(fxExpr, 4, a, b);
-    const bound = (b - a) * Math.pow(h, 4) / 180 * d.max;
-    return { bound, max: d.max, xAtMax: d.xAtMax, derivativeExpr: d.derivativeExpr, order: 4 };
-  }
-  function simpson38Error(fxExpr, a, b, h) {
-    const d = maxAbsDerivative(fxExpr, 4, a, b);
-    const bound = (b - a) * Math.pow(h, 4) / 80 * d.max;
-    return { bound, max: d.max, xAtMax: d.xAtMax, derivativeExpr: d.derivativeExpr, order: 4 };
-  }
-
-  // src/methods/integration/midpoint.ts
-  function computeMidpoint(f, a, b, n) {
-    const h = (b - a) / n;
-    const iterations = [];
-    let sum3 = 0;
-    for (let i2 = 0; i2 < n; i2++) {
-      const xMid = a + (i2 + 0.5) * h;
-      const fxMid = f(xMid);
-      const area = h * fxMid;
-      sum3 += fxMid;
-      iterations.push({ i: i2 + 1, xi_mid: xMid, fxi: fxMid, area });
-    }
-    return { integral: h * sum3, iterations, h };
-  }
-  var midpoint = {
-    id: "midpoint",
-    name: "Regla del Rectangulo (Punto Medio)",
-    category: "integration",
-    formula: "\u222Bf(x)dx \u2248 (b-a) \xB7 f((a+b)/2)",
-    latexFormula: "\\int_a^b f(x)\\,dx \\approx (b-a) \\cdot f\\!\\left(\\frac{a+b}{2}\\right)",
-    description: "Aproxima la integral usando el valor de f en el punto medio del intervalo.",
-    inputs: [
-      { id: "fx", label: "f(x)", placeholder: "x^2", defaultValue: "x^2" },
-      { id: "a", label: "a (limite inferior)", placeholder: "0", type: "number", defaultValue: "0" },
-      { id: "b", label: "b (limite superior)", placeholder: "1", type: "number", defaultValue: "1" },
-      { id: "n", label: "n (subintervalos)", placeholder: "10", type: "number", defaultValue: "10" },
-      { id: "exact", label: "Valor exacto (opcional)", placeholder: "p.ej. 0.333333", type: "number", hint: "Si se provee, se calcula error relativo y se reintenta con n=20 si supera 1%." }
-    ],
-    tableColumns: [
-      { key: "i", label: "i", latex: "i" },
-      { key: "xi_mid", label: "x_i (medio)", latex: "x_i^{\\text{medio}}" },
-      { key: "fxi", label: "f(x_i)", latex: "f(x_i)" },
-      { key: "area", label: "Area parcial", latex: "h \\cdot f(x_i)" }
-    ],
-    steps: [
-      "Escribe <code>f(x)</code> \u2014 ej. <code>exp(x^2)</code> para el ejercicio del parcial \u222B\u2080\xB2 e^(x\xB2) dx.",
-      "Completa limites <code>a</code> y <code>b</code>. Para el parcial 02/07/2025: <code>a=0</code>, <code>b=2</code>.",
-      'Pone <code>n = 10</code> como arranca el parcial. <b>Auto-retry</b>: si el "error relativo" supera 1 %, la app reintenta sola con <code>n = 20</code> y te lo marca en el resumen.',
-      "Para poder medir error: calcula o pone <b>valor exacto</b>. Para \u222B\u2080\xB2 e^(x\xB2) dx el exacto es <code>\u2248 16.45262776</code> (usa Wolfram, Python <code>scipy.integrate.quad</code>, o una corrida con Simpson y n grande como referencia).",
-      "Pulsa <b>Resolver</b>. En cada subintervalo <code>[x_i, x_{i+1}]</code> la app evalua <code>f</code> en el <em>punto medio</em> <code>x_mid = (x_i + x_{i+1})/2</code> y suma <code>h \xB7 f(x_mid)</code> con <code>h = (b-a)/n</code>.",
-      "Revisa la <b>cota de truncamiento</b>: <code>|E| \u2264 (b-a)\xB7h\xB2/24 \xB7 M\u2082</code> donde <code>M\u2082 = max |f''(\u03BE)|</code> en [a, b]. La app calcula f'' simbolicamente y encuentra M\u2082 numericamente; te muestra \u03BE aproximado.",
-      "Para comparacion con Simpson (parte b del parcial): toma nota de <em>iteraciones</em>, <em>error relativo %</em>, y la cota de E. Simpson con el mismo n da error mucho menor porque converge mas rapido (O(h\u2074) vs O(h\xB2))."
-    ],
-    solve(params) {
-      const f = parseExpression(params.fx);
-      const a = parseFloat(params.a);
-      const b = parseFloat(params.b);
-      let n = parseInt(params.n) || 10;
-      const exactRaw = (params.exact ?? "").trim();
-      const exact = exactRaw === "" ? void 0 : parseFloat(exactRaw);
-      if (isNaN(a) || isNaN(b)) throw new Error("a y b deben ser numeros validos");
-      if (a >= b) throw new Error("a debe ser menor que b");
-      if (n < 1) throw new Error("n debe ser >= 1");
-      let run = computeMidpoint(f, a, b, n);
-      let retried = false;
-      let relErr;
-      if (exact !== void 0 && !isNaN(exact)) {
-        relErr = relativeErrorPercent(run.integral, exact);
-        if (relErr > 1 && n < 20) {
-          n = 20;
-          run = computeMidpoint(f, a, b, n);
-          relErr = relativeErrorPercent(run.integral, exact);
-          retried = true;
-        }
-      }
-      const errInfo = midpointError(params.fx, a, b, run.h);
-      const msgParts = [`h = ${run.h.toPrecision(6)}, n = ${n}`];
-      if (errInfo.derivativeExpr) msgParts.push(`f''(x) = ${errInfo.derivativeExpr}`);
-      if (retried) msgParts.push("reintento automatico con n=20 tras error > 1%");
-      return {
-        integral: run.integral,
-        iterations: run.iterations,
-        converged: true,
-        error: errInfo.bound,
-        exact,
-        relativeErrorPercent: relErr,
-        truncationBound: errInfo.bound,
-        truncationOrder: 2,
-        maxDerivative: errInfo.max,
-        xiApprox: errInfo.xAtMax,
-        derivativeExpr: errInfo.derivativeExpr ?? void 0,
-        retried,
-        message: msgParts.join(" \xB7 ")
-      };
-    },
-    getCharts(params, result) {
-      const f = parseExpression(params.fx);
-      const a = parseFloat(params.a);
-      const b = parseFloat(params.b);
-      let n = parseInt(params.n) || 10;
-      if (result.retried) n = 20;
-      const h = (b - a) / n;
-      const pad2 = (b - a) * 0.1;
-      const xs = linspace(a - pad2, b + pad2, 500);
-      const ys = xs.map((x) => f(x));
-      const rectX = [];
-      const rectY = [];
-      for (let i2 = 0; i2 < n; i2++) {
-        const xL = a + i2 * h;
-        const xR = a + (i2 + 1) * h;
-        const xM = (xL + xR) / 2;
-        const fM = f(xM);
-        rectX.push(xL, xL, xR, xR, xL);
-        rectY.push(0, fM, fM, 0, 0);
-        rectX.push(NaN);
-        rectY.push(NaN);
-      }
-      const chart1 = {
-        title: "Regla del Punto Medio",
-        type: "line",
-        datasets: [
-          { label: "f(x)", x: xs, y: ys, color: "#89b4fa" },
-          { label: "Rectangulos", x: rectX, y: rectY, color: "#a6e3a1", fill: false }
-        ],
-        xLabel: "x",
-        yLabel: "f(x)"
-      };
-      const iters = result.iterations.map((r) => r.i);
-      let cumSum = 0;
-      const cumAreas = result.iterations.map((r) => {
-        cumSum += r.area;
-        return cumSum;
-      });
-      const chart2 = {
-        title: "Area acumulada",
-        type: "line",
-        datasets: [{ label: "Area acumulada", x: iters, y: cumAreas, color: "#cba6f7", pointRadius: 3 }],
-        xLabel: "Subintervalo",
-        yLabel: "Area"
-      };
-      const fvals = result.iterations.map((r) => r.fxi);
-      const xmids = result.iterations.map((r) => r.xi_mid);
-      const chart3 = {
-        title: "Valores f(x_i) en puntos medios",
-        type: "scatter",
-        datasets: [
-          { label: "f(x)", x: xs, y: ys, color: "#89b4fa", pointRadius: 0 },
-          { label: "f(x_i)", x: xmids, y: fvals, color: "#fab387", pointRadius: 4, showLine: false }
-        ],
-        xLabel: "x",
-        yLabel: "f(x)"
-      };
-      const nValues = [1, 2, 4, 8, 16, 32, 64, 128];
-      const integrals = nValues.map((nv) => {
-        const hv = (b - a) / nv;
-        let s = 0;
-        for (let i2 = 0; i2 < nv; i2++) s += f(a + (i2 + 0.5) * hv);
-        return hv * s;
-      });
-      const chart4 = {
-        title: "Convergencia con n",
-        type: "line",
-        datasets: [{ label: "Integral", x: nValues, y: integrals, color: "#f9e2af", pointRadius: 3 }],
-        xLabel: "n (subintervalos)",
-        yLabel: "Valor integral"
-      };
-      return [chart1, chart2, chart3, chart4];
-    }
-  };
-
-  // src/methods/integration/trapezoidal.ts
-  var trapezoidal = {
-    id: "trapezoidal",
-    name: "Regla del Trapecio (Simple)",
-    category: "integration",
-    formula: "\u222Bf(x)dx \u2248 (b-a)/2 \xB7 [f(a) + f(b)]",
-    latexFormula: "\\int_a^b f(x)\\,dx \\approx \\frac{b-a}{2}\\left[f(a) + f(b)\\right]",
-    description: "Aproxima el area bajo la curva con un solo trapecio entre a y b.",
-    inputs: [
-      { id: "fx", label: "f(x)", placeholder: "x^2", defaultValue: "x^2" },
-      { id: "a", label: "a (limite inferior)", placeholder: "0", type: "number", defaultValue: "0" },
-      { id: "b", label: "b (limite superior)", placeholder: "1", type: "number", defaultValue: "1" }
-    ],
-    tableColumns: [
-      { key: "punto", label: "Punto", latex: "\\text{Punto}" },
-      { key: "x", label: "x", latex: "x" },
-      { key: "fx", label: "f(x)", latex: "f(x)" }
-    ],
-    steps: [
-      "Version simple con un solo trapecio entre a y b. Util para <em>didactico</em> o verificar una formula \u2014 pero en el parcial siempre piden version compuesta (<code>trapezoidalComp</code>).",
-      "Formula: <code>I \u2248 (b-a)/2 \xB7 [f(a) + f(b)]</code>.",
-      "Si el parcial da <code>n = 4</code> o <code>n = 10</code>, usa <b>Trapecio compuesto</b>, no este.",
-      "La cota de error: <code>|E| = -(b-a)\xB3/12 \xB7 f''(\u03BE)</code> para algun \u03BE \u2208 (a, b)."
-    ],
-    solve(params) {
-      const f = parseExpression(params.fx);
-      const a = parseFloat(params.a);
-      const b = parseFloat(params.b);
-      if (isNaN(a) || isNaN(b)) throw new Error("a y b deben ser numeros validos");
-      if (a >= b) throw new Error("a debe ser menor que b");
-      const fa = f(a);
-      const fb = f(b);
-      const integral = (b - a) / 2 * (fa + fb);
-      const iterations = [
-        { punto: "a", x: a, fx: fa },
-        { punto: "b", x: b, fx: fb }
-      ];
-      return { integral, iterations, converged: true, error: 0, message: `Trapecio simple: (${b}-${a})/2 \xB7 [f(${a}) + f(${b})]` };
-    },
-    getCharts(params, result) {
-      const f = parseExpression(params.fx);
-      const a = parseFloat(params.a);
-      const b = parseFloat(params.b);
-      const fa = f(a);
-      const fb = f(b);
-      const pad2 = (b - a) * 0.3;
-      const xs = linspace(a - pad2, b + pad2, 500);
-      const ys = xs.map((x) => f(x));
-      const chart1 = {
-        title: "Regla del Trapecio Simple",
-        type: "line",
-        datasets: [
-          { label: "f(x)", x: xs, y: ys, color: "#89b4fa" },
-          { label: "Trapecio", x: [a, a, b, b, a], y: [0, fa, fb, 0, 0], color: "#a6e3a1", fill: true }
-        ],
-        xLabel: "x",
-        yLabel: "f(x)"
-      };
-      const xFill = linspace(a, b, 200);
-      const yFill = xFill.map((x) => f(x));
-      const chart2 = {
-        title: "Area exacta vs Trapecio",
-        type: "line",
-        datasets: [
-          { label: "f(x)", x: xs, y: ys, color: "#89b4fa" },
-          { label: "Area bajo curva", x: [...xFill, b, a], y: [...yFill, 0, 0], color: "#cba6f7", fill: true }
-        ],
-        xLabel: "x",
-        yLabel: "f(x)"
-      };
-      const nValues = [1, 2, 4, 8, 16, 32, 64];
-      const integrals = nValues.map((n) => {
-        const h = (b - a) / n;
-        let s = f(a) + f(b);
-        for (let i2 = 1; i2 < n; i2++) s += 2 * f(a + i2 * h);
-        return h / 2 * s;
-      });
-      const chart3 = {
-        title: "Convergencia Trapecio Compuesto",
-        type: "line",
-        datasets: [{ label: "Integral", x: nValues, y: integrals, color: "#f9e2af", pointRadius: 3 }],
-        xLabel: "n",
-        yLabel: "Valor"
-      };
-      const chart4 = {
-        title: "Puntos de evaluacion",
-        type: "scatter",
-        datasets: [
-          { label: "f(x)", x: xs, y: ys, color: "#89b4fa", pointRadius: 0 },
-          { label: "Puntos", x: [a, b], y: [fa, fb], color: "#fab387", pointRadius: 6, showLine: false }
-        ],
-        xLabel: "x",
-        yLabel: "f(x)"
-      };
-      return [chart1, chart2, chart3, chart4];
-    }
-  };
-
-  // src/methods/integration/trapezoidalComp.ts
-  function computeTrapecio(f, a, b, n) {
-    const h = (b - a) / n;
-    const iterations = [];
-    let sum3 = 0;
-    for (let i2 = 0; i2 <= n; i2++) {
-      const xi = a + i2 * h;
-      const fxi = f(xi);
-      const coeff = i2 === 0 || i2 === n ? 1 : 2;
-      const contrib = coeff * fxi;
-      sum3 += contrib;
-      iterations.push({ i: i2, xi, fxi, coeff, contrib });
-    }
-    return { integral: h / 2 * sum3, iterations, h };
-  }
-  var trapezoidalComp = {
-    id: "trapezoidalComp",
-    name: "Regla del Trapecio Compuesta",
-    category: "integration",
-    formula: "\u222Bf(x)dx \u2248 h/2 \xB7 [f(a) + 2\xB7\u03A3f(x_i) + f(b)]",
-    latexFormula: "\\int_a^b f(x)\\,dx \\approx \\frac{h}{2}\\left[f(a) + 2\\sum_{i=1}^{n-1} f(x_i) + f(b)\\right], \\quad h = \\frac{b-a}{n}",
-    description: "Divide [a,b] en n subintervalos y aplica la regla del trapecio en cada uno.",
-    inputs: [
-      { id: "fx", label: "f(x)", placeholder: "x^2", defaultValue: "x^2" },
-      { id: "a", label: "a (limite inferior)", placeholder: "0", type: "number", defaultValue: "0" },
-      { id: "b", label: "b (limite superior)", placeholder: "1", type: "number", defaultValue: "1" },
-      { id: "n", label: "n (subintervalos)", placeholder: "10", type: "number", defaultValue: "10" },
-      { id: "exact", label: "Valor exacto (opcional)", placeholder: "p.ej. 0.333333", type: "number", hint: "Si se provee, se calcula error relativo y se reintenta con n=20 si supera 1%." }
-    ],
-    tableColumns: [
-      { key: "i", label: "i", latex: "i" },
-      { key: "xi", label: "x_i", latex: "x_i" },
-      { key: "fxi", label: "f(x_i)", latex: "f(x_i)" },
-      { key: "coeff", label: "Coeficiente", latex: "c_i" },
-      { key: "contrib", label: "Contribucion", latex: "c_i \\cdot f(x_i)" }
-    ],
-    steps: [
-      "Escribe <code>f(x)</code>. Para el <b>parcial 2025-I</b>: <code>ln(x+1)/x</code> sobre <code>[0, 1]</code>. Ojo, en <code>x=0</code> la funcion tiene singularidad removible \u2014 el parser lanzaria <code>NaN</code>; usa <code>a = 1e-10</code> (\u2248 0) o redefine como <code>ln(x+1)/x</code> y prueba primero n=4. Para <b>parcial 30/04/2025</b>: <code>sqrt(2)\xB7exp(x^2)</code> sobre <code>[0, 1]</code>.",
-      "Completa <code>a</code>, <code>b</code>, y <code>n</code>. El parcial te pide <code>n = 4</code> (y luego <code>n = 10</code> en el de 30/04 para comparar). El paso es <code>h = (b - a)/n</code>.",
-      "Formula compuesta: <code>I \u2248 h/2 \xB7 [f(a) + 2\xB7\u03A3 f(x_i) + f(b)]</code> con pesos <b>1, 2, 2, ..., 2, 1</b>. La tabla te muestra en la columna <em>Coeficiente</em> exactamente esto: 1 en los extremos y 2 en los puntos interiores.",
-      "Pulsa <b>Resolver</b>. La columna <em>Contribucion = coef \xB7 f(x_i)</em> y la suma total multiplicada por <code>h/2</code> da la integral aproximada.",
-      "<b>Error de truncamiento</b>: <code>|E| = -(b-a)\xB7h\xB2/12 \xB7 f''(\u03BE)</code> para algun <code>\u03BE \u2208 (a, b)</code>. La app calcula <code>f''(x)</code> simbolicamente y halla el <code>\u03BE</code> que maximiza <code>|f''|</code> en [a,b] (peor caso \u2014 cota superior).",
-      "Si el parcial te fija <code>\u03BE = 0.5</code> (como en 30/04/2025), evalua a mano <code>f''(0.5)</code> y calcula la cota con ese valor concreto: <code>|E| = (b-a)h\xB2/12 \xB7 |f''(0.5)|</code>. La app siempre reporta el peor caso; puedes usarlo de referencia.",
-      "Si das <b>valor exacto</b>: la app calcula <em>error relativo %</em> y si supera 1% reintenta con <code>n = 20</code> (te lo indica en el resumen).",
-      "Para la <b>comparacion con Simpson 1/3</b> (ultima parte del parcial): anota el <em>valor integral</em>, <em>error relativo</em> y la <em>cota</em>. Simpson con mismo n baja el error porque converge <code>O(h\u2074)</code> vs <code>O(h\xB2)</code> del trapecio \u2014 se ve claramente en la grafica de convergencia."
-    ],
-    solve(params) {
-      const f = parseExpression(params.fx);
-      const a = parseFloat(params.a);
-      const b = parseFloat(params.b);
-      let n = parseInt(params.n) || 10;
-      const exactRaw = (params.exact ?? "").trim();
-      const exact = exactRaw === "" ? void 0 : parseFloat(exactRaw);
-      if (isNaN(a) || isNaN(b)) throw new Error("a y b deben ser numeros validos");
-      if (a >= b) throw new Error("a debe ser menor que b");
-      if (n < 1) throw new Error("n debe ser >= 1");
-      let run = computeTrapecio(f, a, b, n);
-      let retried = false;
-      let relErr;
-      if (exact !== void 0 && !isNaN(exact)) {
-        relErr = relativeErrorPercent(run.integral, exact);
-        if (relErr > 1 && n < 20) {
-          n = 20;
-          run = computeTrapecio(f, a, b, n);
-          relErr = relativeErrorPercent(run.integral, exact);
-          retried = true;
-        }
-      }
-      const errInfo = trapecioError(params.fx, a, b, run.h);
-      const msgParts = [`h = ${run.h.toPrecision(6)}, n = ${n}`];
-      if (errInfo.derivativeExpr) msgParts.push(`f''(x) = ${errInfo.derivativeExpr}`);
-      if (retried) msgParts.push("reintento automatico con n=20 tras error > 1%");
-      return {
-        integral: run.integral,
-        iterations: run.iterations,
-        converged: true,
-        error: errInfo.bound,
-        exact,
-        relativeErrorPercent: relErr,
-        truncationBound: errInfo.bound,
-        truncationOrder: 2,
-        maxDerivative: errInfo.max,
-        xiApprox: errInfo.xAtMax,
-        derivativeExpr: errInfo.derivativeExpr ?? void 0,
-        retried,
-        message: msgParts.join(" \xB7 ")
-      };
-    },
-    getCharts(params, result) {
-      const f = parseExpression(params.fx);
-      const a = parseFloat(params.a);
-      const b = parseFloat(params.b);
-      let n = parseInt(params.n) || 10;
-      if (result.retried) n = 20;
-      const h = (b - a) / n;
-      const pad2 = (b - a) * 0.1;
-      const xs = linspace(a - pad2, b + pad2, 500);
-      const ys = xs.map((x) => f(x));
-      const trapX = [];
-      const trapY = [];
-      for (let i2 = 0; i2 < n; i2++) {
-        const xL = a + i2 * h;
-        const xR = a + (i2 + 1) * h;
-        trapX.push(xL, xL, xR, xR, xL);
-        trapY.push(0, f(xL), f(xR), 0, 0);
-        trapX.push(NaN);
-        trapY.push(NaN);
-      }
-      const chart1 = {
-        title: `Trapecio Compuesto (n=${n})`,
-        type: "line",
-        datasets: [
-          { label: "f(x)", x: xs, y: ys, color: "#89b4fa" },
-          { label: "Trapecios", x: trapX, y: trapY, color: "#a6e3a1", fill: false }
-        ],
-        xLabel: "x",
-        yLabel: "f(x)"
-      };
-      const xPts = result.iterations.map((r) => r.xi);
-      const yPts = result.iterations.map((r) => r.fxi);
-      const chart2 = {
-        title: "Puntos de evaluacion",
-        type: "scatter",
-        datasets: [
-          { label: "f(x)", x: xs, y: ys, color: "#89b4fa", pointRadius: 0 },
-          { label: "x_i", x: xPts, y: yPts, color: "#fab387", pointRadius: 4, showLine: false }
-        ],
-        xLabel: "x",
-        yLabel: "f(x)"
-      };
-      const iters = result.iterations.map((r) => r.i);
-      let cumSum = 0;
-      const hHalf = h / 2;
-      const cumAreas = result.iterations.map((r) => {
-        cumSum += r.contrib;
-        return hHalf * cumSum;
-      });
-      const chart3 = {
-        title: "Integral acumulada",
-        type: "line",
-        datasets: [{ label: "Integral parcial", x: iters, y: cumAreas, color: "#cba6f7", pointRadius: 2 }],
-        xLabel: "Punto i",
-        yLabel: "Integral parcial"
-      };
-      const nValues = [2, 4, 8, 16, 32, 64, 128, 256];
-      const integrals = nValues.map((nv) => {
-        const hv = (b - a) / nv;
-        let s = f(a) + f(b);
-        for (let i2 = 1; i2 < nv; i2++) s += 2 * f(a + i2 * hv);
-        return hv / 2 * s;
-      });
-      const chart4 = {
-        title: "Convergencia con n",
-        type: "line",
-        datasets: [{ label: "Integral", x: nValues, y: integrals, color: "#f9e2af", pointRadius: 3 }],
-        xLabel: "n",
-        yLabel: "Valor integral"
-      };
-      return [chart1, chart2, chart3, chart4];
-    }
-  };
-
-  // src/methods/integration/simpson13.ts
-  var simpson13 = {
-    id: "simpson13",
-    name: "Simpson 1/3 (Simple)",
-    category: "integration",
-    formula: "\u222Bf(x)dx \u2248 (b-a)/6 \xB7 [f(a) + 4\xB7f(m) + f(b)]",
-    latexFormula: "\\int_a^b f(x)\\,dx \\approx \\frac{b-a}{6}\\left[f(a) + 4f\\!\\left(\\frac{a+b}{2}\\right) + f(b)\\right]",
-    description: "Aproxima la integral usando una parabola que pasa por 3 puntos: a, (a+b)/2, b.",
-    inputs: [
-      { id: "fx", label: "f(x)", placeholder: "x^2", defaultValue: "x^2" },
-      { id: "a", label: "a (limite inferior)", placeholder: "0", type: "number", defaultValue: "0" },
-      { id: "b", label: "b (limite superior)", placeholder: "1", type: "number", defaultValue: "1" }
-    ],
-    tableColumns: [
-      { key: "punto", label: "Punto", latex: "\\text{Punto}" },
-      { key: "x", label: "x", latex: "x" },
-      { key: "fx", label: "f(x)", latex: "f(x)" },
-      { key: "coeff", label: "Coeficiente", latex: "c_i" }
-    ],
-    steps: [
-      "Version <em>simple</em> de Simpson 1/3: usa solo <b>tres puntos</b> \u2014 <code>a</code>, <code>m = (a+b)/2</code>, <code>b</code> \u2014 y ajusta una <b>parabola</b> que pasa por ellos. Util para didactica o verificar formula; en parcial casi siempre piden la <b>version compuesta</b> con n subintervalos.",
-      "Escribe <code>f(x)</code> y los limites <code>a</code>, <code>b</code>.",
-      "Formula: <code>I \u2248 (b-a)/6 \xB7 [f(a) + 4\xB7f(m) + f(b)]</code>. Observa los pesos: <b>1, 4, 1</b>. El factor 4 viene de integrar la parabola de Lagrange.",
-      "Pulsa <b>Resolver</b>. La tabla muestra los 3 puntos con sus coeficientes. La grafica muestra la <em>parabola ajustada</em> vs <code>f(x)</code> real.",
-      "Error: <code>|E| = -(b-a)\u2075/2880 \xB7 f\u207D\u2074\u207E(\u03BE)</code> \u2014 es de orden <code>O(h\u2075)</code>. Si la funcion es un polinomio de grado \u2264 3, Simpson es <em>exacto</em>.",
-      "Si el parcial pide <code>n = 4</code> o similar, salta a <b>Simpson 1/3 compuesto</b>."
-    ],
-    solve(params) {
-      const f = parseExpression(params.fx);
-      const a = parseFloat(params.a);
-      const b = parseFloat(params.b);
-      if (isNaN(a) || isNaN(b)) throw new Error("a y b deben ser numeros validos");
-      if (a >= b) throw new Error("a debe ser menor que b");
-      const m = (a + b) / 2;
-      const fa = f(a);
-      const fm = f(m);
-      const fb = f(b);
-      const integral = (b - a) / 6 * (fa + 4 * fm + fb);
-      const iterations = [
-        { punto: "a", x: a, fx: fa, coeff: 1 },
-        { punto: "m = (a+b)/2", x: m, fx: fm, coeff: 4 },
-        { punto: "b", x: b, fx: fb, coeff: 1 }
-      ];
-      return { integral, iterations, converged: true, error: 0 };
-    },
-    getCharts(params, result) {
-      const f = parseExpression(params.fx);
-      const a = parseFloat(params.a);
-      const b = parseFloat(params.b);
-      const m = (a + b) / 2;
-      const fa = f(a);
-      const fm = f(m);
-      const fb = f(b);
-      const pad2 = (b - a) * 0.3;
-      const xs = linspace(a - pad2, b + pad2, 500);
-      const ys = xs.map((x) => f(x));
-      const parXs = linspace(a, b, 200);
-      const parYs = parXs.map((x) => {
-        const L0 = (x - m) * (x - b) / ((a - m) * (a - b));
-        const L1 = (x - a) * (x - b) / ((m - a) * (m - b));
-        const L2 = (x - a) * (x - m) / ((b - a) * (b - m));
-        return fa * L0 + fm * L1 + fb * L2;
-      });
-      const chart1 = {
-        title: "Simpson 1/3 - Parabola interpolante",
-        type: "line",
-        datasets: [
-          { label: "f(x)", x: xs, y: ys, color: "#89b4fa" },
-          { label: "Parabola", x: parXs, y: parYs, color: "#a6e3a1", dashed: true },
-          { label: "Puntos", x: [a, m, b], y: [fa, fm, fb], color: "#fab387", pointRadius: 6, showLine: false }
-        ],
-        xLabel: "x",
-        yLabel: "f(x)"
-      };
-      const areaX = [...parXs, b, a];
-      const areaY = [...parYs, 0, 0];
-      const chart2 = {
-        title: "Area bajo la parabola",
-        type: "line",
-        datasets: [
-          { label: "f(x)", x: xs, y: ys, color: "#89b4fa" },
-          { label: "Area Simpson", x: areaX, y: areaY, color: "#a6e3a1", fill: true }
-        ],
-        xLabel: "x",
-        yLabel: "f(x)"
-      };
-      const nValues = [2, 4, 6, 8, 10, 20, 50, 100];
-      const integrals = nValues.map((n) => {
-        const h = (b - a) / n;
-        let s = f(a) + f(b);
-        for (let i2 = 1; i2 < n; i2++) {
-          s += (i2 % 2 === 0 ? 2 : 4) * f(a + i2 * h);
-        }
-        return h / 3 * s;
-      });
-      const chart3 = {
-        title: "Convergencia Simpson 1/3 Compuesto",
-        type: "line",
-        datasets: [{ label: "Integral", x: nValues, y: integrals, color: "#f9e2af", pointRadius: 3 }],
-        xLabel: "n",
-        yLabel: "Valor"
-      };
-      const chart4 = {
-        title: "Coeficientes",
-        type: "bar",
-        datasets: [{ label: "Coef \xD7 f(x)", x: [a, m, b], y: [fa, 4 * fm, fb], color: "#cba6f7", pointRadius: 4, showLine: false }],
-        xLabel: "x",
-        yLabel: "Contribucion"
-      };
-      return [chart1, chart2, chart3, chart4];
-    }
-  };
-
-  // src/methods/integration/simpson13Comp.ts
-  function computeSimpson13(f, a, b, n) {
-    if (n % 2 !== 0) n = n + 1;
-    const h = (b - a) / n;
-    const iterations = [];
-    let sum3 = 0;
-    for (let i2 = 0; i2 <= n; i2++) {
-      const xi = a + i2 * h;
-      const fxi = f(xi);
-      let coeff;
-      if (i2 === 0 || i2 === n) coeff = 1;
-      else if (i2 % 2 === 1) coeff = 4;
-      else coeff = 2;
-      const contrib = coeff * fxi;
-      sum3 += contrib;
-      iterations.push({ i: i2, xi, fxi, coeff, contrib });
-    }
-    return { integral: h / 3 * sum3, iterations, h, n };
-  }
-  var simpson13Comp = {
-    id: "simpson13Comp",
-    name: "Simpson 1/3 Compuesta",
-    category: "integration",
-    formula: "\u222Bf(x)dx \u2248 h/3 \xB7 [f(x\u2080) + 4f(x\u2081) + 2f(x\u2082) + 4f(x\u2083) + ... + f(x\u2099)]",
-    latexFormula: "\\int_a^b f(x)\\,dx \\approx \\frac{h}{3}\\left[f(x_0) + 4\\!\\!\\!\\sum_{i\\,\\text{impar}}\\!\\!\\! f(x_i) + 2\\!\\!\\!\\sum_{i\\,\\text{par}}\\!\\!\\! f(x_i) + f(x_n)\\right], \\quad h = \\frac{b-a}{n}",
-    description: "Aplica Simpson 1/3 en cada par de subintervalos. Requiere n par.",
-    inputs: [
-      { id: "fx", label: "f(x)", placeholder: "x^2", defaultValue: "x^2" },
-      { id: "a", label: "a (limite inferior)", placeholder: "0", type: "number", defaultValue: "0" },
-      { id: "b", label: "b (limite superior)", placeholder: "1", type: "number", defaultValue: "1" },
-      { id: "n", label: "n (subintervalos, debe ser par)", placeholder: "10", type: "number", defaultValue: "10" },
-      { id: "exact", label: "Valor exacto (opcional)", placeholder: "p.ej. 0.333333", type: "number", hint: "Si se provee, se calcula error relativo y se reintenta con n=20 si supera 1%." }
-    ],
-    tableColumns: [
-      { key: "i", label: "i", latex: "i" },
-      { key: "xi", label: "x_i", latex: "x_i" },
-      { key: "fxi", label: "f(x_i)", latex: "f(x_i)" },
-      { key: "coeff", label: "Coeficiente", latex: "c_i" },
-      { key: "contrib", label: "Contribucion", latex: "c_i \\cdot f(x_i)" }
-    ],
-    steps: [
-      "Escribe <code>f(x)</code>. Para el <b>parcial 02/07/2025</b> (parte b): <code>exp(x^2)</code> sobre <code>[0, 2]</code> con <code>n = 10</code>. Para <b>parcial 2025-I</b>: <code>ln(x+1)/x</code> sobre <code>[0, 1]</code> con <code>n = 4</code>.",
-      "Llena <code>a</code>, <code>b</code>, y <code>n</code>. <b>Importante</b>: <code>n</code> debe ser <b>par</b> (la regla ajusta una parabola por cada par de subintervalos). Si pones impar, la app lo incrementa a <code>n+1</code> y lo avisa.",
-      "Paso <code>h = (b - a) / n</code>. Puntos: <code>x_i = a + i\xB7h</code> para <code>i = 0, 1, ..., n</code>.",
-      "Formula compuesta: <code>I \u2248 h/3 \xB7 [f(x_0) + 4\xB7f(x_1) + 2\xB7f(x_2) + 4\xB7f(x_3) + ... + 4\xB7f(x_{n-1}) + f(x_n)]</code>. Patron de pesos: <b>1, 4, 2, 4, 2, ..., 4, 1</b>. La columna <em>Coeficiente</em> en la tabla te lo confirma.",
-      "Pulsa <b>Resolver</b>. La columna <em>Contribucion = coef \xB7 f(x_i)</em>. Suma total \xD7 <code>h/3</code> = integral.",
-      "<b>Error de truncamiento</b>: <code>|E| = -(b-a)\xB7h\u2074/180 \xB7 f\u207D\u2074\u207E(\u03BE)</code> para algun <code>\u03BE \u2208 (a,b)</code>. Es <code>O(h\u2074)</code> \u2014 mucho mas preciso que trapecio <code>O(h\xB2)</code>. La app calcula <code>f\u207D\u2074\u207E</code> simbolicamente y su maximo en [a,b].",
-      "Si el parcial te fija <code>\u03BE</code> especifico, puedes comparar contra la cota reportada (peor caso). Para funciones suaves, Simpson da error <em>casi nulo</em> con n moderado.",
-      "Si diste <b>valor exacto</b>: app calcula error relativo y reintenta con <code>n = 20</code> si > 1%. Usa el exacto de Wolfram o <code>scipy.integrate.quad</code> \u2014 para \u222B\u2080\xB2 e^(x\xB2) dx: <code>\u2248 16.45262776</code>.",
-      '<b>Comparacion vs Trapecio</b> (cierre del parcial): anota (1) integral, (2) error relativo %, (3) cota teorica. Simpson debe ser varios ordenes de magnitud mejor. Menciona en el informe: "Simpson O(h\u2074) domina a Trapecio O(h\xB2)".'
-    ],
-    solve(params) {
-      const f = parseExpression(params.fx);
-      const a = parseFloat(params.a);
-      const b = parseFloat(params.b);
-      let nReq = parseInt(params.n) || 10;
-      const exactRaw = (params.exact ?? "").trim();
-      const exact = exactRaw === "" ? void 0 : parseFloat(exactRaw);
-      if (isNaN(a) || isNaN(b)) throw new Error("a y b deben ser numeros validos");
-      if (a >= b) throw new Error("a debe ser menor que b");
-      if (nReq < 2) throw new Error("n debe ser >= 2");
-      let run = computeSimpson13(f, a, b, nReq);
-      let retried = false;
-      let relErr;
-      if (exact !== void 0 && !isNaN(exact)) {
-        relErr = relativeErrorPercent(run.integral, exact);
-        if (relErr > 1 && run.n < 20) {
-          run = computeSimpson13(f, a, b, 20);
-          relErr = relativeErrorPercent(run.integral, exact);
-          retried = true;
-        }
-      }
-      const errInfo = simpson13Error(params.fx, a, b, run.h);
-      const msgParts = [`h = ${run.h.toPrecision(6)}, n = ${run.n} (par)`];
-      if (errInfo.derivativeExpr) msgParts.push(`f\u2074(x) = ${errInfo.derivativeExpr}`);
-      if (retried) msgParts.push("reintento automatico con n=20 tras error > 1%");
-      return {
-        integral: run.integral,
-        iterations: run.iterations,
-        converged: true,
-        error: errInfo.bound,
-        exact,
-        relativeErrorPercent: relErr,
-        truncationBound: errInfo.bound,
-        truncationOrder: 4,
-        maxDerivative: errInfo.max,
-        xiApprox: errInfo.xAtMax,
-        derivativeExpr: errInfo.derivativeExpr ?? void 0,
-        retried,
-        message: msgParts.join(" \xB7 ")
-      };
-    },
-    getCharts(params, result) {
-      const f = parseExpression(params.fx);
-      const a = parseFloat(params.a);
-      const b = parseFloat(params.b);
-      let n = parseInt(params.n) || 10;
-      if (result.retried) n = 20;
-      if (n % 2 !== 0) n++;
-      const h = (b - a) / n;
-      const pad2 = (b - a) * 0.1;
-      const xs = linspace(a - pad2, b + pad2, 500);
-      const ys = xs.map((x) => f(x));
-      const parabolaX = [];
-      const parabolaY = [];
-      for (let i2 = 0; i2 < n; i2 += 2) {
-        const x0 = a + i2 * h;
-        const x1 = a + (i2 + 1) * h;
-        const x2 = a + (i2 + 2) * h;
-        const f0 = f(x0);
-        const f1 = f(x1);
-        const f2 = f(x2);
-        const pxs = linspace(x0, x2, 50);
-        pxs.forEach((px) => {
-          const L0 = (px - x1) * (px - x2) / ((x0 - x1) * (x0 - x2));
-          const L1 = (px - x0) * (px - x2) / ((x1 - x0) * (x1 - x2));
-          const L2 = (px - x0) * (px - x1) / ((x2 - x0) * (x2 - x1));
-          parabolaX.push(px);
-          parabolaY.push(f0 * L0 + f1 * L1 + f2 * L2);
-        });
-        parabolaX.push(NaN);
-        parabolaY.push(NaN);
-      }
-      const chart1 = {
-        title: `Simpson 1/3 Compuesta (n=${n})`,
-        type: "line",
-        datasets: [
-          { label: "f(x)", x: xs, y: ys, color: "#89b4fa" },
-          { label: "Parabolas", x: parabolaX, y: parabolaY, color: "#a6e3a1" }
-        ],
-        xLabel: "x",
-        yLabel: "f(x)"
-      };
-      const xPts = result.iterations.map((r) => r.xi);
-      const yPts = result.iterations.map((r) => r.fxi);
-      const chart2 = {
-        title: "Puntos de evaluacion",
-        type: "scatter",
-        datasets: [
-          { label: "f(x)", x: xs, y: ys, color: "#89b4fa", pointRadius: 0 },
-          { label: "x_i", x: xPts, y: yPts, color: "#fab387", pointRadius: 4, showLine: false }
-        ],
-        xLabel: "x",
-        yLabel: "f(x)"
-      };
-      const coeffs = result.iterations.map((r) => r.coeff);
-      const chart3 = {
-        title: "Patron de coeficientes (1-4-2-4-...-1)",
-        type: "scatter",
-        datasets: [{ label: "Coeficiente", x: xPts, y: coeffs, color: "#cba6f7", pointRadius: 4, showLine: false }],
-        xLabel: "x_i",
-        yLabel: "Coeficiente"
-      };
-      const nValues = [2, 4, 6, 8, 10, 20, 50, 100];
-      const integrals = nValues.map((nv) => {
-        const hv = (b - a) / nv;
-        let s = f(a) + f(b);
-        for (let i2 = 1; i2 < nv; i2++) s += (i2 % 2 === 0 ? 2 : 4) * f(a + i2 * hv);
-        return hv / 3 * s;
-      });
-      const chart4 = {
-        title: "Convergencia con n",
-        type: "line",
-        datasets: [{ label: "Integral", x: nValues, y: integrals, color: "#f9e2af", pointRadius: 3 }],
-        xLabel: "n",
-        yLabel: "Valor integral"
-      };
-      return [chart1, chart2, chart3, chart4];
-    }
-  };
-
-  // src/methods/integration/simpson38.ts
-  var simpson38 = {
-    id: "simpson38",
-    name: "Simpson 3/8 (Simple)",
-    category: "integration",
-    formula: "\u222Bf(x)dx \u2248 (b-a)/8 \xB7 [f(a) + 3f(x\u2081) + 3f(x\u2082) + f(b)]",
-    latexFormula: "\\int_a^b f(x)\\,dx \\approx \\frac{b-a}{8}\\left[f(a) + 3f(x_1) + 3f(x_2) + f(b)\\right], \\quad x_i = a + i\\cdot\\frac{b-a}{3}",
-    description: "Aproxima la integral usando un polinomio cubico que pasa por 4 puntos equiespaciados.",
-    inputs: [
-      { id: "fx", label: "f(x)", placeholder: "x^2", defaultValue: "x^2" },
-      { id: "a", label: "a (limite inferior)", placeholder: "0", type: "number", defaultValue: "0" },
-      { id: "b", label: "b (limite superior)", placeholder: "1", type: "number", defaultValue: "1" }
-    ],
-    tableColumns: [
-      { key: "punto", label: "Punto", latex: "\\text{Punto}" },
-      { key: "x", label: "x", latex: "x" },
-      { key: "fx", label: "f(x)", latex: "f(x)" },
-      { key: "coeff", label: "Coeficiente", latex: "c_i" }
-    ],
-    steps: [
-      "Version <em>simple</em> de Simpson 3/8: usa <b>4 puntos</b> equiespaciados \u2014 <code>a</code>, <code>x_1</code>, <code>x_2</code>, <code>b</code> con <code>h = (b-a)/3</code> \u2014 y ajusta un <b>polinomio cubico</b>.",
-      "Escribe <code>f(x)</code> y los limites <code>a</code>, <code>b</code>.",
-      "Formula: <code>I \u2248 (b-a)/8 \xB7 [f(a) + 3\xB7f(x_1) + 3\xB7f(x_2) + f(b)]</code>. Pesos: <b>1, 3, 3, 1</b>. Viene de integrar el polinomio cubico de Lagrange en [a, b].",
-      "Pulsa <b>Resolver</b>. La grafica muestra la cubica ajustada contra <code>f(x)</code>.",
-      "Error: <code>|E| = -3(b-a)\u2075/6480 \xB7 f\u207D\u2074\u207E(\u03BE)</code> \u2014 tambien <code>O(h\u2075)</code> como Simpson 1/3, pero la constante es un poco peor. Exacto para polinomios de grado \u2264 3 (igual que 1/3).",
-      "Se usa principalmente cuando el <b>numero de subintervalos no es par</b> (requisito de Simpson 1/3). Si <code>n = 5</code>, podes aplicar 3/8 en los primeros 3 y 1/3 en los ultimos 2.",
-      "Para n multiple de 3, usa <b>Simpson 3/8 compuesto</b>."
-    ],
-    solve(params) {
-      const f = parseExpression(params.fx);
-      const a = parseFloat(params.a);
-      const b = parseFloat(params.b);
-      if (isNaN(a) || isNaN(b)) throw new Error("a y b deben ser numeros validos");
-      if (a >= b) throw new Error("a debe ser menor que b");
-      const h = (b - a) / 3;
-      const x1 = a + h;
-      const x2 = a + 2 * h;
-      const fa = f(a);
-      const f1 = f(x1);
-      const f2 = f(x2);
-      const fb = f(b);
-      const integral = (b - a) / 8 * (fa + 3 * f1 + 3 * f2 + fb);
-      const iterations = [
-        { punto: "x\u2080 = a", x: a, fx: fa, coeff: 1 },
-        { punto: "x\u2081", x: x1, fx: f1, coeff: 3 },
-        { punto: "x\u2082", x: x2, fx: f2, coeff: 3 },
-        { punto: "x\u2083 = b", x: b, fx: fb, coeff: 1 }
-      ];
-      return { integral, iterations, converged: true, error: 0 };
-    },
-    getCharts(params, result) {
-      const f = parseExpression(params.fx);
-      const a = parseFloat(params.a);
-      const b = parseFloat(params.b);
-      const h = (b - a) / 3;
-      const x1 = a + h;
-      const x2 = a + 2 * h;
-      const fa = f(a);
-      const f1 = f(x1);
-      const f2 = f(x2);
-      const fb = f(b);
-      const pad2 = (b - a) * 0.3;
-      const xs = linspace(a - pad2, b + pad2, 500);
-      const ys = xs.map((x) => f(x));
-      const cubicXs = linspace(a, b, 200);
-      const cubicYs = cubicXs.map((x) => {
-        const L0 = (x - x1) * (x - x2) * (x - b) / ((a - x1) * (a - x2) * (a - b));
-        const L1 = (x - a) * (x - x2) * (x - b) / ((x1 - a) * (x1 - x2) * (x1 - b));
-        const L2 = (x - a) * (x - x1) * (x - b) / ((x2 - a) * (x2 - x1) * (x2 - b));
-        const L3 = (x - a) * (x - x1) * (x - x2) / ((b - a) * (b - x1) * (b - x2));
-        return fa * L0 + f1 * L1 + f2 * L2 + fb * L3;
-      });
-      const chart1 = {
-        title: "Simpson 3/8 - Interpolacion cubica",
-        type: "line",
-        datasets: [
-          { label: "f(x)", x: xs, y: ys, color: "#89b4fa" },
-          { label: "Cubica", x: cubicXs, y: cubicYs, color: "#a6e3a1", dashed: true },
-          { label: "Puntos", x: [a, x1, x2, b], y: [fa, f1, f2, fb], color: "#fab387", pointRadius: 6, showLine: false }
-        ],
-        xLabel: "x",
-        yLabel: "f(x)"
-      };
-      const areaX = [...cubicXs, b, a];
-      const areaY = [...cubicYs, 0, 0];
-      const chart2 = {
-        title: "Area bajo la cubica",
-        type: "line",
-        datasets: [
-          { label: "f(x)", x: xs, y: ys, color: "#89b4fa" },
-          { label: "Area", x: areaX, y: areaY, color: "#a6e3a1", fill: true }
-        ],
-        xLabel: "x",
-        yLabel: "f(x)"
-      };
-      const nValues = [3, 6, 9, 12, 15, 30, 60, 120];
-      const integrals = nValues.map((n) => {
-        const hv = (b - a) / n;
-        let s = f(a) + f(b);
-        for (let i2 = 1; i2 < n; i2++) {
-          s += (i2 % 3 === 0 ? 2 : 3) * f(a + i2 * hv);
-        }
-        return 3 * hv / 8 * s;
-      });
-      const chart3 = {
-        title: "Convergencia Simpson 3/8 Compuesto",
-        type: "line",
-        datasets: [{ label: "Integral", x: nValues, y: integrals, color: "#f9e2af", pointRadius: 3 }],
-        xLabel: "n",
-        yLabel: "Valor"
-      };
-      const chart4 = {
-        title: "Coeficientes (1-3-3-1)",
-        type: "scatter",
-        datasets: [{
-          label: "Coef \xD7 f(x)",
-          x: [a, x1, x2, b],
-          y: [fa, 3 * f1, 3 * f2, fb],
-          color: "#cba6f7",
-          pointRadius: 6,
-          showLine: false
-        }],
-        xLabel: "x",
-        yLabel: "Contribucion"
-      };
-      return [chart1, chart2, chart3, chart4];
-    }
-  };
-
-  // src/methods/integration/simpson38Comp.ts
-  function runSimpson38(f, a, b, nReq) {
-    let n = nReq;
-    if (n % 3 !== 0) n = n + (3 - n % 3);
-    const h = (b - a) / n;
-    const iterations = [];
-    let sum3 = 0;
-    for (let i2 = 0; i2 <= n; i2++) {
-      const xi = a + i2 * h;
-      const fxi = f(xi);
-      let coeff;
-      if (i2 === 0 || i2 === n) coeff = 1;
-      else if (i2 % 3 === 0) coeff = 2;
-      else coeff = 3;
-      const contrib = coeff * fxi;
-      sum3 += contrib;
-      iterations.push({ i: i2, xi, fxi, coeff, contrib });
-    }
-    return { integral: 3 * h / 8 * sum3, iterations, h, n };
-  }
-  var simpson38Comp = {
-    id: "simpson38Comp",
-    name: "Simpson 3/8 Compuesta",
-    category: "integration",
-    formula: "\u222Bf(x)dx \u2248 3h/8 \xB7 [f(x\u2080) + 3f(x\u2081) + 3f(x\u2082) + 2f(x\u2083) + 3f(x\u2084) + ...]",
-    latexFormula: "\\int_a^b f(x)\\,dx \\approx \\frac{3h}{8}\\left[f(x_0) + 3f(x_1) + 3f(x_2) + 2f(x_3) + 3f(x_4) + 3f(x_5) + \\cdots + f(x_n)\\right], \\quad h = \\frac{b-a}{n}",
-    description: "Aplica Simpson 3/8 en cada grupo de 3 subintervalos. Requiere n multiplo de 3.",
-    inputs: [
-      { id: "fx", label: "f(x)", placeholder: "x^2", defaultValue: "x^2" },
-      { id: "a", label: "a (limite inferior)", placeholder: "0", type: "number", defaultValue: "0" },
-      { id: "b", label: "b (limite superior)", placeholder: "1", type: "number", defaultValue: "1" },
-      { id: "n", label: "n (subintervalos, multiplo de 3)", placeholder: "9", type: "number", defaultValue: "9" },
-      { id: "exact", label: "Valor exacto (opcional)", placeholder: "p.ej. 0.333333", type: "number", hint: "Si se provee, se calcula error relativo y se reintenta con n=21 si supera 1%." }
-    ],
-    tableColumns: [
-      { key: "i", label: "i", latex: "i" },
-      { key: "xi", label: "x_i", latex: "x_i" },
-      { key: "fxi", label: "f(x_i)", latex: "f(x_i)" },
-      { key: "coeff", label: "Coeficiente", latex: "c_i" },
-      { key: "contrib", label: "Contribucion", latex: "c_i \\cdot f(x_i)" }
-    ],
-    steps: [
-      "Escribe <code>f(x)</code>, limites <code>a</code>, <code>b</code>, y subintervalos <code>n</code>. <b>Importante</b>: <code>n</code> debe ser <b>multiplo de 3</b> (la regla agrupa los puntos de 3 en 3). Si no lo es, la app lo redondea al siguiente multiplo (y te avisa).",
-      "Paso <code>h = (b - a) / n</code>. Puntos <code>x_i = a + i\xB7h</code> para <code>i = 0, 1, ..., n</code>.",
-      "Formula: <code>I \u2248 3h/8 \xB7 [f(x_0) + 3f(x_1) + 3f(x_2) + 2f(x_3) + 3f(x_4) + 3f(x_5) + 2f(x_6) + ... + f(x_n)]</code>. Patron: <b>1, 3, 3, 2, 3, 3, 2, ..., 3, 3, 1</b>.",
-      "Pulsa <b>Resolver</b>. La tabla muestra cada punto con su coeficiente; verifica el patron visualmente en la grafica de coeficientes.",
-      "<b>Error de truncamiento</b>: <code>|E| \u2264 (b-a)\xB7h\u2074/80 \xB7 M\u2084</code> con <code>M\u2084 = max|f\u207D\u2074\u207E|</code>. Orden <code>O(h\u2074)</code> igual que Simpson 1/3, pero la constante (<code>1/80</code>) es peor que <code>1/180</code>.",
-      "En practica <em>Simpson 1/3 es preferible</em>. Usa 3/8 cuando <code>n</code> no sea par, o como complemento: por ejemplo, si <code>n = 7</code>, aplica 1/3 con <code>n = 4</code> y 3/8 con <code>n = 3</code>.",
-      "Si diste <b>valor exacto</b>: calcula error relativo y reintenta con <code>n = 21</code> si > 1%."
-    ],
-    solve(params) {
-      const f = parseExpression(params.fx);
-      const a = parseFloat(params.a);
-      const b = parseFloat(params.b);
-      const nReq = parseInt(params.n) || 9;
-      const exactRaw = (params.exact ?? "").trim();
-      const exact = exactRaw === "" ? void 0 : parseFloat(exactRaw);
-      if (isNaN(a) || isNaN(b)) throw new Error("a y b deben ser numeros validos");
-      if (a >= b) throw new Error("a debe ser menor que b");
-      if (nReq < 3) throw new Error("n debe ser >= 3");
-      let run = runSimpson38(f, a, b, nReq);
-      let retried = false;
-      let relErr;
-      if (exact !== void 0 && !isNaN(exact)) {
-        relErr = relativeErrorPercent(run.integral, exact);
-        if (relErr > 1 && run.n < 21) {
-          run = runSimpson38(f, a, b, 21);
-          relErr = relativeErrorPercent(run.integral, exact);
-          retried = true;
-        }
-      }
-      const errInfo = simpson38Error(params.fx, a, b, run.h);
-      const msgParts = [`h = ${run.h.toPrecision(6)}, n = ${run.n} (multiplo de 3)`];
-      if (errInfo.derivativeExpr) msgParts.push(`f\u2074(x) = ${errInfo.derivativeExpr}`);
-      if (retried) msgParts.push("reintento automatico con n=21 tras error > 1%");
-      return {
-        integral: run.integral,
-        iterations: run.iterations,
-        converged: true,
-        error: errInfo.bound,
-        exact,
-        relativeErrorPercent: relErr,
-        truncationBound: errInfo.bound,
-        truncationOrder: 4,
-        maxDerivative: errInfo.max,
-        xiApprox: errInfo.xAtMax,
-        derivativeExpr: errInfo.derivativeExpr ?? void 0,
-        retried,
-        message: msgParts.join(" \xB7 ")
-      };
-    },
-    getCharts(params, result) {
-      const f = parseExpression(params.fx);
-      const a = parseFloat(params.a);
-      const b = parseFloat(params.b);
-      let n = parseInt(params.n) || 9;
-      if (result.retried) n = 21;
-      if (n % 3 !== 0) n = n + (3 - n % 3);
-      const h = (b - a) / n;
-      const pad2 = (b - a) * 0.1;
-      const xs = linspace(a - pad2, b + pad2, 500);
-      const ys = xs.map((x) => f(x));
-      const cubicX = [];
-      const cubicY = [];
-      for (let i2 = 0; i2 < n; i2 += 3) {
-        const pts = [0, 1, 2, 3].map((j) => {
-          const xj = a + (i2 + j) * h;
-          return { x: xj, y: f(xj) };
-        });
-        const segXs = linspace(pts[0].x, pts[3].x, 50);
-        segXs.forEach((x) => {
-          const L0 = (x - pts[1].x) * (x - pts[2].x) * (x - pts[3].x) / ((pts[0].x - pts[1].x) * (pts[0].x - pts[2].x) * (pts[0].x - pts[3].x));
-          const L1 = (x - pts[0].x) * (x - pts[2].x) * (x - pts[3].x) / ((pts[1].x - pts[0].x) * (pts[1].x - pts[2].x) * (pts[1].x - pts[3].x));
-          const L2 = (x - pts[0].x) * (x - pts[1].x) * (x - pts[3].x) / ((pts[2].x - pts[0].x) * (pts[2].x - pts[1].x) * (pts[2].x - pts[3].x));
-          const L3 = (x - pts[0].x) * (x - pts[1].x) * (x - pts[2].x) / ((pts[3].x - pts[0].x) * (pts[3].x - pts[1].x) * (pts[3].x - pts[2].x));
-          cubicX.push(x);
-          cubicY.push(pts[0].y * L0 + pts[1].y * L1 + pts[2].y * L2 + pts[3].y * L3);
-        });
-        cubicX.push(NaN);
-        cubicY.push(NaN);
-      }
-      const chart1 = {
-        title: `Simpson 3/8 Compuesta (n=${n})`,
-        type: "line",
-        datasets: [
-          { label: "f(x)", x: xs, y: ys, color: "#89b4fa" },
-          { label: "Cubicas", x: cubicX, y: cubicY, color: "#a6e3a1" }
-        ],
-        xLabel: "x",
-        yLabel: "f(x)"
-      };
-      const xPts = result.iterations.map((r) => r.xi);
-      const yPts = result.iterations.map((r) => r.fxi);
-      const chart2 = {
-        title: "Puntos de evaluacion",
-        type: "scatter",
-        datasets: [
-          { label: "f(x)", x: xs, y: ys, color: "#89b4fa", pointRadius: 0 },
-          { label: "x_i", x: xPts, y: yPts, color: "#fab387", pointRadius: 4, showLine: false }
-        ],
-        xLabel: "x",
-        yLabel: "f(x)"
-      };
-      const coeffs = result.iterations.map((r) => r.coeff);
-      const chart3 = {
-        title: "Patron de coeficientes (1-3-3-2-3-3-...-1)",
-        type: "scatter",
-        datasets: [{ label: "Coef", x: xPts, y: coeffs, color: "#cba6f7", pointRadius: 4, showLine: false }],
-        xLabel: "x_i",
-        yLabel: "Coeficiente"
-      };
-      const nValues = [3, 6, 9, 12, 15, 30, 60, 120];
-      const integrals = nValues.map((nv) => {
-        const hv = (b - a) / nv;
-        let s = f(a) + f(b);
-        for (let i2 = 1; i2 < nv; i2++) s += (i2 % 3 === 0 ? 2 : 3) * f(a + i2 * hv);
-        return 3 * hv / 8 * s;
-      });
-      const chart4 = {
-        title: "Convergencia con n",
-        type: "line",
-        datasets: [{ label: "Integral", x: nValues, y: integrals, color: "#f9e2af", pointRadius: 3 }],
-        xLabel: "n",
-        yLabel: "Valor integral"
-      };
-      return [chart1, chart2, chart3, chart4];
-    }
-  };
-
-  // src/methods/integration/montecarlo.ts
-  function mulberry32(seed) {
-    let s = seed | 0;
-    return () => {
-      s = s + 1831565813 | 0;
-      let t = Math.imul(s ^ s >>> 15, 1 | s);
-      t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
-      return ((t ^ t >>> 14) >>> 0) / 4294967296;
-    };
-  }
-  function hashString(str) {
-    let hash = 0;
-    for (let i2 = 0; i2 < str.length; i2++) {
-      hash = (hash << 5) - hash + str.charCodeAt(i2) | 0;
-    }
-    return hash;
-  }
-  function parseSeed(input) {
-    if (!input || input.trim() === "") return null;
-    const num = Number(input.trim());
-    if (!isNaN(num)) return num;
-    return hashString(input.trim());
-  }
-  var montecarlo = {
-    id: "montecarlo",
-    name: "Monte Carlo",
-    category: "integration",
-    formula: "\u222Bf(x)dx \u2248 (b-a)/N \xB7 \u03A3 f(x_i), x_i aleatorio en [a,b]",
-    latexFormula: "\\int_a^b f(x)\\,dx \\approx \\frac{b-a}{N} \\sum_{i=1}^{N} f(x_i), \\quad x_i \\sim U(a,b)",
-    description: "Aproxima la integral usando puntos aleatorios uniformes. Convergencia O(1/\u221AN). Semilla opcional para reproducibilidad.",
-    inputs: [
-      { id: "fx", label: "f(x)", placeholder: "x^2", defaultValue: "x^2" },
-      { id: "a", label: "a (limite inferior)", placeholder: "0", type: "number", defaultValue: "0" },
-      { id: "b", label: "b (limite superior)", placeholder: "1", type: "number", defaultValue: "1" },
-      { id: "n", label: "N (puntos)", placeholder: "10000", type: "number", defaultValue: "10000" },
-      { id: "seed", label: "Semilla (opcional)", placeholder: "Vacio = aleatorio", hint: "Numero o texto. Misma semilla = mismos resultados." }
-    ],
-    tableColumns: [
-      { key: "batch", label: "Lote", latex: "\\text{Lote}" },
-      { key: "nAccum", label: "N acumulado", latex: "N_{\\text{acum}}" },
-      { key: "estimate", label: "Estimacion", latex: "\\hat{I}" },
-      { key: "stdDev", label: "Desv. Estandar", latex: "\\sigma(f)" },
-      { key: "stdErr", label: "Error Estandar", latex: "SE" },
-      { key: "ci95Lower", label: "IC 95% inf", latex: "IC_{95}^{\\text{inf}}" },
-      { key: "ci95Upper", label: "IC 95% sup", latex: "IC_{95}^{\\text{sup}}" }
-    ],
-    steps: [
-      "Escribe <code>f(x)</code> y limites <code>[a, b]</code>. Para el <b>parcial 02/07/2025</b>: <code>exp(x^2)</code> sobre <code>[0, 2]</code>. Para <b>Prueba Evaluativa</b>: la funcion que te pidan.",
-      "Elige <code>N</code> = cantidad de puntos aleatorios. Parcial tipico: <code>N = 1000</code> o <code>N = 10000</code>. <em>Mas N \u2192 menor error</em> pero la convergencia es <b>O(1/\u221AN)</b> (lento vs Simpson <code>O(h\u2074)</code>).",
-      "Introduce una <b>semilla</b> (numero o texto). Misma semilla \u2192 mismos resultados, util para <em>reproducibilidad del informe</em>. Deja vacio para semilla aleatoria.",
-      "Pulsa <b>Resolver</b>. La formula es: <code>I \u2248 (b-a)/N \xB7 \u03A3\u1D62 f(x_i)</code>, donde cada <code>x_i</code> es uniforme en <code>[a, b]</code>.",
-      "La tabla muestra la estimacion en <b>lotes</b> (cada N/20 puntos) para visualizar como converge el promedio.",
-      "<b>Desviacion estandar</b> \u03C3(f): variabilidad de los valores muestreados <code>f(x_i)</code>. <b>Error estandar</b> SE = (b-a)\xB7\u03C3(f)/\u221AN \u2014 es la incertidumbre de la estimacion.",
-      "<b>Intervalo de confianza 95%</b>: <code>IC = estimacion \xB1 1.96\xB7SE</code>. El <em>valor verdadero</em> de la integral debe caer en este rango el 95% de las veces. Si te piden K repeticiones, el IC se aproxima mejor con <code>s/\u221AK</code> (usa el metodo <b>Monte Carlo 1D (K reps)</b>).",
-      "Para el informe: reporta (a) estimacion final, (b) \u03C3(f), (c) SE, (d) IC 95%, (e) semilla usada. Compara con Simpson del mismo ejercicio: Simpson sera <em>mucho mas preciso</em> pero Monte Carlo maneja bien dimensiones altas donde Simpson explota."
-    ],
-    solve(params) {
-      const f = parseExpression(params.fx);
-      const a = parseFloat(params.a);
-      const b = parseFloat(params.b);
-      const N = parseInt(params.n) || 1e4;
-      if (isNaN(a) || isNaN(b)) throw new Error("a y b deben ser numeros validos");
-      if (a >= b) throw new Error("a debe ser menor que b");
-      if (N < 1) throw new Error("N debe ser >= 1");
-      const seedVal = parseSeed(params.seed);
-      const actualSeed = seedVal !== null ? seedVal : Date.now() ^ Math.random() * 4294967295;
-      const rand = mulberry32(actualSeed);
-      const width = b - a;
-      let sum3 = 0;
-      let sumSq = 0;
-      const iterations = [];
-      const batchSize = Math.max(1, Math.floor(N / 20));
-      for (let i2 = 1; i2 <= N; i2++) {
-        const xi = a + rand() * width;
-        const fi = f(xi);
-        sum3 += fi;
-        sumSq += fi * fi;
-        if (i2 % batchSize === 0 || i2 === N) {
-          const mean2 = sum3 / i2;
-          const integral2 = width * mean2;
-          const varF2 = Math.max(0, sumSq / i2 - mean2 * mean2);
-          const stdDevF2 = Math.sqrt(varF2);
-          const stdDev2 = width * stdDevF2;
-          const stdErr2 = stdDev2 / Math.sqrt(i2);
-          const z952 = 1.96;
-          const ci95Lower2 = integral2 - z952 * stdErr2;
-          const ci95Upper2 = integral2 + z952 * stdErr2;
-          iterations.push({
-            batch: iterations.length + 1,
-            nAccum: i2,
-            estimate: integral2,
-            stdDev: stdDevF2,
-            stdErr: stdErr2,
-            ci95Lower: ci95Lower2,
-            ci95Upper: ci95Upper2
-          });
-        }
-      }
-      const finalMean = sum3 / N;
-      const integral = width * finalMean;
-      const varF = Math.max(0, sumSq / N - finalMean * finalMean);
-      const stdDevF = Math.sqrt(varF);
-      const stdDev = width * stdDevF;
-      const stdErr = stdDev / Math.sqrt(N);
-      const z95 = 1.96;
-      const ci95Lower = integral - z95 * stdErr;
-      const ci95Upper = integral + z95 * stdErr;
-      const seedMsg = seedVal !== null ? `semilla = ${seedVal}` : "semilla aleatoria";
-      return {
-        integral,
-        iterations,
-        converged: true,
-        error: stdErr,
-        message: `N=${N}, ${seedMsg} | \u03C3(f)=${stdDevF.toPrecision(6)} | IC 95%: [${ci95Lower.toPrecision(8)}, ${ci95Upper.toPrecision(8)}]`
-      };
-    },
-    getCharts(params, result) {
-      const f = parseExpression(params.fx);
-      const a = parseFloat(params.a);
-      const b = parseFloat(params.b);
-      const N = parseInt(params.n) || 1e4;
-      const width = b - a;
-      const seedVal = parseSeed(params.seed);
-      const chartSeed = seedVal !== null ? seedVal + 1 : Date.now() ^ 43981;
-      const rand = mulberry32(chartSeed);
-      const pad2 = width * 0.1;
-      const xs = linspace(a - pad2, b + pad2, 500);
-      const ys = xs.map((x) => f(x));
-      const nShow = Math.min(N, 500);
-      const sampleX = [];
-      const sampleY = [];
-      for (let i2 = 0; i2 < nShow; i2++) {
-        const xi = a + rand() * width;
-        sampleX.push(xi);
-        sampleY.push(f(xi));
-      }
-      const chart1 = {
-        title: `Monte Carlo \u2014 ${nShow} puntos aleatorios`,
-        type: "scatter",
-        datasets: [
-          { label: "f(x)", x: xs, y: ys, color: "#89b4fa", pointRadius: 0 },
-          { label: "Muestras", x: sampleX, y: sampleY, color: "#a6e3a1", pointRadius: 2, showLine: false }
-        ],
-        xLabel: "x",
-        yLabel: "f(x)"
-      };
-      const yMin = Math.min(0, ...ys.filter((v) => isFinite(v)));
-      const yMax = Math.max(0, ...ys.filter((v) => isFinite(v))) * 1.1;
-      const hitX = [];
-      const hitY = [];
-      const missX = [];
-      const missY = [];
-      const nVis = Math.min(N, 300);
-      for (let i2 = 0; i2 < nVis; i2++) {
-        const xi = a + rand() * width;
-        const yi = yMin + rand() * (yMax - yMin);
-        const fxi = f(xi);
-        if (fxi >= 0 && yi >= 0 && yi <= fxi || fxi < 0 && yi < 0 && yi >= fxi) {
-          hitX.push(xi);
-          hitY.push(yi);
-        } else {
-          missX.push(xi);
-          missY.push(yi);
-        }
-      }
-      const chart2 = {
-        title: "Hit-or-Miss (puntos bajo la curva)",
-        type: "scatter",
-        datasets: [
-          { label: "f(x)", x: xs, y: ys, color: "#89b4fa", pointRadius: 0 },
-          { label: "Bajo curva", x: hitX, y: hitY, color: "#a6e3a1", pointRadius: 2, showLine: false },
-          { label: "Fuera", x: missX, y: missY, color: "#f38ba8", pointRadius: 2, showLine: false }
-        ],
-        xLabel: "x",
-        yLabel: "y"
-      };
-      const batchNs = result.iterations.map((r) => r.nAccum);
-      const estimates = result.iterations.map((r) => r.estimate);
-      const ci95Lowers = result.iterations.map((r) => r.ci95Lower);
-      const ci95Uppers = result.iterations.map((r) => r.ci95Upper);
-      const chart3 = {
-        title: "Convergencia con intervalo de confianza 95%",
-        type: "line",
-        datasets: [
-          { label: "IC 95% sup", x: batchNs, y: ci95Uppers, color: "#a6e3a1", dashed: true, pointRadius: 0 },
-          { label: "Estimacion", x: batchNs, y: estimates, color: "#cba6f7", pointRadius: 3 },
-          { label: "IC 95% inf", x: batchNs, y: ci95Lowers, color: "#a6e3a1", dashed: true, pointRadius: 0 }
-        ],
-        xLabel: "N (muestras)",
-        yLabel: "Integral estimada"
-      };
-      const stdDevs = result.iterations.map((r) => r.stdDev);
-      const stdErrs = result.iterations.map((r) => r.stdErr).filter((e3) => e3 > 0);
-      const chart4 = {
-        title: "Desviacion estandar y error estandar vs N",
-        type: "line",
-        datasets: [
-          { label: "\u03C3(f) desv. est.", x: batchNs.slice(0, stdDevs.length), y: stdDevs, color: "#f9e2af", pointRadius: 2 },
-          { label: "SE (error est.)", x: batchNs.slice(0, stdErrs.length), y: stdErrs, color: "#fab387", pointRadius: 2 }
-        ],
-        xLabel: "N",
-        yLabel: "Valor",
-        yLog: true
-      };
-      return [chart1, chart2, chart3, chart4];
-    }
-  };
-
-  // src/methods/integration/montecarloPi.ts
-  function mulberry322(seed) {
-    let s = seed | 0;
-    return () => {
-      s = s + 1831565813 | 0;
-      let t = Math.imul(s ^ s >>> 15, 1 | s);
-      t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
-      return ((t ^ t >>> 14) >>> 0) / 4294967296;
-    };
-  }
-  function hashString2(str) {
-    let hash = 0;
-    for (let i2 = 0; i2 < str.length; i2++) {
-      hash = (hash << 5) - hash + str.charCodeAt(i2) | 0;
-    }
-    return hash;
-  }
-  function parseSeed2(input) {
-    if (!input || input.trim() === "") return null;
-    const num = Number(input.trim());
-    if (!isNaN(num)) return num;
-    return hashString2(input.trim());
-  }
-  var montecarloPi = {
-    id: "montecarloPi",
-    name: "Monte Carlo \u2014 Aproximacion de \u03C0",
-    category: "integration",
-    formula: "\u03C0 \u2248 4 \xB7 (puntos en circulo) / (puntos totales)",
-    latexFormula: "\\pi \\approx 4 \\cdot \\frac{\\#\\{(x_i, y_i) : x_i^2 + y_i^2 \\le 1\\}}{N}, \\quad (x_i, y_i) \\sim U([-1,1]^2)",
-    description: "Aproxima \u03C0 por muestreo por rechazo: puntos aleatorios en un cuadrado de lado 2, se cuentan los que caen dentro del circulo unitario.",
-    inputs: [
-      { id: "n", label: "N (puntos aleatorios)", placeholder: "10000", type: "number", defaultValue: "10000" },
-      { id: "seed", label: "Semilla (opcional)", placeholder: "Vacio = aleatorio", hint: "Misma semilla = mismos resultados" }
-    ],
-    tableColumns: [
-      { key: "batch", label: "Lote", latex: "\\text{Lote}" },
-      { key: "nAccum", label: "N acumulado", latex: "N_{\\text{acum}}" },
-      { key: "inside", label: "Dentro", latex: "M" },
-      { key: "pHat", label: "p = dentro/N", latex: "\\hat{p} = M/N" },
-      { key: "piEstimate", label: "\u03C0 estimado", latex: "\\hat{\\pi} = 4\\hat{p}" },
-      { key: "variance", label: "Varianza p(1-p)", latex: "\\hat{p}(1-\\hat{p})" },
-      { key: "stdDev", label: "\u03C3 (desv. est.)", latex: "\\sigma" },
-      { key: "stdErr", label: "SE (err. est.)", latex: "SE" },
-      { key: "error", label: "|\u03C0_est - \u03C0|", latex: "|\\hat{\\pi} - \\pi|" },
-      { key: "ci95Lower", label: "IC 95% inf", latex: "IC_{95}^{\\text{inf}}" },
-      { key: "ci95Upper", label: "IC 95% sup", latex: "IC_{95}^{\\text{sup}}" }
-    ],
-    steps: [
-      "Este es el ejemplo clasico del <b>parcial Prueba Evaluativa</b>: aproximar <code>\u03C0</code> por muestreo por rechazo. <em>No necesita funcion</em> \u2014 solo N.",
-      "Elige <code>N</code> (puntos aleatorios). Recomendado: <code>N = 10000</code> como punto inicial. Para precision ~2 decimales, N \u2248 10\u2074; para 3 decimales, N \u2248 10\u2076.",
-      "<b>Semilla</b>: usa un valor fijo (ej. <code>42</code>) para reproducir la tabla exacta en tu informe.",
-      "Pulsa <b>Resolver</b>. El algoritmo:<br>&nbsp;&nbsp;1. Genera punto aleatorio <code>(x, y)</code> en el cuadrado <code>[-1, 1] \xD7 [-1, 1]</code> (lado 2).<br>&nbsp;&nbsp;2. Verifica si cae dentro del circulo unitario: <code>x\xB2 + y\xB2 \u2264 1</code>.<br>&nbsp;&nbsp;3. Cuenta <code>M</code> = puntos dentro, <code>N</code> = total.<br>&nbsp;&nbsp;4. Ratio <code>p\u0302 = M/N</code> aproxima <code>\u03C0/4</code>.",
-      "Por lo tanto: <code>\u03C0 \u2248 4 \xB7 M/N</code>. La grafica 1 visualiza el cuadrado con circulo y los puntos coloreados (verde = dentro, rojo = fuera).",
-      "<b>Probabilidad</b>: cada punto es Bernoulli con <code>p = \u03C0/4 \u2248 0.7854</code>. Varianza <code>p(1-p) \u2248 0.1686</code>. Error estandar de \u03C0\u0302: <code>SE = 4\xB7\u221A(p\u0302(1-p\u0302)/N)</code>.",
-      "<b>Intervalo de confianza 95%</b>: <code>\u03C0\u0302 \xB1 1.96\xB7SE</code>. Deberia contener a <code>\u03C0 = 3.14159...</code>.",
-      "La convergencia es <code>O(1/\u221AN)</code>: duplicar precision requiere 4\xD7 mas puntos. En la grafica 4 veras que <code>|error real|</code> sigue la curva teorica <code>1/\u221AN</code>.",
-      "Para el informe: reporta (a) N, (b) M, (c) p\u0302, (d) \u03C0\u0302, (e) |error|, (f) SE, (g) IC 95%, (h) semilla. Contrasta el IC con el valor verdadero \u03C0."
-    ],
-    solve(params) {
-      const N = parseInt(params.n) || 1e4;
-      if (N < 1) throw new Error("N debe ser >= 1");
-      const seedVal = parseSeed2(params.seed);
-      const actualSeed = seedVal !== null ? seedVal : Date.now() ^ Math.random() * 4294967295;
-      const rand = mulberry322(actualSeed);
-      const iterations = [];
-      const batchSize = Math.max(1, Math.floor(N / 20));
-      let insideCount = 0;
-      for (let i2 = 1; i2 <= N; i2++) {
-        const x = rand() * 2 - 1;
-        const y = rand() * 2 - 1;
-        if (x * x + y * y <= 1) {
-          insideCount++;
-        }
-        if (i2 % batchSize === 0 || i2 === N) {
-          const pHat = insideCount / i2;
-          const piEst = 4 * pHat;
-          const error = Math.abs(piEst - Math.PI);
-          const variance2 = pHat * (1 - pHat);
-          const stdDev = Math.sqrt(variance2);
-          const stdErrP = stdDev / Math.sqrt(i2);
-          const stdErr2 = 4 * stdErrP;
-          const z95 = 1.96;
-          iterations.push({
-            batch: iterations.length + 1,
-            nAccum: i2,
-            inside: insideCount,
-            pHat,
-            piEstimate: piEst,
-            variance: variance2,
-            stdDev,
-            stdErr: stdErr2,
-            error,
-            ci95Lower: piEst - z95 * stdErr2,
-            ci95Upper: piEst + z95 * stdErr2
-          });
-        }
-      }
-      const piEstimate = 4 * insideCount / N;
-      const pHatFinal = insideCount / N;
-      const varianceFinal = pHatFinal * (1 - pHatFinal);
-      const stdDevFinal = Math.sqrt(varianceFinal);
-      const stdErr = 4 * stdDevFinal / Math.sqrt(N);
-      const finalError = Math.abs(piEstimate - Math.PI);
-      const seedMsg = seedVal !== null ? `semilla=${seedVal}` : "semilla aleatoria";
-      return {
-        root: piEstimate,
-        iterations,
-        converged: true,
-        error: finalError,
-        message: `\u03C0 \u2248 ${piEstimate.toFixed(8)} | ${seedMsg} | ${insideCount}/${N} dentro | \u03C3=${stdDevFinal.toFixed(6)} | SE=${stdErr.toFixed(6)} | IC 95%: [${(piEstimate - 1.96 * stdErr).toFixed(6)}, ${(piEstimate + 1.96 * stdErr).toFixed(6)}]`
-      };
-    },
-    getCharts(params, result) {
-      const N = parseInt(params.n) || 1e4;
-      const seedVal = parseSeed2(params.seed);
-      const chartSeed = seedVal !== null ? seedVal : Date.now() ^ 43981;
-      const rand = mulberry322(chartSeed);
-      const nShow = Math.min(N, 3e3);
-      const hitX = [];
-      const hitY = [];
-      const missX = [];
-      const missY = [];
-      for (let i2 = 0; i2 < nShow; i2++) {
-        const x = rand() * 2 - 1;
-        const y = rand() * 2 - 1;
-        if (x * x + y * y <= 1) {
-          hitX.push(x);
-          hitY.push(y);
-        } else {
-          missX.push(x);
-          missY.push(y);
-        }
-      }
-      const circleX = [];
-      const circleY = [];
-      for (let i2 = 0; i2 <= 200; i2++) {
-        const theta = 2 * Math.PI * i2 / 200;
-        circleX.push(Math.cos(theta));
-        circleY.push(Math.sin(theta));
-      }
-      const chart1 = {
-        title: `Cuadrado lado 2, circulo r=1 (${nShow} puntos)`,
-        type: "scatter",
-        datasets: [
-          { label: "Circulo", x: circleX, y: circleY, color: "#f9e2af", pointRadius: 0 },
-          { label: `Dentro (${hitX.length})`, x: hitX, y: hitY, color: "#a6e3a1", pointRadius: 1.5, showLine: false },
-          { label: `Fuera (${missX.length})`, x: missX, y: missY, color: "#f38ba8", pointRadius: 1.5, showLine: false }
-        ],
-        xLabel: "x",
-        yLabel: "y"
-      };
-      const batchNs = result.iterations.map((r) => r.nAccum);
-      const piEsts = result.iterations.map((r) => r.piEstimate);
-      const ci95Lowers = result.iterations.map((r) => r.ci95Lower);
-      const ci95Uppers = result.iterations.map((r) => r.ci95Upper);
-      const variances = result.iterations.map((r) => r.variance);
-      const stdDevs = result.iterations.map((r) => r.stdDev);
-      const stdErrs = result.iterations.map((r) => r.stdErr);
-      const errors = result.iterations.map((r) => r.error);
-      const chart2 = {
-        title: "Convergencia a \u03C0 con IC 95%",
-        type: "line",
-        datasets: [
-          { label: "IC 95% sup", x: batchNs, y: ci95Uppers, color: "#a6e3a1", dashed: true, pointRadius: 0 },
-          { label: "\u03C0 estimado", x: batchNs, y: piEsts, color: "#cba6f7", pointRadius: 3 },
-          { label: "IC 95% inf", x: batchNs, y: ci95Lowers, color: "#a6e3a1", dashed: true, pointRadius: 0 },
-          { label: "\u03C0 real", x: [batchNs[0], batchNs[batchNs.length - 1]], y: [Math.PI, Math.PI], color: "#f9e2af", dashed: true, pointRadius: 0 }
-        ],
-        xLabel: "N",
-        yLabel: "\u03C0 estimado"
-      };
-      const chart3 = {
-        title: "Varianza p\u0302(1-p\u0302) y Desviacion Estandar \u03C3 vs N",
-        type: "line",
-        datasets: [
-          { label: "\u03C3 = \u221A(p\u0302(1-p\u0302))", x: batchNs, y: stdDevs, color: "#89b4fa", pointRadius: 2 },
-          { label: "Var = p\u0302(1-p\u0302)", x: batchNs, y: variances, color: "#94e2d5", pointRadius: 2 }
-        ],
-        xLabel: "N",
-        yLabel: "Valor"
-      };
-      const errFiltered = errors.filter((e3) => e3 > 0);
-      const seFiltered = stdErrs.filter((e3) => e3 > 0);
-      const theorN = batchNs.filter((n) => n > 0);
-      const theor1sqrtN = theorN.map((n) => 4 * 0.5 / Math.sqrt(n));
-      const chart4 = {
-        title: "|Error real| vs Error Estandar vs N (log)",
-        type: "line",
-        datasets: [
-          { label: "|\u03C0\u0302 - \u03C0|", x: batchNs.slice(0, errFiltered.length), y: errFiltered, color: "#f38ba8", pointRadius: 2 },
-          { label: "SE (error est.)", x: batchNs.slice(0, seFiltered.length), y: seFiltered, color: "#fab387", pointRadius: 2 },
-          { label: "~1/\u221AN (teorico)", x: theorN, y: theor1sqrtN, color: "#585b70", dashed: true, pointRadius: 0 }
-        ],
-        xLabel: "N",
-        yLabel: "Error",
-        yLog: true
-      };
-      return [chart1, chart2, chart3, chart4];
-    }
-  };
-
-  // src/methods/integration/montecarlo2D.ts
-  function mulberry323(seed) {
-    let s = seed | 0;
-    return () => {
-      s = s + 1831565813 | 0;
-      let t = Math.imul(s ^ s >>> 15, 1 | s);
-      t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
-      return ((t ^ t >>> 14) >>> 0) / 4294967296;
-    };
-  }
-  function hashString3(str) {
-    let hash = 0;
-    for (let i2 = 0; i2 < str.length; i2++) {
-      hash = (hash << 5) - hash + str.charCodeAt(i2) | 0;
-    }
-    return hash;
-  }
-  function parseSeed3(input) {
-    if (!input || input.trim() === "") return null;
-    const num = Number(input.trim());
-    if (!isNaN(num)) return num;
-    return hashString3(input.trim());
-  }
-  var montecarlo2D = {
-    id: "montecarlo2D",
-    name: "Monte Carlo 2D (Integral Doble)",
-    category: "integration",
-    formula: "\u222B\u222Bf(x,y)dA \u2248 (Area)/N \xB7 \u03A3 f(x_i,y_i) \u2014 promedio de K repeticiones",
-    latexFormula: "\\iint_R f(x,y)\\,dA \\approx \\frac{(b-a)(d-c)}{N}\\sum_{i=1}^{N} f(x_i, y_i), \\quad (x_i, y_i) \\sim U([a,b]\\times[c,d])",
-    description: "Aproxima \u222B\u222Bf(x,y)dA en un rectangulo [a,b]\xD7[c,d]. Ejecuta K repeticiones independientes y promedia para reducir varianza. Convergencia O(1/\u221AN).",
-    inputs: [
-      { id: "fxy", label: "f(x, y)", placeholder: "x^2 + y^2", defaultValue: "x^2 + y^2" },
-      { id: "a", label: "a (x min)", placeholder: "0", type: "number", defaultValue: "0" },
-      { id: "b", label: "b (x max)", placeholder: "1", type: "number", defaultValue: "1" },
-      { id: "c", label: "c (y min)", placeholder: "0", type: "number", defaultValue: "0" },
-      { id: "d", label: "d (y max)", placeholder: "1", type: "number", defaultValue: "1" },
-      { id: "n", label: "N (puntos por repeticion)", placeholder: "10000", type: "number", defaultValue: "10000" },
-      { id: "K", label: "K (repeticiones a promediar)", placeholder: "10", type: "number", defaultValue: "10" },
-      { id: "exact", label: "Valor exacto (opcional)", placeholder: "", hint: "Para comparar con el promedio." },
-      { id: "seed", label: "Semilla (opcional)", placeholder: "Vacio = aleatorio", hint: "Numero o texto. Misma semilla = mismos resultados." }
-    ],
-    tableColumns: [
-      { key: "k", label: "k (repeticion)", latex: "k" },
-      { key: "estimate", label: "I_k", latex: "I_k" },
-      { key: "runningMean", label: "Promedio 1..k", latex: "\\bar{I}_{1..k}" },
-      { key: "stdDevRun", label: "\u03C3 entre lotes", latex: "\\sigma_{\\text{lotes}}" },
-      { key: "exactDiff", label: "|I_k - Exacto|", latex: "|I_k - I^*|" }
-    ],
-    steps: [
-      "Para el <b>parcial 2025-I (IMG_5755)</b> \u2014 integral doble Monte Carlo: introduce <code>f(x, y)</code>. Ejemplo: <code>x^2 + y^2</code> o la funcion que pida el parcial.",
-      "Define el dominio rectangular: <code>x \u2208 [a, b]</code> y <code>y \u2208 [c, d]</code>. Area = <code>(b-a)(d-c)</code>.",
-      "Configura <code>N</code> (puntos por repeticion) y <code>K</code> (numero de repeticiones independientes). Tipico del parcial: <code>N = 10000</code>, <code>K = 10</code>. Cada repeticion usa <b>semilla distinta</b> para ser estadisticamente independiente.",
-      "Formula: <code>I_k \u2248 (Area)/N \xB7 \u03A3\u1D62 f(x_i, y_i)</code> con <code>x_i</code>, <code>y_i</code> uniformes en [a,b] y [c,d]. El estimador final es <code>\xCE = (1/K) \u03A3\u2096 I_k</code>.",
-      "Si tienes <b>valor exacto</b>, ponlo para comparar cada <code>I_k</code> y el promedio. Exacto de <code>x\xB2 + y\xB2</code> en <code>[0,1]\xB2</code>: <code>2/3 \u2248 0.6667</code>.",
-      "Pulsa <b>Resolver</b>. La tabla muestra por cada repeticion <code>k</code>:<br>&nbsp;&nbsp;\u2022 <code>I_k</code>: estimacion individual.<br>&nbsp;&nbsp;\u2022 <em>Promedio acumulado</em>: media de <code>I_1, ..., I_k</code> (se estabiliza).<br>&nbsp;&nbsp;\u2022 <em>\u03C3 entre repeticiones</em>: variabilidad (deberia ser peque\xF1a si N es grande).",
-      "<b>Error estandar del promedio</b>: <code>SE = s / \u221AK</code> donde <code>s = \u03C3</code> entre repeticiones. <em>Este es el estimador correcto cuando repites K veces</em>.",
-      "Ventaja de K repeticiones: reduce la varianza global y permite <em>intervalo de confianza empirico</em>. Dobla K \u2192 SE se reduce \u221A2 \u2248 1.41\xD7 (mas realista que asumir distribucion normal).",
-      "Para el informe: (1) <code>N</code>, <code>K</code>, semilla base; (2) tabla de <code>I_k</code>; (3) promedio final <code>\xCE</code>; (4) \u03C3 entre repeticiones; (5) SE; (6) si hay exacto: |error| y error relativo %."
-    ],
-    solve(params) {
-      const f = parseExpression2(params.fxy);
-      const a = parseFloat(params.a);
-      const b = parseFloat(params.b);
-      const c = parseFloat(params.c);
-      const d = parseFloat(params.d);
-      const N = parseInt(params.n) || 1e4;
-      const K = Math.max(1, parseInt(params.K) || 10);
-      if ([a, b, c, d].some(isNaN)) throw new Error("a, b, c, d deben ser numeros validos");
-      if (a >= b) throw new Error("a debe ser menor que b");
-      if (c >= d) throw new Error("c debe ser menor que d");
-      if (N < 1) throw new Error("N debe ser >= 1");
-      const area = (b - a) * (d - c);
-      const widthX = b - a;
-      const heightY = d - c;
-      let exactVal;
-      if (params.exact && params.exact.trim() !== "") {
-        const parsed = parseFloat(params.exact);
-        if (!isNaN(parsed)) exactVal = parsed;
-      }
-      const seedVal = parseSeed3(params.seed);
-      const baseSeed = seedVal !== null ? seedVal : Date.now() ^ Math.random() * 4294967295;
-      const iterations = [];
-      const estimates = [];
-      let sumEst = 0;
-      let sumEstSq = 0;
-      for (let k = 1; k <= K; k++) {
-        const rand = mulberry323(baseSeed + k * 10007);
-        let sum3 = 0;
-        for (let i2 = 0; i2 < N; i2++) {
-          const xi = a + rand() * widthX;
-          const yi = c + rand() * heightY;
-          sum3 += f(xi, yi);
-        }
-        const I_k = area * (sum3 / N);
-        estimates.push(I_k);
-        sumEst += I_k;
-        sumEstSq += I_k * I_k;
-        const runningMean = sumEst / k;
-        const varRun = k > 1 ? Math.max(0, sumEstSq / k - runningMean * runningMean) : 0;
-        const stdDevRun = Math.sqrt(varRun);
-        const exactDiff = exactVal !== void 0 ? Math.abs(I_k - exactVal) : null;
-        iterations.push({
-          k,
-          estimate: I_k,
-          runningMean,
-          stdDevRun,
-          exactDiff
-        });
-      }
-      const avgEstimate = sumEst / K;
-      const varK = K > 1 ? Math.max(0, sumEstSq / K - avgEstimate * avgEstimate) : 0;
-      const stdDevK = Math.sqrt(varK);
-      const stdErrK = stdDevK / Math.sqrt(K);
-      let relativeErrorPercent2;
-      let message = `I \u2248 ${avgEstimate.toPrecision(8)} (promedio de K=${K}) | \u03C3 entre repeticiones = ${stdDevK.toPrecision(6)} | SE = ${stdErrK.toPrecision(6)}`;
-      if (exactVal !== void 0) {
-        const absErr = Math.abs(avgEstimate - exactVal);
-        relativeErrorPercent2 = Math.abs(exactVal) > 1e-14 ? absErr / Math.abs(exactVal) * 100 : absErr * 100;
-        message += ` | Exacto = ${exactVal.toPrecision(8)} | |error| = ${absErr.toPrecision(6)}`;
-      }
-      return {
-        integral: avgEstimate,
-        iterations,
-        converged: true,
-        error: stdErrK,
-        exact: exactVal,
-        relativeErrorPercent: relativeErrorPercent2,
-        message
-      };
-    },
-    getCharts(params, result) {
-      const a = parseFloat(params.a);
-      const b = parseFloat(params.b);
-      const c = parseFloat(params.c);
-      const d = parseFloat(params.d);
-      const N = parseInt(params.n) || 1e4;
-      const seedVal = parseSeed3(params.seed);
-      const baseSeed = seedVal !== null ? seedVal : Date.now() ^ 43981;
-      const ks = result.iterations.map((r) => r.k);
-      const estimates = result.iterations.map((r) => r.estimate);
-      const runningMeans = result.iterations.map((r) => r.runningMean);
-      const finalMean = runningMeans[runningMeans.length - 1];
-      const datasets1 = [
-        { label: "I_k (repeticion)", x: ks, y: estimates, color: "#f38ba8", pointRadius: 4, showLine: false },
-        { label: "Promedio acumulado", x: ks, y: runningMeans, color: "#cba6f7", pointRadius: 2 },
-        { label: "Promedio final", x: [ks[0], ks[ks.length - 1]], y: [finalMean, finalMean], color: "#a6e3a1", dashed: true, pointRadius: 0 }
-      ];
-      if (result.exact !== void 0) {
-        datasets1.push({ label: "Exacto", x: [ks[0], ks[ks.length - 1]], y: [result.exact, result.exact], color: "#89b4fa", dashed: true, pointRadius: 0 });
-      }
-      const chart1 = {
-        title: "K repeticiones y promedio acumulado",
-        type: "line",
-        datasets: datasets1,
-        xLabel: "k (repeticion)",
-        yLabel: "I"
-      };
-      const rand = mulberry323(baseSeed + 1);
-      const nShow = Math.min(N, 500);
-      const sampleX = [];
-      const sampleY = [];
-      for (let i2 = 0; i2 < nShow; i2++) {
-        sampleX.push(a + rand() * (b - a));
-        sampleY.push(c + rand() * (d - c));
-      }
-      const rectX = [a, b, b, a, a];
-      const rectY = [c, c, d, d, c];
-      const chart2 = {
-        title: `Muestras uniformes en [${a},${b}]\xD7[${c},${d}]`,
-        type: "scatter",
-        datasets: [
-          { label: "Dominio", x: rectX, y: rectY, color: "#89b4fa", pointRadius: 0 },
-          { label: "Muestras", x: sampleX, y: sampleY, color: "#a6e3a1", pointRadius: 2, showLine: false }
-        ],
-        xLabel: "x",
-        yLabel: "y"
-      };
-      const stdDevRuns = result.iterations.map((r) => r.stdDevRun);
-      const chart3 = {
-        title: "Desviacion estandar acumulada \u03C3(I_1..I_k)",
-        type: "line",
-        datasets: [
-          { label: "\u03C3 entre repeticiones", x: ks, y: stdDevRuns, color: "#fab387", pointRadius: 2 }
-        ],
-        xLabel: "k",
-        yLabel: "\u03C3"
-      };
-      let chart4;
-      if (result.exact !== void 0) {
-        const absErrs = result.iterations.map((r) => Math.abs(r.runningMean - result.exact));
-        chart4 = {
-          title: "|Promedio_k - Exacto|  vs  k",
-          type: "line",
-          datasets: [
-            { label: "|error|", x: ks, y: absErrs, color: "#f38ba8", pointRadius: 2 }
-          ],
-          xLabel: "k",
-          yLabel: "|error|",
-          yLog: absErrs.length > 2 && absErrs[0] / Math.max(absErrs[absErrs.length - 1], 1e-18) > 100
-        };
-      } else {
-        const diffs = ks.map((_, i2) => i2 > 0 ? Math.abs(estimates[i2] - estimates[i2 - 1]) : 0).slice(1);
-        chart4 = {
-          title: "|I_k - I_{k-1}|  vs  k",
-          type: "line",
-          datasets: [
-            { label: "|diff|", x: ks.slice(1), y: diffs, color: "#fab387", pointRadius: 2 }
-          ],
-          xLabel: "k",
-          yLabel: "|diff|"
-        };
-      }
-      return [chart1, chart2, chart3, chart4];
-    }
-  };
-
-  // src/methods/integration/montecarloArea.ts
-  function mulberry324(seed) {
-    let s = seed | 0;
-    return () => {
-      s = s + 1831565813 | 0;
-      let t = Math.imul(s ^ s >>> 15, 1 | s);
-      t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
-      return ((t ^ t >>> 14) >>> 0) / 4294967296;
-    };
-  }
-  function hashString4(str) {
-    let hash = 0;
-    for (let i2 = 0; i2 < str.length; i2++) {
-      hash = (hash << 5) - hash + str.charCodeAt(i2) | 0;
-    }
-    return hash;
-  }
-  function parseSeed4(input) {
-    if (!input || input.trim() === "") return null;
-    const num = Number(input.trim());
-    if (!isNaN(num)) return num;
-    return hashString4(input.trim());
-  }
-  var montecarloArea = {
-    id: "montecarloArea",
-    name: "Monte Carlo \u2014 Area entre curvas",
-    category: "integration",
-    formula: "A = \u222B_a^b (f(x) - g(x)) dx \u2014 Hit-or-Miss sobre rectangulo circunscrito",
-    latexFormula: "A = \\int_a^b \\bigl(f(x) - g(x)\\bigr)\\,dx \\approx A_{\\text{rect}} \\cdot \\frac{\\#\\{\\text{puntos dentro}\\}}{N}",
-    description: "Estima el area entre f(x) y g(x) sobre [a,b] lanzando puntos aleatorios y contando cuantos caen en la region. Promedia K repeticiones.",
-    inputs: [
-      { id: "fx", label: "f(x) (curva superior)", placeholder: "x^2", defaultValue: "x^2" },
-      { id: "gx", label: "g(x) (curva inferior)", placeholder: "x^3", defaultValue: "x^3" },
-      { id: "a", label: "a (limite inferior x)", placeholder: "0", type: "number", defaultValue: "0" },
-      { id: "b", label: "b (limite superior x)", placeholder: "1", type: "number", defaultValue: "1" },
-      { id: "n", label: "N (puntos por repeticion)", placeholder: "10000", type: "number", defaultValue: "10000" },
-      { id: "K", label: "K (repeticiones a promediar)", placeholder: "10", type: "number", defaultValue: "10" },
-      { id: "exact", label: "Valor exacto (opcional)", placeholder: "", hint: "Para comparar con el promedio." },
-      { id: "seed", label: "Semilla (opcional)", placeholder: "Vacio = aleatorio", hint: "Numero o texto." }
-    ],
-    tableColumns: [
-      { key: "k", label: "k (repeticion)", latex: "k" },
-      { key: "hits", label: "Aciertos", latex: "M" },
-      { key: "estimate", label: "A_k", latex: "A_k" },
-      { key: "runningMean", label: "Promedio 1..k", latex: "\\bar{A}_{1..k}" },
-      { key: "stdDevRun", label: "\u03C3 entre repeticiones", latex: "\\sigma_{\\text{reps}}" },
-      { key: "exactDiff", label: "|A_k - Exacto|", latex: "|A_k - A^*|" }
-    ],
-    steps: [
-      "Para el <b>parcial 30/04/2025</b> (area entre curvas por Monte Carlo): escribe <code>f(x)</code> (curva <em>superior</em>) y <code>g(x)</code> (curva <em>inferior</em>). Ejemplo parcial: <code>f(x) = x\xB2</code>, <code>g(x) = x\xB3</code> en <code>[0, 1]</code>.",
-      "Define <code>[a, b]</code>. <em>Consejo</em>: verifica graficamente que <code>f \u2265 g</code> en todo el intervalo antes de correr \u2014 si se cruzan, la app usa <code>|f - g|</code> automaticamente.",
-      "Configura <code>N</code> (puntos por repeticion) y <code>K</code> (cantidad de repeticiones). Tipico: <code>N = 10000</code>, <code>K = 10</code>.",
-      "<b>Estrategia Hit-or-Miss</b>: la app construye un rectangulo circunscrito <code>[a, b] \xD7 [y_min, y_max]</code> que contiene ambas curvas. Lanza puntos uniformes en ese rectangulo y cuenta los que caen <em>entre</em> las curvas. Area \u2248 <code>(Area rect) \xB7 (hits / N)</code>.",
-      "Pulsa <b>Resolver</b>. Se muestran K repeticiones independientes, cada una con distintas semillas. Promedio de las K da la estimacion final.",
-      "Si tienes <b>valor exacto</b>: pone el valor analitico <code>A = \u222B(f - g) dx</code>. Para <code>x\xB2 - x\xB3</code> en <code>[0, 1]</code>: <code>A = 1/3 - 1/4 = 1/12 \u2248 0.0833</code>.",
-      "<b>Error estandar</b>: <code>SE = \u03C3_K / \u221AK</code> donde <code>\u03C3_K</code> es la desviacion estandar entre las K estimaciones.",
-      "Para el informe: (1) tabla de <code>A_k</code>; (2) promedio final; (3) \u03C3 entre repeticiones; (4) IC 95%: <code>\xC2 \xB1 1.96\xB7SE</code>; (5) comparacion con exacto si se tiene. Discutir por que N=10000 suele dar precision ~3 decimales.",
-      "Interpretacion visual: la grafica Hit-or-Miss muestra <em>verde</em> = puntos entre las curvas (cuentan), <em>rojo</em> = puntos fuera (no cuentan). Mientras mas verdes aciertos proporcionales, mejor la estimacion."
-    ],
-    solve(params) {
-      const f = parseExpression(params.fx);
-      const g = parseExpression(params.gx);
-      const a = parseFloat(params.a);
-      const b = parseFloat(params.b);
-      const N = parseInt(params.n) || 1e4;
-      const K = Math.max(1, parseInt(params.K) || 10);
-      if (isNaN(a) || isNaN(b)) throw new Error("a y b deben ser numeros validos");
-      if (a >= b) throw new Error("a debe ser menor que b");
-      if (N < 1) throw new Error("N debe ser >= 1");
-      const sampleXs = linspace(a, b, 200);
-      const fVals = sampleXs.map((x) => f(x));
-      const gVals = sampleXs.map((x) => g(x));
-      let yMin = Math.min(...fVals, ...gVals);
-      let yMax = Math.max(...fVals, ...gVals);
-      const yPad = (yMax - yMin) * 0.05 || 1;
-      yMin -= yPad;
-      yMax += yPad;
-      const rectArea = (b - a) * (yMax - yMin);
-      let exactVal;
-      if (params.exact && params.exact.trim() !== "") {
-        const parsed = parseFloat(params.exact);
-        if (!isNaN(parsed)) exactVal = parsed;
-      }
-      const seedVal = parseSeed4(params.seed);
-      const baseSeed = seedVal !== null ? seedVal : Date.now() ^ Math.random() * 4294967295;
-      const iterations = [];
-      let sumEst = 0;
-      let sumEstSq = 0;
-      for (let k = 1; k <= K; k++) {
-        const rand = mulberry324(baseSeed + k * 10007);
-        let hits = 0;
-        for (let i2 = 0; i2 < N; i2++) {
-          const xi = a + rand() * (b - a);
-          const yi = yMin + rand() * (yMax - yMin);
-          const fv = f(xi);
-          const gv = g(xi);
-          const top = Math.max(fv, gv);
-          const bot = Math.min(fv, gv);
-          if (yi >= bot && yi <= top) hits++;
-        }
-        const A_k = rectArea * (hits / N);
-        sumEst += A_k;
-        sumEstSq += A_k * A_k;
-        const runningMean = sumEst / k;
-        const varRun = k > 1 ? Math.max(0, sumEstSq / k - runningMean * runningMean) : 0;
-        const stdDevRun = Math.sqrt(varRun);
-        const exactDiff = exactVal !== void 0 ? Math.abs(A_k - exactVal) : null;
-        iterations.push({
-          k,
-          hits,
-          estimate: A_k,
-          runningMean,
-          stdDevRun,
-          exactDiff
-        });
-      }
-      const avgEstimate = sumEst / K;
-      const varK = K > 1 ? Math.max(0, sumEstSq / K - avgEstimate * avgEstimate) : 0;
-      const stdDevK = Math.sqrt(varK);
-      const stdErrK = stdDevK / Math.sqrt(K);
-      let relativeErrorPercent2;
-      let message = `A \u2248 ${avgEstimate.toPrecision(8)} (promedio K=${K}, N=${N}) | \u03C3 repeticiones = ${stdDevK.toPrecision(6)} | rect area = ${rectArea.toPrecision(6)}`;
-      if (exactVal !== void 0) {
-        const absErr = Math.abs(avgEstimate - exactVal);
-        relativeErrorPercent2 = Math.abs(exactVal) > 1e-14 ? absErr / Math.abs(exactVal) * 100 : absErr * 100;
-        message += ` | Exacto = ${exactVal.toPrecision(8)} | |error| = ${absErr.toPrecision(6)}`;
-      }
-      return {
-        integral: avgEstimate,
-        iterations,
-        converged: true,
-        error: stdErrK,
-        exact: exactVal,
-        relativeErrorPercent: relativeErrorPercent2,
-        message
-      };
-    },
-    getCharts(params, result) {
-      const f = parseExpression(params.fx);
-      const g = parseExpression(params.gx);
-      const a = parseFloat(params.a);
-      const b = parseFloat(params.b);
-      const N = parseInt(params.n) || 1e4;
-      const seedVal = parseSeed4(params.seed);
-      const baseSeed = seedVal !== null ? seedVal : Date.now() ^ 43981;
-      const xsPlot = linspace(a, b, 400);
-      const fYs = xsPlot.map((x) => f(x));
-      const gYs = xsPlot.map((x) => g(x));
-      const yMin = Math.min(...fYs, ...gYs);
-      const yMax = Math.max(...fYs, ...gYs);
-      const yPad = (yMax - yMin) * 0.05 || 1;
-      const yLo = yMin - yPad;
-      const yHi = yMax + yPad;
-      const rand = mulberry324(baseSeed + 1);
-      const nShow = Math.min(N, 600);
-      const hitX = [];
-      const hitY = [];
-      const missX = [];
-      const missY = [];
-      for (let i2 = 0; i2 < nShow; i2++) {
-        const xi = a + rand() * (b - a);
-        const yi = yLo + rand() * (yHi - yLo);
-        const fv = f(xi);
-        const gv = g(xi);
-        const top = Math.max(fv, gv);
-        const bot = Math.min(fv, gv);
-        if (yi >= bot && yi <= top) {
-          hitX.push(xi);
-          hitY.push(yi);
-        } else {
-          missX.push(xi);
-          missY.push(yi);
-        }
-      }
-      const chart1 = {
-        title: "Hit-or-Miss entre f(x) y g(x)",
-        type: "scatter",
-        datasets: [
-          { label: "f(x)", x: xsPlot, y: fYs, color: "#89b4fa", pointRadius: 0 },
-          { label: "g(x)", x: xsPlot, y: gYs, color: "#fab387", pointRadius: 0 },
-          { label: "Dentro", x: hitX, y: hitY, color: "#a6e3a1", pointRadius: 2, showLine: false },
-          { label: "Fuera", x: missX, y: missY, color: "#f38ba8", pointRadius: 1.5, showLine: false }
-        ],
-        xLabel: "x",
-        yLabel: "y"
-      };
-      const ks = result.iterations.map((r) => r.k);
-      const estimates = result.iterations.map((r) => r.estimate);
-      const runningMeans = result.iterations.map((r) => r.runningMean);
-      const finalMean = runningMeans[runningMeans.length - 1];
-      const datasets2 = [
-        { label: "A_k", x: ks, y: estimates, color: "#f38ba8", pointRadius: 4, showLine: false },
-        { label: "Promedio acumulado", x: ks, y: runningMeans, color: "#cba6f7", pointRadius: 2 },
-        { label: "Promedio final", x: [ks[0], ks[ks.length - 1]], y: [finalMean, finalMean], color: "#a6e3a1", dashed: true, pointRadius: 0 }
-      ];
-      if (result.exact !== void 0) {
-        datasets2.push({ label: "Exacto", x: [ks[0], ks[ks.length - 1]], y: [result.exact, result.exact], color: "#89b4fa", dashed: true, pointRadius: 0 });
-      }
-      const chart2 = {
-        title: "K repeticiones y promedio acumulado",
-        type: "line",
-        datasets: datasets2,
-        xLabel: "k (repeticion)",
-        yLabel: "Area"
-      };
-      const stdDevRuns = result.iterations.map((r) => r.stdDevRun);
-      const chart3 = {
-        title: "\u03C3(A_1..A_k) \u2014 dispersion entre repeticiones",
-        type: "line",
-        datasets: [
-          { label: "\u03C3", x: ks, y: stdDevRuns, color: "#fab387", pointRadius: 2 }
-        ],
-        xLabel: "k",
-        yLabel: "\u03C3"
-      };
-      let chart4;
-      if (result.exact !== void 0) {
-        const absErrs = runningMeans.map((v) => Math.abs(v - result.exact));
-        chart4 = {
-          title: "|Promedio_k - Exacto| vs k",
-          type: "line",
-          datasets: [
-            { label: "|error|", x: ks, y: absErrs, color: "#f38ba8", pointRadius: 2 }
-          ],
-          xLabel: "k",
-          yLabel: "|error|"
-        };
-      } else {
-        chart4 = {
-          title: "Aciertos por repeticion",
-          type: "bar",
-          datasets: [
-            { label: "hits", x: ks, y: result.iterations.map((r) => r.hits), color: "#94e2d5" }
-          ],
-          xLabel: "k",
-          yLabel: "hits"
-        };
-      }
-      return [chart1, chart2, chart3, chart4];
-    }
-  };
-
   // node_modules/katex/dist/katex.mjs
   var ParseError = class _ParseError extends Error {
     // Error start position based on passed-in Token or ParseNode.
@@ -52950,7 +51010,7 @@
       symbols[mode2][replace] = symbols[mode2][name315];
     }
   }
-  var math4 = "math";
+  var math3 = "math";
   var text = "text";
   var main = "main";
   var ams = "ams";
@@ -52965,557 +51025,557 @@
   var rel = "rel";
   var spacing = "spacing";
   var textord = "textord";
-  defineSymbol(math4, main, rel, "\u2261", "\\equiv", true);
-  defineSymbol(math4, main, rel, "\u227A", "\\prec", true);
-  defineSymbol(math4, main, rel, "\u227B", "\\succ", true);
-  defineSymbol(math4, main, rel, "\u223C", "\\sim", true);
-  defineSymbol(math4, main, rel, "\u22A5", "\\perp");
-  defineSymbol(math4, main, rel, "\u2AAF", "\\preceq", true);
-  defineSymbol(math4, main, rel, "\u2AB0", "\\succeq", true);
-  defineSymbol(math4, main, rel, "\u2243", "\\simeq", true);
-  defineSymbol(math4, main, rel, "\u2223", "\\mid", true);
-  defineSymbol(math4, main, rel, "\u226A", "\\ll", true);
-  defineSymbol(math4, main, rel, "\u226B", "\\gg", true);
-  defineSymbol(math4, main, rel, "\u224D", "\\asymp", true);
-  defineSymbol(math4, main, rel, "\u2225", "\\parallel");
-  defineSymbol(math4, main, rel, "\u22C8", "\\bowtie", true);
-  defineSymbol(math4, main, rel, "\u2323", "\\smile", true);
-  defineSymbol(math4, main, rel, "\u2291", "\\sqsubseteq", true);
-  defineSymbol(math4, main, rel, "\u2292", "\\sqsupseteq", true);
-  defineSymbol(math4, main, rel, "\u2250", "\\doteq", true);
-  defineSymbol(math4, main, rel, "\u2322", "\\frown", true);
-  defineSymbol(math4, main, rel, "\u220B", "\\ni", true);
-  defineSymbol(math4, main, rel, "\u221D", "\\propto", true);
-  defineSymbol(math4, main, rel, "\u22A2", "\\vdash", true);
-  defineSymbol(math4, main, rel, "\u22A3", "\\dashv", true);
-  defineSymbol(math4, main, rel, "\u220B", "\\owns");
-  defineSymbol(math4, main, punct, ".", "\\ldotp");
-  defineSymbol(math4, main, punct, "\u22C5", "\\cdotp");
-  defineSymbol(math4, main, punct, "\u22C5", "\xB7");
+  defineSymbol(math3, main, rel, "\u2261", "\\equiv", true);
+  defineSymbol(math3, main, rel, "\u227A", "\\prec", true);
+  defineSymbol(math3, main, rel, "\u227B", "\\succ", true);
+  defineSymbol(math3, main, rel, "\u223C", "\\sim", true);
+  defineSymbol(math3, main, rel, "\u22A5", "\\perp");
+  defineSymbol(math3, main, rel, "\u2AAF", "\\preceq", true);
+  defineSymbol(math3, main, rel, "\u2AB0", "\\succeq", true);
+  defineSymbol(math3, main, rel, "\u2243", "\\simeq", true);
+  defineSymbol(math3, main, rel, "\u2223", "\\mid", true);
+  defineSymbol(math3, main, rel, "\u226A", "\\ll", true);
+  defineSymbol(math3, main, rel, "\u226B", "\\gg", true);
+  defineSymbol(math3, main, rel, "\u224D", "\\asymp", true);
+  defineSymbol(math3, main, rel, "\u2225", "\\parallel");
+  defineSymbol(math3, main, rel, "\u22C8", "\\bowtie", true);
+  defineSymbol(math3, main, rel, "\u2323", "\\smile", true);
+  defineSymbol(math3, main, rel, "\u2291", "\\sqsubseteq", true);
+  defineSymbol(math3, main, rel, "\u2292", "\\sqsupseteq", true);
+  defineSymbol(math3, main, rel, "\u2250", "\\doteq", true);
+  defineSymbol(math3, main, rel, "\u2322", "\\frown", true);
+  defineSymbol(math3, main, rel, "\u220B", "\\ni", true);
+  defineSymbol(math3, main, rel, "\u221D", "\\propto", true);
+  defineSymbol(math3, main, rel, "\u22A2", "\\vdash", true);
+  defineSymbol(math3, main, rel, "\u22A3", "\\dashv", true);
+  defineSymbol(math3, main, rel, "\u220B", "\\owns");
+  defineSymbol(math3, main, punct, ".", "\\ldotp");
+  defineSymbol(math3, main, punct, "\u22C5", "\\cdotp");
+  defineSymbol(math3, main, punct, "\u22C5", "\xB7");
   defineSymbol(text, main, textord, "\u22C5", "\xB7");
-  defineSymbol(math4, main, textord, "#", "\\#");
+  defineSymbol(math3, main, textord, "#", "\\#");
   defineSymbol(text, main, textord, "#", "\\#");
-  defineSymbol(math4, main, textord, "&", "\\&");
+  defineSymbol(math3, main, textord, "&", "\\&");
   defineSymbol(text, main, textord, "&", "\\&");
-  defineSymbol(math4, main, textord, "\u2135", "\\aleph", true);
-  defineSymbol(math4, main, textord, "\u2200", "\\forall", true);
-  defineSymbol(math4, main, textord, "\u210F", "\\hbar", true);
-  defineSymbol(math4, main, textord, "\u2203", "\\exists", true);
-  defineSymbol(math4, main, textord, "\u2207", "\\nabla", true);
-  defineSymbol(math4, main, textord, "\u266D", "\\flat", true);
-  defineSymbol(math4, main, textord, "\u2113", "\\ell", true);
-  defineSymbol(math4, main, textord, "\u266E", "\\natural", true);
-  defineSymbol(math4, main, textord, "\u2663", "\\clubsuit", true);
-  defineSymbol(math4, main, textord, "\u2118", "\\wp", true);
-  defineSymbol(math4, main, textord, "\u266F", "\\sharp", true);
-  defineSymbol(math4, main, textord, "\u2662", "\\diamondsuit", true);
-  defineSymbol(math4, main, textord, "\u211C", "\\Re", true);
-  defineSymbol(math4, main, textord, "\u2661", "\\heartsuit", true);
-  defineSymbol(math4, main, textord, "\u2111", "\\Im", true);
-  defineSymbol(math4, main, textord, "\u2660", "\\spadesuit", true);
-  defineSymbol(math4, main, textord, "\xA7", "\\S", true);
+  defineSymbol(math3, main, textord, "\u2135", "\\aleph", true);
+  defineSymbol(math3, main, textord, "\u2200", "\\forall", true);
+  defineSymbol(math3, main, textord, "\u210F", "\\hbar", true);
+  defineSymbol(math3, main, textord, "\u2203", "\\exists", true);
+  defineSymbol(math3, main, textord, "\u2207", "\\nabla", true);
+  defineSymbol(math3, main, textord, "\u266D", "\\flat", true);
+  defineSymbol(math3, main, textord, "\u2113", "\\ell", true);
+  defineSymbol(math3, main, textord, "\u266E", "\\natural", true);
+  defineSymbol(math3, main, textord, "\u2663", "\\clubsuit", true);
+  defineSymbol(math3, main, textord, "\u2118", "\\wp", true);
+  defineSymbol(math3, main, textord, "\u266F", "\\sharp", true);
+  defineSymbol(math3, main, textord, "\u2662", "\\diamondsuit", true);
+  defineSymbol(math3, main, textord, "\u211C", "\\Re", true);
+  defineSymbol(math3, main, textord, "\u2661", "\\heartsuit", true);
+  defineSymbol(math3, main, textord, "\u2111", "\\Im", true);
+  defineSymbol(math3, main, textord, "\u2660", "\\spadesuit", true);
+  defineSymbol(math3, main, textord, "\xA7", "\\S", true);
   defineSymbol(text, main, textord, "\xA7", "\\S");
-  defineSymbol(math4, main, textord, "\xB6", "\\P", true);
+  defineSymbol(math3, main, textord, "\xB6", "\\P", true);
   defineSymbol(text, main, textord, "\xB6", "\\P");
-  defineSymbol(math4, main, textord, "\u2020", "\\dag");
+  defineSymbol(math3, main, textord, "\u2020", "\\dag");
   defineSymbol(text, main, textord, "\u2020", "\\dag");
   defineSymbol(text, main, textord, "\u2020", "\\textdagger");
-  defineSymbol(math4, main, textord, "\u2021", "\\ddag");
+  defineSymbol(math3, main, textord, "\u2021", "\\ddag");
   defineSymbol(text, main, textord, "\u2021", "\\ddag");
   defineSymbol(text, main, textord, "\u2021", "\\textdaggerdbl");
-  defineSymbol(math4, main, close, "\u23B1", "\\rmoustache", true);
-  defineSymbol(math4, main, open, "\u23B0", "\\lmoustache", true);
-  defineSymbol(math4, main, close, "\u27EF", "\\rgroup", true);
-  defineSymbol(math4, main, open, "\u27EE", "\\lgroup", true);
-  defineSymbol(math4, main, bin2, "\u2213", "\\mp", true);
-  defineSymbol(math4, main, bin2, "\u2296", "\\ominus", true);
-  defineSymbol(math4, main, bin2, "\u228E", "\\uplus", true);
-  defineSymbol(math4, main, bin2, "\u2293", "\\sqcap", true);
-  defineSymbol(math4, main, bin2, "\u2217", "\\ast");
-  defineSymbol(math4, main, bin2, "\u2294", "\\sqcup", true);
-  defineSymbol(math4, main, bin2, "\u25EF", "\\bigcirc", true);
-  defineSymbol(math4, main, bin2, "\u2219", "\\bullet", true);
-  defineSymbol(math4, main, bin2, "\u2021", "\\ddagger");
-  defineSymbol(math4, main, bin2, "\u2240", "\\wr", true);
-  defineSymbol(math4, main, bin2, "\u2A3F", "\\amalg");
-  defineSymbol(math4, main, bin2, "&", "\\And");
-  defineSymbol(math4, main, rel, "\u27F5", "\\longleftarrow", true);
-  defineSymbol(math4, main, rel, "\u21D0", "\\Leftarrow", true);
-  defineSymbol(math4, main, rel, "\u27F8", "\\Longleftarrow", true);
-  defineSymbol(math4, main, rel, "\u27F6", "\\longrightarrow", true);
-  defineSymbol(math4, main, rel, "\u21D2", "\\Rightarrow", true);
-  defineSymbol(math4, main, rel, "\u27F9", "\\Longrightarrow", true);
-  defineSymbol(math4, main, rel, "\u2194", "\\leftrightarrow", true);
-  defineSymbol(math4, main, rel, "\u27F7", "\\longleftrightarrow", true);
-  defineSymbol(math4, main, rel, "\u21D4", "\\Leftrightarrow", true);
-  defineSymbol(math4, main, rel, "\u27FA", "\\Longleftrightarrow", true);
-  defineSymbol(math4, main, rel, "\u21A6", "\\mapsto", true);
-  defineSymbol(math4, main, rel, "\u27FC", "\\longmapsto", true);
-  defineSymbol(math4, main, rel, "\u2197", "\\nearrow", true);
-  defineSymbol(math4, main, rel, "\u21A9", "\\hookleftarrow", true);
-  defineSymbol(math4, main, rel, "\u21AA", "\\hookrightarrow", true);
-  defineSymbol(math4, main, rel, "\u2198", "\\searrow", true);
-  defineSymbol(math4, main, rel, "\u21BC", "\\leftharpoonup", true);
-  defineSymbol(math4, main, rel, "\u21C0", "\\rightharpoonup", true);
-  defineSymbol(math4, main, rel, "\u2199", "\\swarrow", true);
-  defineSymbol(math4, main, rel, "\u21BD", "\\leftharpoondown", true);
-  defineSymbol(math4, main, rel, "\u21C1", "\\rightharpoondown", true);
-  defineSymbol(math4, main, rel, "\u2196", "\\nwarrow", true);
-  defineSymbol(math4, main, rel, "\u21CC", "\\rightleftharpoons", true);
-  defineSymbol(math4, ams, rel, "\u226E", "\\nless", true);
-  defineSymbol(math4, ams, rel, "\uE010", "\\@nleqslant");
-  defineSymbol(math4, ams, rel, "\uE011", "\\@nleqq");
-  defineSymbol(math4, ams, rel, "\u2A87", "\\lneq", true);
-  defineSymbol(math4, ams, rel, "\u2268", "\\lneqq", true);
-  defineSymbol(math4, ams, rel, "\uE00C", "\\@lvertneqq");
-  defineSymbol(math4, ams, rel, "\u22E6", "\\lnsim", true);
-  defineSymbol(math4, ams, rel, "\u2A89", "\\lnapprox", true);
-  defineSymbol(math4, ams, rel, "\u2280", "\\nprec", true);
-  defineSymbol(math4, ams, rel, "\u22E0", "\\npreceq", true);
-  defineSymbol(math4, ams, rel, "\u22E8", "\\precnsim", true);
-  defineSymbol(math4, ams, rel, "\u2AB9", "\\precnapprox", true);
-  defineSymbol(math4, ams, rel, "\u2241", "\\nsim", true);
-  defineSymbol(math4, ams, rel, "\uE006", "\\@nshortmid");
-  defineSymbol(math4, ams, rel, "\u2224", "\\nmid", true);
-  defineSymbol(math4, ams, rel, "\u22AC", "\\nvdash", true);
-  defineSymbol(math4, ams, rel, "\u22AD", "\\nvDash", true);
-  defineSymbol(math4, ams, rel, "\u22EA", "\\ntriangleleft");
-  defineSymbol(math4, ams, rel, "\u22EC", "\\ntrianglelefteq", true);
-  defineSymbol(math4, ams, rel, "\u228A", "\\subsetneq", true);
-  defineSymbol(math4, ams, rel, "\uE01A", "\\@varsubsetneq");
-  defineSymbol(math4, ams, rel, "\u2ACB", "\\subsetneqq", true);
-  defineSymbol(math4, ams, rel, "\uE017", "\\@varsubsetneqq");
-  defineSymbol(math4, ams, rel, "\u226F", "\\ngtr", true);
-  defineSymbol(math4, ams, rel, "\uE00F", "\\@ngeqslant");
-  defineSymbol(math4, ams, rel, "\uE00E", "\\@ngeqq");
-  defineSymbol(math4, ams, rel, "\u2A88", "\\gneq", true);
-  defineSymbol(math4, ams, rel, "\u2269", "\\gneqq", true);
-  defineSymbol(math4, ams, rel, "\uE00D", "\\@gvertneqq");
-  defineSymbol(math4, ams, rel, "\u22E7", "\\gnsim", true);
-  defineSymbol(math4, ams, rel, "\u2A8A", "\\gnapprox", true);
-  defineSymbol(math4, ams, rel, "\u2281", "\\nsucc", true);
-  defineSymbol(math4, ams, rel, "\u22E1", "\\nsucceq", true);
-  defineSymbol(math4, ams, rel, "\u22E9", "\\succnsim", true);
-  defineSymbol(math4, ams, rel, "\u2ABA", "\\succnapprox", true);
-  defineSymbol(math4, ams, rel, "\u2246", "\\ncong", true);
-  defineSymbol(math4, ams, rel, "\uE007", "\\@nshortparallel");
-  defineSymbol(math4, ams, rel, "\u2226", "\\nparallel", true);
-  defineSymbol(math4, ams, rel, "\u22AF", "\\nVDash", true);
-  defineSymbol(math4, ams, rel, "\u22EB", "\\ntriangleright");
-  defineSymbol(math4, ams, rel, "\u22ED", "\\ntrianglerighteq", true);
-  defineSymbol(math4, ams, rel, "\uE018", "\\@nsupseteqq");
-  defineSymbol(math4, ams, rel, "\u228B", "\\supsetneq", true);
-  defineSymbol(math4, ams, rel, "\uE01B", "\\@varsupsetneq");
-  defineSymbol(math4, ams, rel, "\u2ACC", "\\supsetneqq", true);
-  defineSymbol(math4, ams, rel, "\uE019", "\\@varsupsetneqq");
-  defineSymbol(math4, ams, rel, "\u22AE", "\\nVdash", true);
-  defineSymbol(math4, ams, rel, "\u2AB5", "\\precneqq", true);
-  defineSymbol(math4, ams, rel, "\u2AB6", "\\succneqq", true);
-  defineSymbol(math4, ams, rel, "\uE016", "\\@nsubseteqq");
-  defineSymbol(math4, ams, bin2, "\u22B4", "\\unlhd");
-  defineSymbol(math4, ams, bin2, "\u22B5", "\\unrhd");
-  defineSymbol(math4, ams, rel, "\u219A", "\\nleftarrow", true);
-  defineSymbol(math4, ams, rel, "\u219B", "\\nrightarrow", true);
-  defineSymbol(math4, ams, rel, "\u21CD", "\\nLeftarrow", true);
-  defineSymbol(math4, ams, rel, "\u21CF", "\\nRightarrow", true);
-  defineSymbol(math4, ams, rel, "\u21AE", "\\nleftrightarrow", true);
-  defineSymbol(math4, ams, rel, "\u21CE", "\\nLeftrightarrow", true);
-  defineSymbol(math4, ams, rel, "\u25B3", "\\vartriangle");
-  defineSymbol(math4, ams, textord, "\u210F", "\\hslash");
-  defineSymbol(math4, ams, textord, "\u25BD", "\\triangledown");
-  defineSymbol(math4, ams, textord, "\u25CA", "\\lozenge");
-  defineSymbol(math4, ams, textord, "\u24C8", "\\circledS");
-  defineSymbol(math4, ams, textord, "\xAE", "\\circledR");
+  defineSymbol(math3, main, close, "\u23B1", "\\rmoustache", true);
+  defineSymbol(math3, main, open, "\u23B0", "\\lmoustache", true);
+  defineSymbol(math3, main, close, "\u27EF", "\\rgroup", true);
+  defineSymbol(math3, main, open, "\u27EE", "\\lgroup", true);
+  defineSymbol(math3, main, bin2, "\u2213", "\\mp", true);
+  defineSymbol(math3, main, bin2, "\u2296", "\\ominus", true);
+  defineSymbol(math3, main, bin2, "\u228E", "\\uplus", true);
+  defineSymbol(math3, main, bin2, "\u2293", "\\sqcap", true);
+  defineSymbol(math3, main, bin2, "\u2217", "\\ast");
+  defineSymbol(math3, main, bin2, "\u2294", "\\sqcup", true);
+  defineSymbol(math3, main, bin2, "\u25EF", "\\bigcirc", true);
+  defineSymbol(math3, main, bin2, "\u2219", "\\bullet", true);
+  defineSymbol(math3, main, bin2, "\u2021", "\\ddagger");
+  defineSymbol(math3, main, bin2, "\u2240", "\\wr", true);
+  defineSymbol(math3, main, bin2, "\u2A3F", "\\amalg");
+  defineSymbol(math3, main, bin2, "&", "\\And");
+  defineSymbol(math3, main, rel, "\u27F5", "\\longleftarrow", true);
+  defineSymbol(math3, main, rel, "\u21D0", "\\Leftarrow", true);
+  defineSymbol(math3, main, rel, "\u27F8", "\\Longleftarrow", true);
+  defineSymbol(math3, main, rel, "\u27F6", "\\longrightarrow", true);
+  defineSymbol(math3, main, rel, "\u21D2", "\\Rightarrow", true);
+  defineSymbol(math3, main, rel, "\u27F9", "\\Longrightarrow", true);
+  defineSymbol(math3, main, rel, "\u2194", "\\leftrightarrow", true);
+  defineSymbol(math3, main, rel, "\u27F7", "\\longleftrightarrow", true);
+  defineSymbol(math3, main, rel, "\u21D4", "\\Leftrightarrow", true);
+  defineSymbol(math3, main, rel, "\u27FA", "\\Longleftrightarrow", true);
+  defineSymbol(math3, main, rel, "\u21A6", "\\mapsto", true);
+  defineSymbol(math3, main, rel, "\u27FC", "\\longmapsto", true);
+  defineSymbol(math3, main, rel, "\u2197", "\\nearrow", true);
+  defineSymbol(math3, main, rel, "\u21A9", "\\hookleftarrow", true);
+  defineSymbol(math3, main, rel, "\u21AA", "\\hookrightarrow", true);
+  defineSymbol(math3, main, rel, "\u2198", "\\searrow", true);
+  defineSymbol(math3, main, rel, "\u21BC", "\\leftharpoonup", true);
+  defineSymbol(math3, main, rel, "\u21C0", "\\rightharpoonup", true);
+  defineSymbol(math3, main, rel, "\u2199", "\\swarrow", true);
+  defineSymbol(math3, main, rel, "\u21BD", "\\leftharpoondown", true);
+  defineSymbol(math3, main, rel, "\u21C1", "\\rightharpoondown", true);
+  defineSymbol(math3, main, rel, "\u2196", "\\nwarrow", true);
+  defineSymbol(math3, main, rel, "\u21CC", "\\rightleftharpoons", true);
+  defineSymbol(math3, ams, rel, "\u226E", "\\nless", true);
+  defineSymbol(math3, ams, rel, "\uE010", "\\@nleqslant");
+  defineSymbol(math3, ams, rel, "\uE011", "\\@nleqq");
+  defineSymbol(math3, ams, rel, "\u2A87", "\\lneq", true);
+  defineSymbol(math3, ams, rel, "\u2268", "\\lneqq", true);
+  defineSymbol(math3, ams, rel, "\uE00C", "\\@lvertneqq");
+  defineSymbol(math3, ams, rel, "\u22E6", "\\lnsim", true);
+  defineSymbol(math3, ams, rel, "\u2A89", "\\lnapprox", true);
+  defineSymbol(math3, ams, rel, "\u2280", "\\nprec", true);
+  defineSymbol(math3, ams, rel, "\u22E0", "\\npreceq", true);
+  defineSymbol(math3, ams, rel, "\u22E8", "\\precnsim", true);
+  defineSymbol(math3, ams, rel, "\u2AB9", "\\precnapprox", true);
+  defineSymbol(math3, ams, rel, "\u2241", "\\nsim", true);
+  defineSymbol(math3, ams, rel, "\uE006", "\\@nshortmid");
+  defineSymbol(math3, ams, rel, "\u2224", "\\nmid", true);
+  defineSymbol(math3, ams, rel, "\u22AC", "\\nvdash", true);
+  defineSymbol(math3, ams, rel, "\u22AD", "\\nvDash", true);
+  defineSymbol(math3, ams, rel, "\u22EA", "\\ntriangleleft");
+  defineSymbol(math3, ams, rel, "\u22EC", "\\ntrianglelefteq", true);
+  defineSymbol(math3, ams, rel, "\u228A", "\\subsetneq", true);
+  defineSymbol(math3, ams, rel, "\uE01A", "\\@varsubsetneq");
+  defineSymbol(math3, ams, rel, "\u2ACB", "\\subsetneqq", true);
+  defineSymbol(math3, ams, rel, "\uE017", "\\@varsubsetneqq");
+  defineSymbol(math3, ams, rel, "\u226F", "\\ngtr", true);
+  defineSymbol(math3, ams, rel, "\uE00F", "\\@ngeqslant");
+  defineSymbol(math3, ams, rel, "\uE00E", "\\@ngeqq");
+  defineSymbol(math3, ams, rel, "\u2A88", "\\gneq", true);
+  defineSymbol(math3, ams, rel, "\u2269", "\\gneqq", true);
+  defineSymbol(math3, ams, rel, "\uE00D", "\\@gvertneqq");
+  defineSymbol(math3, ams, rel, "\u22E7", "\\gnsim", true);
+  defineSymbol(math3, ams, rel, "\u2A8A", "\\gnapprox", true);
+  defineSymbol(math3, ams, rel, "\u2281", "\\nsucc", true);
+  defineSymbol(math3, ams, rel, "\u22E1", "\\nsucceq", true);
+  defineSymbol(math3, ams, rel, "\u22E9", "\\succnsim", true);
+  defineSymbol(math3, ams, rel, "\u2ABA", "\\succnapprox", true);
+  defineSymbol(math3, ams, rel, "\u2246", "\\ncong", true);
+  defineSymbol(math3, ams, rel, "\uE007", "\\@nshortparallel");
+  defineSymbol(math3, ams, rel, "\u2226", "\\nparallel", true);
+  defineSymbol(math3, ams, rel, "\u22AF", "\\nVDash", true);
+  defineSymbol(math3, ams, rel, "\u22EB", "\\ntriangleright");
+  defineSymbol(math3, ams, rel, "\u22ED", "\\ntrianglerighteq", true);
+  defineSymbol(math3, ams, rel, "\uE018", "\\@nsupseteqq");
+  defineSymbol(math3, ams, rel, "\u228B", "\\supsetneq", true);
+  defineSymbol(math3, ams, rel, "\uE01B", "\\@varsupsetneq");
+  defineSymbol(math3, ams, rel, "\u2ACC", "\\supsetneqq", true);
+  defineSymbol(math3, ams, rel, "\uE019", "\\@varsupsetneqq");
+  defineSymbol(math3, ams, rel, "\u22AE", "\\nVdash", true);
+  defineSymbol(math3, ams, rel, "\u2AB5", "\\precneqq", true);
+  defineSymbol(math3, ams, rel, "\u2AB6", "\\succneqq", true);
+  defineSymbol(math3, ams, rel, "\uE016", "\\@nsubseteqq");
+  defineSymbol(math3, ams, bin2, "\u22B4", "\\unlhd");
+  defineSymbol(math3, ams, bin2, "\u22B5", "\\unrhd");
+  defineSymbol(math3, ams, rel, "\u219A", "\\nleftarrow", true);
+  defineSymbol(math3, ams, rel, "\u219B", "\\nrightarrow", true);
+  defineSymbol(math3, ams, rel, "\u21CD", "\\nLeftarrow", true);
+  defineSymbol(math3, ams, rel, "\u21CF", "\\nRightarrow", true);
+  defineSymbol(math3, ams, rel, "\u21AE", "\\nleftrightarrow", true);
+  defineSymbol(math3, ams, rel, "\u21CE", "\\nLeftrightarrow", true);
+  defineSymbol(math3, ams, rel, "\u25B3", "\\vartriangle");
+  defineSymbol(math3, ams, textord, "\u210F", "\\hslash");
+  defineSymbol(math3, ams, textord, "\u25BD", "\\triangledown");
+  defineSymbol(math3, ams, textord, "\u25CA", "\\lozenge");
+  defineSymbol(math3, ams, textord, "\u24C8", "\\circledS");
+  defineSymbol(math3, ams, textord, "\xAE", "\\circledR");
   defineSymbol(text, ams, textord, "\xAE", "\\circledR");
-  defineSymbol(math4, ams, textord, "\u2221", "\\measuredangle", true);
-  defineSymbol(math4, ams, textord, "\u2204", "\\nexists");
-  defineSymbol(math4, ams, textord, "\u2127", "\\mho");
-  defineSymbol(math4, ams, textord, "\u2132", "\\Finv", true);
-  defineSymbol(math4, ams, textord, "\u2141", "\\Game", true);
-  defineSymbol(math4, ams, textord, "\u2035", "\\backprime");
-  defineSymbol(math4, ams, textord, "\u25B2", "\\blacktriangle");
-  defineSymbol(math4, ams, textord, "\u25BC", "\\blacktriangledown");
-  defineSymbol(math4, ams, textord, "\u25A0", "\\blacksquare");
-  defineSymbol(math4, ams, textord, "\u29EB", "\\blacklozenge");
-  defineSymbol(math4, ams, textord, "\u2605", "\\bigstar");
-  defineSymbol(math4, ams, textord, "\u2222", "\\sphericalangle", true);
-  defineSymbol(math4, ams, textord, "\u2201", "\\complement", true);
-  defineSymbol(math4, ams, textord, "\xF0", "\\eth", true);
+  defineSymbol(math3, ams, textord, "\u2221", "\\measuredangle", true);
+  defineSymbol(math3, ams, textord, "\u2204", "\\nexists");
+  defineSymbol(math3, ams, textord, "\u2127", "\\mho");
+  defineSymbol(math3, ams, textord, "\u2132", "\\Finv", true);
+  defineSymbol(math3, ams, textord, "\u2141", "\\Game", true);
+  defineSymbol(math3, ams, textord, "\u2035", "\\backprime");
+  defineSymbol(math3, ams, textord, "\u25B2", "\\blacktriangle");
+  defineSymbol(math3, ams, textord, "\u25BC", "\\blacktriangledown");
+  defineSymbol(math3, ams, textord, "\u25A0", "\\blacksquare");
+  defineSymbol(math3, ams, textord, "\u29EB", "\\blacklozenge");
+  defineSymbol(math3, ams, textord, "\u2605", "\\bigstar");
+  defineSymbol(math3, ams, textord, "\u2222", "\\sphericalangle", true);
+  defineSymbol(math3, ams, textord, "\u2201", "\\complement", true);
+  defineSymbol(math3, ams, textord, "\xF0", "\\eth", true);
   defineSymbol(text, main, textord, "\xF0", "\xF0");
-  defineSymbol(math4, ams, textord, "\u2571", "\\diagup");
-  defineSymbol(math4, ams, textord, "\u2572", "\\diagdown");
-  defineSymbol(math4, ams, textord, "\u25A1", "\\square");
-  defineSymbol(math4, ams, textord, "\u25A1", "\\Box");
-  defineSymbol(math4, ams, textord, "\u25CA", "\\Diamond");
-  defineSymbol(math4, ams, textord, "\xA5", "\\yen", true);
+  defineSymbol(math3, ams, textord, "\u2571", "\\diagup");
+  defineSymbol(math3, ams, textord, "\u2572", "\\diagdown");
+  defineSymbol(math3, ams, textord, "\u25A1", "\\square");
+  defineSymbol(math3, ams, textord, "\u25A1", "\\Box");
+  defineSymbol(math3, ams, textord, "\u25CA", "\\Diamond");
+  defineSymbol(math3, ams, textord, "\xA5", "\\yen", true);
   defineSymbol(text, ams, textord, "\xA5", "\\yen", true);
-  defineSymbol(math4, ams, textord, "\u2713", "\\checkmark", true);
+  defineSymbol(math3, ams, textord, "\u2713", "\\checkmark", true);
   defineSymbol(text, ams, textord, "\u2713", "\\checkmark");
-  defineSymbol(math4, ams, textord, "\u2136", "\\beth", true);
-  defineSymbol(math4, ams, textord, "\u2138", "\\daleth", true);
-  defineSymbol(math4, ams, textord, "\u2137", "\\gimel", true);
-  defineSymbol(math4, ams, textord, "\u03DD", "\\digamma", true);
-  defineSymbol(math4, ams, textord, "\u03F0", "\\varkappa");
-  defineSymbol(math4, ams, open, "\u250C", "\\@ulcorner", true);
-  defineSymbol(math4, ams, close, "\u2510", "\\@urcorner", true);
-  defineSymbol(math4, ams, open, "\u2514", "\\@llcorner", true);
-  defineSymbol(math4, ams, close, "\u2518", "\\@lrcorner", true);
-  defineSymbol(math4, ams, rel, "\u2266", "\\leqq", true);
-  defineSymbol(math4, ams, rel, "\u2A7D", "\\leqslant", true);
-  defineSymbol(math4, ams, rel, "\u2A95", "\\eqslantless", true);
-  defineSymbol(math4, ams, rel, "\u2272", "\\lesssim", true);
-  defineSymbol(math4, ams, rel, "\u2A85", "\\lessapprox", true);
-  defineSymbol(math4, ams, rel, "\u224A", "\\approxeq", true);
-  defineSymbol(math4, ams, bin2, "\u22D6", "\\lessdot");
-  defineSymbol(math4, ams, rel, "\u22D8", "\\lll", true);
-  defineSymbol(math4, ams, rel, "\u2276", "\\lessgtr", true);
-  defineSymbol(math4, ams, rel, "\u22DA", "\\lesseqgtr", true);
-  defineSymbol(math4, ams, rel, "\u2A8B", "\\lesseqqgtr", true);
-  defineSymbol(math4, ams, rel, "\u2251", "\\doteqdot");
-  defineSymbol(math4, ams, rel, "\u2253", "\\risingdotseq", true);
-  defineSymbol(math4, ams, rel, "\u2252", "\\fallingdotseq", true);
-  defineSymbol(math4, ams, rel, "\u223D", "\\backsim", true);
-  defineSymbol(math4, ams, rel, "\u22CD", "\\backsimeq", true);
-  defineSymbol(math4, ams, rel, "\u2AC5", "\\subseteqq", true);
-  defineSymbol(math4, ams, rel, "\u22D0", "\\Subset", true);
-  defineSymbol(math4, ams, rel, "\u228F", "\\sqsubset", true);
-  defineSymbol(math4, ams, rel, "\u227C", "\\preccurlyeq", true);
-  defineSymbol(math4, ams, rel, "\u22DE", "\\curlyeqprec", true);
-  defineSymbol(math4, ams, rel, "\u227E", "\\precsim", true);
-  defineSymbol(math4, ams, rel, "\u2AB7", "\\precapprox", true);
-  defineSymbol(math4, ams, rel, "\u22B2", "\\vartriangleleft");
-  defineSymbol(math4, ams, rel, "\u22B4", "\\trianglelefteq");
-  defineSymbol(math4, ams, rel, "\u22A8", "\\vDash", true);
-  defineSymbol(math4, ams, rel, "\u22AA", "\\Vvdash", true);
-  defineSymbol(math4, ams, rel, "\u2323", "\\smallsmile");
-  defineSymbol(math4, ams, rel, "\u2322", "\\smallfrown");
-  defineSymbol(math4, ams, rel, "\u224F", "\\bumpeq", true);
-  defineSymbol(math4, ams, rel, "\u224E", "\\Bumpeq", true);
-  defineSymbol(math4, ams, rel, "\u2267", "\\geqq", true);
-  defineSymbol(math4, ams, rel, "\u2A7E", "\\geqslant", true);
-  defineSymbol(math4, ams, rel, "\u2A96", "\\eqslantgtr", true);
-  defineSymbol(math4, ams, rel, "\u2273", "\\gtrsim", true);
-  defineSymbol(math4, ams, rel, "\u2A86", "\\gtrapprox", true);
-  defineSymbol(math4, ams, bin2, "\u22D7", "\\gtrdot");
-  defineSymbol(math4, ams, rel, "\u22D9", "\\ggg", true);
-  defineSymbol(math4, ams, rel, "\u2277", "\\gtrless", true);
-  defineSymbol(math4, ams, rel, "\u22DB", "\\gtreqless", true);
-  defineSymbol(math4, ams, rel, "\u2A8C", "\\gtreqqless", true);
-  defineSymbol(math4, ams, rel, "\u2256", "\\eqcirc", true);
-  defineSymbol(math4, ams, rel, "\u2257", "\\circeq", true);
-  defineSymbol(math4, ams, rel, "\u225C", "\\triangleq", true);
-  defineSymbol(math4, ams, rel, "\u223C", "\\thicksim");
-  defineSymbol(math4, ams, rel, "\u2248", "\\thickapprox");
-  defineSymbol(math4, ams, rel, "\u2AC6", "\\supseteqq", true);
-  defineSymbol(math4, ams, rel, "\u22D1", "\\Supset", true);
-  defineSymbol(math4, ams, rel, "\u2290", "\\sqsupset", true);
-  defineSymbol(math4, ams, rel, "\u227D", "\\succcurlyeq", true);
-  defineSymbol(math4, ams, rel, "\u22DF", "\\curlyeqsucc", true);
-  defineSymbol(math4, ams, rel, "\u227F", "\\succsim", true);
-  defineSymbol(math4, ams, rel, "\u2AB8", "\\succapprox", true);
-  defineSymbol(math4, ams, rel, "\u22B3", "\\vartriangleright");
-  defineSymbol(math4, ams, rel, "\u22B5", "\\trianglerighteq");
-  defineSymbol(math4, ams, rel, "\u22A9", "\\Vdash", true);
-  defineSymbol(math4, ams, rel, "\u2223", "\\shortmid");
-  defineSymbol(math4, ams, rel, "\u2225", "\\shortparallel");
-  defineSymbol(math4, ams, rel, "\u226C", "\\between", true);
-  defineSymbol(math4, ams, rel, "\u22D4", "\\pitchfork", true);
-  defineSymbol(math4, ams, rel, "\u221D", "\\varpropto");
-  defineSymbol(math4, ams, rel, "\u25C0", "\\blacktriangleleft");
-  defineSymbol(math4, ams, rel, "\u2234", "\\therefore", true);
-  defineSymbol(math4, ams, rel, "\u220D", "\\backepsilon");
-  defineSymbol(math4, ams, rel, "\u25B6", "\\blacktriangleright");
-  defineSymbol(math4, ams, rel, "\u2235", "\\because", true);
-  defineSymbol(math4, ams, rel, "\u22D8", "\\llless");
-  defineSymbol(math4, ams, rel, "\u22D9", "\\gggtr");
-  defineSymbol(math4, ams, bin2, "\u22B2", "\\lhd");
-  defineSymbol(math4, ams, bin2, "\u22B3", "\\rhd");
-  defineSymbol(math4, ams, rel, "\u2242", "\\eqsim", true);
-  defineSymbol(math4, main, rel, "\u22C8", "\\Join");
-  defineSymbol(math4, ams, rel, "\u2251", "\\Doteq", true);
-  defineSymbol(math4, ams, bin2, "\u2214", "\\dotplus", true);
-  defineSymbol(math4, ams, bin2, "\u2216", "\\smallsetminus");
-  defineSymbol(math4, ams, bin2, "\u22D2", "\\Cap", true);
-  defineSymbol(math4, ams, bin2, "\u22D3", "\\Cup", true);
-  defineSymbol(math4, ams, bin2, "\u2A5E", "\\doublebarwedge", true);
-  defineSymbol(math4, ams, bin2, "\u229F", "\\boxminus", true);
-  defineSymbol(math4, ams, bin2, "\u229E", "\\boxplus", true);
-  defineSymbol(math4, ams, bin2, "\u22C7", "\\divideontimes", true);
-  defineSymbol(math4, ams, bin2, "\u22C9", "\\ltimes", true);
-  defineSymbol(math4, ams, bin2, "\u22CA", "\\rtimes", true);
-  defineSymbol(math4, ams, bin2, "\u22CB", "\\leftthreetimes", true);
-  defineSymbol(math4, ams, bin2, "\u22CC", "\\rightthreetimes", true);
-  defineSymbol(math4, ams, bin2, "\u22CF", "\\curlywedge", true);
-  defineSymbol(math4, ams, bin2, "\u22CE", "\\curlyvee", true);
-  defineSymbol(math4, ams, bin2, "\u229D", "\\circleddash", true);
-  defineSymbol(math4, ams, bin2, "\u229B", "\\circledast", true);
-  defineSymbol(math4, ams, bin2, "\u22C5", "\\centerdot");
-  defineSymbol(math4, ams, bin2, "\u22BA", "\\intercal", true);
-  defineSymbol(math4, ams, bin2, "\u22D2", "\\doublecap");
-  defineSymbol(math4, ams, bin2, "\u22D3", "\\doublecup");
-  defineSymbol(math4, ams, bin2, "\u22A0", "\\boxtimes", true);
-  defineSymbol(math4, ams, rel, "\u21E2", "\\dashrightarrow", true);
-  defineSymbol(math4, ams, rel, "\u21E0", "\\dashleftarrow", true);
-  defineSymbol(math4, ams, rel, "\u21C7", "\\leftleftarrows", true);
-  defineSymbol(math4, ams, rel, "\u21C6", "\\leftrightarrows", true);
-  defineSymbol(math4, ams, rel, "\u21DA", "\\Lleftarrow", true);
-  defineSymbol(math4, ams, rel, "\u219E", "\\twoheadleftarrow", true);
-  defineSymbol(math4, ams, rel, "\u21A2", "\\leftarrowtail", true);
-  defineSymbol(math4, ams, rel, "\u21AB", "\\looparrowleft", true);
-  defineSymbol(math4, ams, rel, "\u21CB", "\\leftrightharpoons", true);
-  defineSymbol(math4, ams, rel, "\u21B6", "\\curvearrowleft", true);
-  defineSymbol(math4, ams, rel, "\u21BA", "\\circlearrowleft", true);
-  defineSymbol(math4, ams, rel, "\u21B0", "\\Lsh", true);
-  defineSymbol(math4, ams, rel, "\u21C8", "\\upuparrows", true);
-  defineSymbol(math4, ams, rel, "\u21BF", "\\upharpoonleft", true);
-  defineSymbol(math4, ams, rel, "\u21C3", "\\downharpoonleft", true);
-  defineSymbol(math4, main, rel, "\u22B6", "\\origof", true);
-  defineSymbol(math4, main, rel, "\u22B7", "\\imageof", true);
-  defineSymbol(math4, ams, rel, "\u22B8", "\\multimap", true);
-  defineSymbol(math4, ams, rel, "\u21AD", "\\leftrightsquigarrow", true);
-  defineSymbol(math4, ams, rel, "\u21C9", "\\rightrightarrows", true);
-  defineSymbol(math4, ams, rel, "\u21C4", "\\rightleftarrows", true);
-  defineSymbol(math4, ams, rel, "\u21A0", "\\twoheadrightarrow", true);
-  defineSymbol(math4, ams, rel, "\u21A3", "\\rightarrowtail", true);
-  defineSymbol(math4, ams, rel, "\u21AC", "\\looparrowright", true);
-  defineSymbol(math4, ams, rel, "\u21B7", "\\curvearrowright", true);
-  defineSymbol(math4, ams, rel, "\u21BB", "\\circlearrowright", true);
-  defineSymbol(math4, ams, rel, "\u21B1", "\\Rsh", true);
-  defineSymbol(math4, ams, rel, "\u21CA", "\\downdownarrows", true);
-  defineSymbol(math4, ams, rel, "\u21BE", "\\upharpoonright", true);
-  defineSymbol(math4, ams, rel, "\u21C2", "\\downharpoonright", true);
-  defineSymbol(math4, ams, rel, "\u21DD", "\\rightsquigarrow", true);
-  defineSymbol(math4, ams, rel, "\u21DD", "\\leadsto");
-  defineSymbol(math4, ams, rel, "\u21DB", "\\Rrightarrow", true);
-  defineSymbol(math4, ams, rel, "\u21BE", "\\restriction");
-  defineSymbol(math4, main, textord, "\u2018", "`");
-  defineSymbol(math4, main, textord, "$", "\\$");
+  defineSymbol(math3, ams, textord, "\u2136", "\\beth", true);
+  defineSymbol(math3, ams, textord, "\u2138", "\\daleth", true);
+  defineSymbol(math3, ams, textord, "\u2137", "\\gimel", true);
+  defineSymbol(math3, ams, textord, "\u03DD", "\\digamma", true);
+  defineSymbol(math3, ams, textord, "\u03F0", "\\varkappa");
+  defineSymbol(math3, ams, open, "\u250C", "\\@ulcorner", true);
+  defineSymbol(math3, ams, close, "\u2510", "\\@urcorner", true);
+  defineSymbol(math3, ams, open, "\u2514", "\\@llcorner", true);
+  defineSymbol(math3, ams, close, "\u2518", "\\@lrcorner", true);
+  defineSymbol(math3, ams, rel, "\u2266", "\\leqq", true);
+  defineSymbol(math3, ams, rel, "\u2A7D", "\\leqslant", true);
+  defineSymbol(math3, ams, rel, "\u2A95", "\\eqslantless", true);
+  defineSymbol(math3, ams, rel, "\u2272", "\\lesssim", true);
+  defineSymbol(math3, ams, rel, "\u2A85", "\\lessapprox", true);
+  defineSymbol(math3, ams, rel, "\u224A", "\\approxeq", true);
+  defineSymbol(math3, ams, bin2, "\u22D6", "\\lessdot");
+  defineSymbol(math3, ams, rel, "\u22D8", "\\lll", true);
+  defineSymbol(math3, ams, rel, "\u2276", "\\lessgtr", true);
+  defineSymbol(math3, ams, rel, "\u22DA", "\\lesseqgtr", true);
+  defineSymbol(math3, ams, rel, "\u2A8B", "\\lesseqqgtr", true);
+  defineSymbol(math3, ams, rel, "\u2251", "\\doteqdot");
+  defineSymbol(math3, ams, rel, "\u2253", "\\risingdotseq", true);
+  defineSymbol(math3, ams, rel, "\u2252", "\\fallingdotseq", true);
+  defineSymbol(math3, ams, rel, "\u223D", "\\backsim", true);
+  defineSymbol(math3, ams, rel, "\u22CD", "\\backsimeq", true);
+  defineSymbol(math3, ams, rel, "\u2AC5", "\\subseteqq", true);
+  defineSymbol(math3, ams, rel, "\u22D0", "\\Subset", true);
+  defineSymbol(math3, ams, rel, "\u228F", "\\sqsubset", true);
+  defineSymbol(math3, ams, rel, "\u227C", "\\preccurlyeq", true);
+  defineSymbol(math3, ams, rel, "\u22DE", "\\curlyeqprec", true);
+  defineSymbol(math3, ams, rel, "\u227E", "\\precsim", true);
+  defineSymbol(math3, ams, rel, "\u2AB7", "\\precapprox", true);
+  defineSymbol(math3, ams, rel, "\u22B2", "\\vartriangleleft");
+  defineSymbol(math3, ams, rel, "\u22B4", "\\trianglelefteq");
+  defineSymbol(math3, ams, rel, "\u22A8", "\\vDash", true);
+  defineSymbol(math3, ams, rel, "\u22AA", "\\Vvdash", true);
+  defineSymbol(math3, ams, rel, "\u2323", "\\smallsmile");
+  defineSymbol(math3, ams, rel, "\u2322", "\\smallfrown");
+  defineSymbol(math3, ams, rel, "\u224F", "\\bumpeq", true);
+  defineSymbol(math3, ams, rel, "\u224E", "\\Bumpeq", true);
+  defineSymbol(math3, ams, rel, "\u2267", "\\geqq", true);
+  defineSymbol(math3, ams, rel, "\u2A7E", "\\geqslant", true);
+  defineSymbol(math3, ams, rel, "\u2A96", "\\eqslantgtr", true);
+  defineSymbol(math3, ams, rel, "\u2273", "\\gtrsim", true);
+  defineSymbol(math3, ams, rel, "\u2A86", "\\gtrapprox", true);
+  defineSymbol(math3, ams, bin2, "\u22D7", "\\gtrdot");
+  defineSymbol(math3, ams, rel, "\u22D9", "\\ggg", true);
+  defineSymbol(math3, ams, rel, "\u2277", "\\gtrless", true);
+  defineSymbol(math3, ams, rel, "\u22DB", "\\gtreqless", true);
+  defineSymbol(math3, ams, rel, "\u2A8C", "\\gtreqqless", true);
+  defineSymbol(math3, ams, rel, "\u2256", "\\eqcirc", true);
+  defineSymbol(math3, ams, rel, "\u2257", "\\circeq", true);
+  defineSymbol(math3, ams, rel, "\u225C", "\\triangleq", true);
+  defineSymbol(math3, ams, rel, "\u223C", "\\thicksim");
+  defineSymbol(math3, ams, rel, "\u2248", "\\thickapprox");
+  defineSymbol(math3, ams, rel, "\u2AC6", "\\supseteqq", true);
+  defineSymbol(math3, ams, rel, "\u22D1", "\\Supset", true);
+  defineSymbol(math3, ams, rel, "\u2290", "\\sqsupset", true);
+  defineSymbol(math3, ams, rel, "\u227D", "\\succcurlyeq", true);
+  defineSymbol(math3, ams, rel, "\u22DF", "\\curlyeqsucc", true);
+  defineSymbol(math3, ams, rel, "\u227F", "\\succsim", true);
+  defineSymbol(math3, ams, rel, "\u2AB8", "\\succapprox", true);
+  defineSymbol(math3, ams, rel, "\u22B3", "\\vartriangleright");
+  defineSymbol(math3, ams, rel, "\u22B5", "\\trianglerighteq");
+  defineSymbol(math3, ams, rel, "\u22A9", "\\Vdash", true);
+  defineSymbol(math3, ams, rel, "\u2223", "\\shortmid");
+  defineSymbol(math3, ams, rel, "\u2225", "\\shortparallel");
+  defineSymbol(math3, ams, rel, "\u226C", "\\between", true);
+  defineSymbol(math3, ams, rel, "\u22D4", "\\pitchfork", true);
+  defineSymbol(math3, ams, rel, "\u221D", "\\varpropto");
+  defineSymbol(math3, ams, rel, "\u25C0", "\\blacktriangleleft");
+  defineSymbol(math3, ams, rel, "\u2234", "\\therefore", true);
+  defineSymbol(math3, ams, rel, "\u220D", "\\backepsilon");
+  defineSymbol(math3, ams, rel, "\u25B6", "\\blacktriangleright");
+  defineSymbol(math3, ams, rel, "\u2235", "\\because", true);
+  defineSymbol(math3, ams, rel, "\u22D8", "\\llless");
+  defineSymbol(math3, ams, rel, "\u22D9", "\\gggtr");
+  defineSymbol(math3, ams, bin2, "\u22B2", "\\lhd");
+  defineSymbol(math3, ams, bin2, "\u22B3", "\\rhd");
+  defineSymbol(math3, ams, rel, "\u2242", "\\eqsim", true);
+  defineSymbol(math3, main, rel, "\u22C8", "\\Join");
+  defineSymbol(math3, ams, rel, "\u2251", "\\Doteq", true);
+  defineSymbol(math3, ams, bin2, "\u2214", "\\dotplus", true);
+  defineSymbol(math3, ams, bin2, "\u2216", "\\smallsetminus");
+  defineSymbol(math3, ams, bin2, "\u22D2", "\\Cap", true);
+  defineSymbol(math3, ams, bin2, "\u22D3", "\\Cup", true);
+  defineSymbol(math3, ams, bin2, "\u2A5E", "\\doublebarwedge", true);
+  defineSymbol(math3, ams, bin2, "\u229F", "\\boxminus", true);
+  defineSymbol(math3, ams, bin2, "\u229E", "\\boxplus", true);
+  defineSymbol(math3, ams, bin2, "\u22C7", "\\divideontimes", true);
+  defineSymbol(math3, ams, bin2, "\u22C9", "\\ltimes", true);
+  defineSymbol(math3, ams, bin2, "\u22CA", "\\rtimes", true);
+  defineSymbol(math3, ams, bin2, "\u22CB", "\\leftthreetimes", true);
+  defineSymbol(math3, ams, bin2, "\u22CC", "\\rightthreetimes", true);
+  defineSymbol(math3, ams, bin2, "\u22CF", "\\curlywedge", true);
+  defineSymbol(math3, ams, bin2, "\u22CE", "\\curlyvee", true);
+  defineSymbol(math3, ams, bin2, "\u229D", "\\circleddash", true);
+  defineSymbol(math3, ams, bin2, "\u229B", "\\circledast", true);
+  defineSymbol(math3, ams, bin2, "\u22C5", "\\centerdot");
+  defineSymbol(math3, ams, bin2, "\u22BA", "\\intercal", true);
+  defineSymbol(math3, ams, bin2, "\u22D2", "\\doublecap");
+  defineSymbol(math3, ams, bin2, "\u22D3", "\\doublecup");
+  defineSymbol(math3, ams, bin2, "\u22A0", "\\boxtimes", true);
+  defineSymbol(math3, ams, rel, "\u21E2", "\\dashrightarrow", true);
+  defineSymbol(math3, ams, rel, "\u21E0", "\\dashleftarrow", true);
+  defineSymbol(math3, ams, rel, "\u21C7", "\\leftleftarrows", true);
+  defineSymbol(math3, ams, rel, "\u21C6", "\\leftrightarrows", true);
+  defineSymbol(math3, ams, rel, "\u21DA", "\\Lleftarrow", true);
+  defineSymbol(math3, ams, rel, "\u219E", "\\twoheadleftarrow", true);
+  defineSymbol(math3, ams, rel, "\u21A2", "\\leftarrowtail", true);
+  defineSymbol(math3, ams, rel, "\u21AB", "\\looparrowleft", true);
+  defineSymbol(math3, ams, rel, "\u21CB", "\\leftrightharpoons", true);
+  defineSymbol(math3, ams, rel, "\u21B6", "\\curvearrowleft", true);
+  defineSymbol(math3, ams, rel, "\u21BA", "\\circlearrowleft", true);
+  defineSymbol(math3, ams, rel, "\u21B0", "\\Lsh", true);
+  defineSymbol(math3, ams, rel, "\u21C8", "\\upuparrows", true);
+  defineSymbol(math3, ams, rel, "\u21BF", "\\upharpoonleft", true);
+  defineSymbol(math3, ams, rel, "\u21C3", "\\downharpoonleft", true);
+  defineSymbol(math3, main, rel, "\u22B6", "\\origof", true);
+  defineSymbol(math3, main, rel, "\u22B7", "\\imageof", true);
+  defineSymbol(math3, ams, rel, "\u22B8", "\\multimap", true);
+  defineSymbol(math3, ams, rel, "\u21AD", "\\leftrightsquigarrow", true);
+  defineSymbol(math3, ams, rel, "\u21C9", "\\rightrightarrows", true);
+  defineSymbol(math3, ams, rel, "\u21C4", "\\rightleftarrows", true);
+  defineSymbol(math3, ams, rel, "\u21A0", "\\twoheadrightarrow", true);
+  defineSymbol(math3, ams, rel, "\u21A3", "\\rightarrowtail", true);
+  defineSymbol(math3, ams, rel, "\u21AC", "\\looparrowright", true);
+  defineSymbol(math3, ams, rel, "\u21B7", "\\curvearrowright", true);
+  defineSymbol(math3, ams, rel, "\u21BB", "\\circlearrowright", true);
+  defineSymbol(math3, ams, rel, "\u21B1", "\\Rsh", true);
+  defineSymbol(math3, ams, rel, "\u21CA", "\\downdownarrows", true);
+  defineSymbol(math3, ams, rel, "\u21BE", "\\upharpoonright", true);
+  defineSymbol(math3, ams, rel, "\u21C2", "\\downharpoonright", true);
+  defineSymbol(math3, ams, rel, "\u21DD", "\\rightsquigarrow", true);
+  defineSymbol(math3, ams, rel, "\u21DD", "\\leadsto");
+  defineSymbol(math3, ams, rel, "\u21DB", "\\Rrightarrow", true);
+  defineSymbol(math3, ams, rel, "\u21BE", "\\restriction");
+  defineSymbol(math3, main, textord, "\u2018", "`");
+  defineSymbol(math3, main, textord, "$", "\\$");
   defineSymbol(text, main, textord, "$", "\\$");
   defineSymbol(text, main, textord, "$", "\\textdollar");
-  defineSymbol(math4, main, textord, "%", "\\%");
+  defineSymbol(math3, main, textord, "%", "\\%");
   defineSymbol(text, main, textord, "%", "\\%");
-  defineSymbol(math4, main, textord, "_", "\\_");
+  defineSymbol(math3, main, textord, "_", "\\_");
   defineSymbol(text, main, textord, "_", "\\_");
   defineSymbol(text, main, textord, "_", "\\textunderscore");
-  defineSymbol(math4, main, textord, "\u2220", "\\angle", true);
-  defineSymbol(math4, main, textord, "\u221E", "\\infty", true);
-  defineSymbol(math4, main, textord, "\u2032", "\\prime");
-  defineSymbol(math4, main, textord, "\u25B3", "\\triangle");
-  defineSymbol(math4, main, textord, "\u0393", "\\Gamma", true);
-  defineSymbol(math4, main, textord, "\u0394", "\\Delta", true);
-  defineSymbol(math4, main, textord, "\u0398", "\\Theta", true);
-  defineSymbol(math4, main, textord, "\u039B", "\\Lambda", true);
-  defineSymbol(math4, main, textord, "\u039E", "\\Xi", true);
-  defineSymbol(math4, main, textord, "\u03A0", "\\Pi", true);
-  defineSymbol(math4, main, textord, "\u03A3", "\\Sigma", true);
-  defineSymbol(math4, main, textord, "\u03A5", "\\Upsilon", true);
-  defineSymbol(math4, main, textord, "\u03A6", "\\Phi", true);
-  defineSymbol(math4, main, textord, "\u03A8", "\\Psi", true);
-  defineSymbol(math4, main, textord, "\u03A9", "\\Omega", true);
-  defineSymbol(math4, main, textord, "A", "\u0391");
-  defineSymbol(math4, main, textord, "B", "\u0392");
-  defineSymbol(math4, main, textord, "E", "\u0395");
-  defineSymbol(math4, main, textord, "Z", "\u0396");
-  defineSymbol(math4, main, textord, "H", "\u0397");
-  defineSymbol(math4, main, textord, "I", "\u0399");
-  defineSymbol(math4, main, textord, "K", "\u039A");
-  defineSymbol(math4, main, textord, "M", "\u039C");
-  defineSymbol(math4, main, textord, "N", "\u039D");
-  defineSymbol(math4, main, textord, "O", "\u039F");
-  defineSymbol(math4, main, textord, "P", "\u03A1");
-  defineSymbol(math4, main, textord, "T", "\u03A4");
-  defineSymbol(math4, main, textord, "X", "\u03A7");
-  defineSymbol(math4, main, textord, "\xAC", "\\neg", true);
-  defineSymbol(math4, main, textord, "\xAC", "\\lnot");
-  defineSymbol(math4, main, textord, "\u22A4", "\\top");
-  defineSymbol(math4, main, textord, "\u22A5", "\\bot");
-  defineSymbol(math4, main, textord, "\u2205", "\\emptyset");
-  defineSymbol(math4, ams, textord, "\u2205", "\\varnothing");
-  defineSymbol(math4, main, mathord, "\u03B1", "\\alpha", true);
-  defineSymbol(math4, main, mathord, "\u03B2", "\\beta", true);
-  defineSymbol(math4, main, mathord, "\u03B3", "\\gamma", true);
-  defineSymbol(math4, main, mathord, "\u03B4", "\\delta", true);
-  defineSymbol(math4, main, mathord, "\u03F5", "\\epsilon", true);
-  defineSymbol(math4, main, mathord, "\u03B6", "\\zeta", true);
-  defineSymbol(math4, main, mathord, "\u03B7", "\\eta", true);
-  defineSymbol(math4, main, mathord, "\u03B8", "\\theta", true);
-  defineSymbol(math4, main, mathord, "\u03B9", "\\iota", true);
-  defineSymbol(math4, main, mathord, "\u03BA", "\\kappa", true);
-  defineSymbol(math4, main, mathord, "\u03BB", "\\lambda", true);
-  defineSymbol(math4, main, mathord, "\u03BC", "\\mu", true);
-  defineSymbol(math4, main, mathord, "\u03BD", "\\nu", true);
-  defineSymbol(math4, main, mathord, "\u03BE", "\\xi", true);
-  defineSymbol(math4, main, mathord, "\u03BF", "\\omicron", true);
-  defineSymbol(math4, main, mathord, "\u03C0", "\\pi", true);
-  defineSymbol(math4, main, mathord, "\u03C1", "\\rho", true);
-  defineSymbol(math4, main, mathord, "\u03C3", "\\sigma", true);
-  defineSymbol(math4, main, mathord, "\u03C4", "\\tau", true);
-  defineSymbol(math4, main, mathord, "\u03C5", "\\upsilon", true);
-  defineSymbol(math4, main, mathord, "\u03D5", "\\phi", true);
-  defineSymbol(math4, main, mathord, "\u03C7", "\\chi", true);
-  defineSymbol(math4, main, mathord, "\u03C8", "\\psi", true);
-  defineSymbol(math4, main, mathord, "\u03C9", "\\omega", true);
-  defineSymbol(math4, main, mathord, "\u03B5", "\\varepsilon", true);
-  defineSymbol(math4, main, mathord, "\u03D1", "\\vartheta", true);
-  defineSymbol(math4, main, mathord, "\u03D6", "\\varpi", true);
-  defineSymbol(math4, main, mathord, "\u03F1", "\\varrho", true);
-  defineSymbol(math4, main, mathord, "\u03C2", "\\varsigma", true);
-  defineSymbol(math4, main, mathord, "\u03C6", "\\varphi", true);
-  defineSymbol(math4, main, bin2, "\u2217", "*", true);
-  defineSymbol(math4, main, bin2, "+", "+");
-  defineSymbol(math4, main, bin2, "\u2212", "-", true);
-  defineSymbol(math4, main, bin2, "\u22C5", "\\cdot", true);
-  defineSymbol(math4, main, bin2, "\u2218", "\\circ", true);
-  defineSymbol(math4, main, bin2, "\xF7", "\\div", true);
-  defineSymbol(math4, main, bin2, "\xB1", "\\pm", true);
-  defineSymbol(math4, main, bin2, "\xD7", "\\times", true);
-  defineSymbol(math4, main, bin2, "\u2229", "\\cap", true);
-  defineSymbol(math4, main, bin2, "\u222A", "\\cup", true);
-  defineSymbol(math4, main, bin2, "\u2216", "\\setminus", true);
-  defineSymbol(math4, main, bin2, "\u2227", "\\land");
-  defineSymbol(math4, main, bin2, "\u2228", "\\lor");
-  defineSymbol(math4, main, bin2, "\u2227", "\\wedge", true);
-  defineSymbol(math4, main, bin2, "\u2228", "\\vee", true);
-  defineSymbol(math4, main, textord, "\u221A", "\\surd");
-  defineSymbol(math4, main, open, "\u27E8", "\\langle", true);
-  defineSymbol(math4, main, open, "\u2223", "\\lvert");
-  defineSymbol(math4, main, open, "\u2225", "\\lVert");
-  defineSymbol(math4, main, close, "?", "?");
-  defineSymbol(math4, main, close, "!", "!");
-  defineSymbol(math4, main, close, "\u27E9", "\\rangle", true);
-  defineSymbol(math4, main, close, "\u2223", "\\rvert");
-  defineSymbol(math4, main, close, "\u2225", "\\rVert");
-  defineSymbol(math4, main, rel, "=", "=");
-  defineSymbol(math4, main, rel, ":", ":");
-  defineSymbol(math4, main, rel, "\u2248", "\\approx", true);
-  defineSymbol(math4, main, rel, "\u2245", "\\cong", true);
-  defineSymbol(math4, main, rel, "\u2265", "\\ge");
-  defineSymbol(math4, main, rel, "\u2265", "\\geq", true);
-  defineSymbol(math4, main, rel, "\u2190", "\\gets");
-  defineSymbol(math4, main, rel, ">", "\\gt", true);
-  defineSymbol(math4, main, rel, "\u2208", "\\in", true);
-  defineSymbol(math4, main, rel, "\uE020", "\\@not");
-  defineSymbol(math4, main, rel, "\u2282", "\\subset", true);
-  defineSymbol(math4, main, rel, "\u2283", "\\supset", true);
-  defineSymbol(math4, main, rel, "\u2286", "\\subseteq", true);
-  defineSymbol(math4, main, rel, "\u2287", "\\supseteq", true);
-  defineSymbol(math4, ams, rel, "\u2288", "\\nsubseteq", true);
-  defineSymbol(math4, ams, rel, "\u2289", "\\nsupseteq", true);
-  defineSymbol(math4, main, rel, "\u22A8", "\\models");
-  defineSymbol(math4, main, rel, "\u2190", "\\leftarrow", true);
-  defineSymbol(math4, main, rel, "\u2264", "\\le");
-  defineSymbol(math4, main, rel, "\u2264", "\\leq", true);
-  defineSymbol(math4, main, rel, "<", "\\lt", true);
-  defineSymbol(math4, main, rel, "\u2192", "\\rightarrow", true);
-  defineSymbol(math4, main, rel, "\u2192", "\\to");
-  defineSymbol(math4, ams, rel, "\u2271", "\\ngeq", true);
-  defineSymbol(math4, ams, rel, "\u2270", "\\nleq", true);
-  defineSymbol(math4, main, spacing, "\xA0", "\\ ");
-  defineSymbol(math4, main, spacing, "\xA0", "\\space");
-  defineSymbol(math4, main, spacing, "\xA0", "\\nobreakspace");
+  defineSymbol(math3, main, textord, "\u2220", "\\angle", true);
+  defineSymbol(math3, main, textord, "\u221E", "\\infty", true);
+  defineSymbol(math3, main, textord, "\u2032", "\\prime");
+  defineSymbol(math3, main, textord, "\u25B3", "\\triangle");
+  defineSymbol(math3, main, textord, "\u0393", "\\Gamma", true);
+  defineSymbol(math3, main, textord, "\u0394", "\\Delta", true);
+  defineSymbol(math3, main, textord, "\u0398", "\\Theta", true);
+  defineSymbol(math3, main, textord, "\u039B", "\\Lambda", true);
+  defineSymbol(math3, main, textord, "\u039E", "\\Xi", true);
+  defineSymbol(math3, main, textord, "\u03A0", "\\Pi", true);
+  defineSymbol(math3, main, textord, "\u03A3", "\\Sigma", true);
+  defineSymbol(math3, main, textord, "\u03A5", "\\Upsilon", true);
+  defineSymbol(math3, main, textord, "\u03A6", "\\Phi", true);
+  defineSymbol(math3, main, textord, "\u03A8", "\\Psi", true);
+  defineSymbol(math3, main, textord, "\u03A9", "\\Omega", true);
+  defineSymbol(math3, main, textord, "A", "\u0391");
+  defineSymbol(math3, main, textord, "B", "\u0392");
+  defineSymbol(math3, main, textord, "E", "\u0395");
+  defineSymbol(math3, main, textord, "Z", "\u0396");
+  defineSymbol(math3, main, textord, "H", "\u0397");
+  defineSymbol(math3, main, textord, "I", "\u0399");
+  defineSymbol(math3, main, textord, "K", "\u039A");
+  defineSymbol(math3, main, textord, "M", "\u039C");
+  defineSymbol(math3, main, textord, "N", "\u039D");
+  defineSymbol(math3, main, textord, "O", "\u039F");
+  defineSymbol(math3, main, textord, "P", "\u03A1");
+  defineSymbol(math3, main, textord, "T", "\u03A4");
+  defineSymbol(math3, main, textord, "X", "\u03A7");
+  defineSymbol(math3, main, textord, "\xAC", "\\neg", true);
+  defineSymbol(math3, main, textord, "\xAC", "\\lnot");
+  defineSymbol(math3, main, textord, "\u22A4", "\\top");
+  defineSymbol(math3, main, textord, "\u22A5", "\\bot");
+  defineSymbol(math3, main, textord, "\u2205", "\\emptyset");
+  defineSymbol(math3, ams, textord, "\u2205", "\\varnothing");
+  defineSymbol(math3, main, mathord, "\u03B1", "\\alpha", true);
+  defineSymbol(math3, main, mathord, "\u03B2", "\\beta", true);
+  defineSymbol(math3, main, mathord, "\u03B3", "\\gamma", true);
+  defineSymbol(math3, main, mathord, "\u03B4", "\\delta", true);
+  defineSymbol(math3, main, mathord, "\u03F5", "\\epsilon", true);
+  defineSymbol(math3, main, mathord, "\u03B6", "\\zeta", true);
+  defineSymbol(math3, main, mathord, "\u03B7", "\\eta", true);
+  defineSymbol(math3, main, mathord, "\u03B8", "\\theta", true);
+  defineSymbol(math3, main, mathord, "\u03B9", "\\iota", true);
+  defineSymbol(math3, main, mathord, "\u03BA", "\\kappa", true);
+  defineSymbol(math3, main, mathord, "\u03BB", "\\lambda", true);
+  defineSymbol(math3, main, mathord, "\u03BC", "\\mu", true);
+  defineSymbol(math3, main, mathord, "\u03BD", "\\nu", true);
+  defineSymbol(math3, main, mathord, "\u03BE", "\\xi", true);
+  defineSymbol(math3, main, mathord, "\u03BF", "\\omicron", true);
+  defineSymbol(math3, main, mathord, "\u03C0", "\\pi", true);
+  defineSymbol(math3, main, mathord, "\u03C1", "\\rho", true);
+  defineSymbol(math3, main, mathord, "\u03C3", "\\sigma", true);
+  defineSymbol(math3, main, mathord, "\u03C4", "\\tau", true);
+  defineSymbol(math3, main, mathord, "\u03C5", "\\upsilon", true);
+  defineSymbol(math3, main, mathord, "\u03D5", "\\phi", true);
+  defineSymbol(math3, main, mathord, "\u03C7", "\\chi", true);
+  defineSymbol(math3, main, mathord, "\u03C8", "\\psi", true);
+  defineSymbol(math3, main, mathord, "\u03C9", "\\omega", true);
+  defineSymbol(math3, main, mathord, "\u03B5", "\\varepsilon", true);
+  defineSymbol(math3, main, mathord, "\u03D1", "\\vartheta", true);
+  defineSymbol(math3, main, mathord, "\u03D6", "\\varpi", true);
+  defineSymbol(math3, main, mathord, "\u03F1", "\\varrho", true);
+  defineSymbol(math3, main, mathord, "\u03C2", "\\varsigma", true);
+  defineSymbol(math3, main, mathord, "\u03C6", "\\varphi", true);
+  defineSymbol(math3, main, bin2, "\u2217", "*", true);
+  defineSymbol(math3, main, bin2, "+", "+");
+  defineSymbol(math3, main, bin2, "\u2212", "-", true);
+  defineSymbol(math3, main, bin2, "\u22C5", "\\cdot", true);
+  defineSymbol(math3, main, bin2, "\u2218", "\\circ", true);
+  defineSymbol(math3, main, bin2, "\xF7", "\\div", true);
+  defineSymbol(math3, main, bin2, "\xB1", "\\pm", true);
+  defineSymbol(math3, main, bin2, "\xD7", "\\times", true);
+  defineSymbol(math3, main, bin2, "\u2229", "\\cap", true);
+  defineSymbol(math3, main, bin2, "\u222A", "\\cup", true);
+  defineSymbol(math3, main, bin2, "\u2216", "\\setminus", true);
+  defineSymbol(math3, main, bin2, "\u2227", "\\land");
+  defineSymbol(math3, main, bin2, "\u2228", "\\lor");
+  defineSymbol(math3, main, bin2, "\u2227", "\\wedge", true);
+  defineSymbol(math3, main, bin2, "\u2228", "\\vee", true);
+  defineSymbol(math3, main, textord, "\u221A", "\\surd");
+  defineSymbol(math3, main, open, "\u27E8", "\\langle", true);
+  defineSymbol(math3, main, open, "\u2223", "\\lvert");
+  defineSymbol(math3, main, open, "\u2225", "\\lVert");
+  defineSymbol(math3, main, close, "?", "?");
+  defineSymbol(math3, main, close, "!", "!");
+  defineSymbol(math3, main, close, "\u27E9", "\\rangle", true);
+  defineSymbol(math3, main, close, "\u2223", "\\rvert");
+  defineSymbol(math3, main, close, "\u2225", "\\rVert");
+  defineSymbol(math3, main, rel, "=", "=");
+  defineSymbol(math3, main, rel, ":", ":");
+  defineSymbol(math3, main, rel, "\u2248", "\\approx", true);
+  defineSymbol(math3, main, rel, "\u2245", "\\cong", true);
+  defineSymbol(math3, main, rel, "\u2265", "\\ge");
+  defineSymbol(math3, main, rel, "\u2265", "\\geq", true);
+  defineSymbol(math3, main, rel, "\u2190", "\\gets");
+  defineSymbol(math3, main, rel, ">", "\\gt", true);
+  defineSymbol(math3, main, rel, "\u2208", "\\in", true);
+  defineSymbol(math3, main, rel, "\uE020", "\\@not");
+  defineSymbol(math3, main, rel, "\u2282", "\\subset", true);
+  defineSymbol(math3, main, rel, "\u2283", "\\supset", true);
+  defineSymbol(math3, main, rel, "\u2286", "\\subseteq", true);
+  defineSymbol(math3, main, rel, "\u2287", "\\supseteq", true);
+  defineSymbol(math3, ams, rel, "\u2288", "\\nsubseteq", true);
+  defineSymbol(math3, ams, rel, "\u2289", "\\nsupseteq", true);
+  defineSymbol(math3, main, rel, "\u22A8", "\\models");
+  defineSymbol(math3, main, rel, "\u2190", "\\leftarrow", true);
+  defineSymbol(math3, main, rel, "\u2264", "\\le");
+  defineSymbol(math3, main, rel, "\u2264", "\\leq", true);
+  defineSymbol(math3, main, rel, "<", "\\lt", true);
+  defineSymbol(math3, main, rel, "\u2192", "\\rightarrow", true);
+  defineSymbol(math3, main, rel, "\u2192", "\\to");
+  defineSymbol(math3, ams, rel, "\u2271", "\\ngeq", true);
+  defineSymbol(math3, ams, rel, "\u2270", "\\nleq", true);
+  defineSymbol(math3, main, spacing, "\xA0", "\\ ");
+  defineSymbol(math3, main, spacing, "\xA0", "\\space");
+  defineSymbol(math3, main, spacing, "\xA0", "\\nobreakspace");
   defineSymbol(text, main, spacing, "\xA0", "\\ ");
   defineSymbol(text, main, spacing, "\xA0", " ");
   defineSymbol(text, main, spacing, "\xA0", "\\space");
   defineSymbol(text, main, spacing, "\xA0", "\\nobreakspace");
-  defineSymbol(math4, main, spacing, null, "\\nobreak");
-  defineSymbol(math4, main, spacing, null, "\\allowbreak");
-  defineSymbol(math4, main, punct, ",", ",");
-  defineSymbol(math4, main, punct, ";", ";");
-  defineSymbol(math4, ams, bin2, "\u22BC", "\\barwedge", true);
-  defineSymbol(math4, ams, bin2, "\u22BB", "\\veebar", true);
-  defineSymbol(math4, main, bin2, "\u2299", "\\odot", true);
-  defineSymbol(math4, main, bin2, "\u2295", "\\oplus", true);
-  defineSymbol(math4, main, bin2, "\u2297", "\\otimes", true);
-  defineSymbol(math4, main, textord, "\u2202", "\\partial", true);
-  defineSymbol(math4, main, bin2, "\u2298", "\\oslash", true);
-  defineSymbol(math4, ams, bin2, "\u229A", "\\circledcirc", true);
-  defineSymbol(math4, ams, bin2, "\u22A1", "\\boxdot", true);
-  defineSymbol(math4, main, bin2, "\u25B3", "\\bigtriangleup");
-  defineSymbol(math4, main, bin2, "\u25BD", "\\bigtriangledown");
-  defineSymbol(math4, main, bin2, "\u2020", "\\dagger");
-  defineSymbol(math4, main, bin2, "\u22C4", "\\diamond");
-  defineSymbol(math4, main, bin2, "\u22C6", "\\star");
-  defineSymbol(math4, main, bin2, "\u25C3", "\\triangleleft");
-  defineSymbol(math4, main, bin2, "\u25B9", "\\triangleright");
-  defineSymbol(math4, main, open, "{", "\\{");
+  defineSymbol(math3, main, spacing, null, "\\nobreak");
+  defineSymbol(math3, main, spacing, null, "\\allowbreak");
+  defineSymbol(math3, main, punct, ",", ",");
+  defineSymbol(math3, main, punct, ";", ";");
+  defineSymbol(math3, ams, bin2, "\u22BC", "\\barwedge", true);
+  defineSymbol(math3, ams, bin2, "\u22BB", "\\veebar", true);
+  defineSymbol(math3, main, bin2, "\u2299", "\\odot", true);
+  defineSymbol(math3, main, bin2, "\u2295", "\\oplus", true);
+  defineSymbol(math3, main, bin2, "\u2297", "\\otimes", true);
+  defineSymbol(math3, main, textord, "\u2202", "\\partial", true);
+  defineSymbol(math3, main, bin2, "\u2298", "\\oslash", true);
+  defineSymbol(math3, ams, bin2, "\u229A", "\\circledcirc", true);
+  defineSymbol(math3, ams, bin2, "\u22A1", "\\boxdot", true);
+  defineSymbol(math3, main, bin2, "\u25B3", "\\bigtriangleup");
+  defineSymbol(math3, main, bin2, "\u25BD", "\\bigtriangledown");
+  defineSymbol(math3, main, bin2, "\u2020", "\\dagger");
+  defineSymbol(math3, main, bin2, "\u22C4", "\\diamond");
+  defineSymbol(math3, main, bin2, "\u22C6", "\\star");
+  defineSymbol(math3, main, bin2, "\u25C3", "\\triangleleft");
+  defineSymbol(math3, main, bin2, "\u25B9", "\\triangleright");
+  defineSymbol(math3, main, open, "{", "\\{");
   defineSymbol(text, main, textord, "{", "\\{");
   defineSymbol(text, main, textord, "{", "\\textbraceleft");
-  defineSymbol(math4, main, close, "}", "\\}");
+  defineSymbol(math3, main, close, "}", "\\}");
   defineSymbol(text, main, textord, "}", "\\}");
   defineSymbol(text, main, textord, "}", "\\textbraceright");
-  defineSymbol(math4, main, open, "{", "\\lbrace");
-  defineSymbol(math4, main, close, "}", "\\rbrace");
-  defineSymbol(math4, main, open, "[", "\\lbrack", true);
+  defineSymbol(math3, main, open, "{", "\\lbrace");
+  defineSymbol(math3, main, close, "}", "\\rbrace");
+  defineSymbol(math3, main, open, "[", "\\lbrack", true);
   defineSymbol(text, main, textord, "[", "\\lbrack", true);
-  defineSymbol(math4, main, close, "]", "\\rbrack", true);
+  defineSymbol(math3, main, close, "]", "\\rbrack", true);
   defineSymbol(text, main, textord, "]", "\\rbrack", true);
-  defineSymbol(math4, main, open, "(", "\\lparen", true);
-  defineSymbol(math4, main, close, ")", "\\rparen", true);
+  defineSymbol(math3, main, open, "(", "\\lparen", true);
+  defineSymbol(math3, main, close, ")", "\\rparen", true);
   defineSymbol(text, main, textord, "<", "\\textless", true);
   defineSymbol(text, main, textord, ">", "\\textgreater", true);
-  defineSymbol(math4, main, open, "\u230A", "\\lfloor", true);
-  defineSymbol(math4, main, close, "\u230B", "\\rfloor", true);
-  defineSymbol(math4, main, open, "\u2308", "\\lceil", true);
-  defineSymbol(math4, main, close, "\u2309", "\\rceil", true);
-  defineSymbol(math4, main, textord, "\\", "\\backslash");
-  defineSymbol(math4, main, textord, "\u2223", "|");
-  defineSymbol(math4, main, textord, "\u2223", "\\vert");
+  defineSymbol(math3, main, open, "\u230A", "\\lfloor", true);
+  defineSymbol(math3, main, close, "\u230B", "\\rfloor", true);
+  defineSymbol(math3, main, open, "\u2308", "\\lceil", true);
+  defineSymbol(math3, main, close, "\u2309", "\\rceil", true);
+  defineSymbol(math3, main, textord, "\\", "\\backslash");
+  defineSymbol(math3, main, textord, "\u2223", "|");
+  defineSymbol(math3, main, textord, "\u2223", "\\vert");
   defineSymbol(text, main, textord, "|", "\\textbar", true);
-  defineSymbol(math4, main, textord, "\u2225", "\\|");
-  defineSymbol(math4, main, textord, "\u2225", "\\Vert");
+  defineSymbol(math3, main, textord, "\u2225", "\\|");
+  defineSymbol(math3, main, textord, "\u2225", "\\Vert");
   defineSymbol(text, main, textord, "\u2225", "\\textbardbl");
   defineSymbol(text, main, textord, "~", "\\textasciitilde");
   defineSymbol(text, main, textord, "\\", "\\textbackslash");
   defineSymbol(text, main, textord, "^", "\\textasciicircum");
-  defineSymbol(math4, main, rel, "\u2191", "\\uparrow", true);
-  defineSymbol(math4, main, rel, "\u21D1", "\\Uparrow", true);
-  defineSymbol(math4, main, rel, "\u2193", "\\downarrow", true);
-  defineSymbol(math4, main, rel, "\u21D3", "\\Downarrow", true);
-  defineSymbol(math4, main, rel, "\u2195", "\\updownarrow", true);
-  defineSymbol(math4, main, rel, "\u21D5", "\\Updownarrow", true);
-  defineSymbol(math4, main, op, "\u2210", "\\coprod");
-  defineSymbol(math4, main, op, "\u22C1", "\\bigvee");
-  defineSymbol(math4, main, op, "\u22C0", "\\bigwedge");
-  defineSymbol(math4, main, op, "\u2A04", "\\biguplus");
-  defineSymbol(math4, main, op, "\u22C2", "\\bigcap");
-  defineSymbol(math4, main, op, "\u22C3", "\\bigcup");
-  defineSymbol(math4, main, op, "\u222B", "\\int");
-  defineSymbol(math4, main, op, "\u222B", "\\intop");
-  defineSymbol(math4, main, op, "\u222C", "\\iint");
-  defineSymbol(math4, main, op, "\u222D", "\\iiint");
-  defineSymbol(math4, main, op, "\u220F", "\\prod");
-  defineSymbol(math4, main, op, "\u2211", "\\sum");
-  defineSymbol(math4, main, op, "\u2A02", "\\bigotimes");
-  defineSymbol(math4, main, op, "\u2A01", "\\bigoplus");
-  defineSymbol(math4, main, op, "\u2A00", "\\bigodot");
-  defineSymbol(math4, main, op, "\u222E", "\\oint");
-  defineSymbol(math4, main, op, "\u222F", "\\oiint");
-  defineSymbol(math4, main, op, "\u2230", "\\oiiint");
-  defineSymbol(math4, main, op, "\u2A06", "\\bigsqcup");
-  defineSymbol(math4, main, op, "\u222B", "\\smallint");
+  defineSymbol(math3, main, rel, "\u2191", "\\uparrow", true);
+  defineSymbol(math3, main, rel, "\u21D1", "\\Uparrow", true);
+  defineSymbol(math3, main, rel, "\u2193", "\\downarrow", true);
+  defineSymbol(math3, main, rel, "\u21D3", "\\Downarrow", true);
+  defineSymbol(math3, main, rel, "\u2195", "\\updownarrow", true);
+  defineSymbol(math3, main, rel, "\u21D5", "\\Updownarrow", true);
+  defineSymbol(math3, main, op, "\u2210", "\\coprod");
+  defineSymbol(math3, main, op, "\u22C1", "\\bigvee");
+  defineSymbol(math3, main, op, "\u22C0", "\\bigwedge");
+  defineSymbol(math3, main, op, "\u2A04", "\\biguplus");
+  defineSymbol(math3, main, op, "\u22C2", "\\bigcap");
+  defineSymbol(math3, main, op, "\u22C3", "\\bigcup");
+  defineSymbol(math3, main, op, "\u222B", "\\int");
+  defineSymbol(math3, main, op, "\u222B", "\\intop");
+  defineSymbol(math3, main, op, "\u222C", "\\iint");
+  defineSymbol(math3, main, op, "\u222D", "\\iiint");
+  defineSymbol(math3, main, op, "\u220F", "\\prod");
+  defineSymbol(math3, main, op, "\u2211", "\\sum");
+  defineSymbol(math3, main, op, "\u2A02", "\\bigotimes");
+  defineSymbol(math3, main, op, "\u2A01", "\\bigoplus");
+  defineSymbol(math3, main, op, "\u2A00", "\\bigodot");
+  defineSymbol(math3, main, op, "\u222E", "\\oint");
+  defineSymbol(math3, main, op, "\u222F", "\\oiint");
+  defineSymbol(math3, main, op, "\u2230", "\\oiiint");
+  defineSymbol(math3, main, op, "\u2A06", "\\bigsqcup");
+  defineSymbol(math3, main, op, "\u222B", "\\smallint");
   defineSymbol(text, main, inner, "\u2026", "\\textellipsis");
-  defineSymbol(math4, main, inner, "\u2026", "\\mathellipsis");
+  defineSymbol(math3, main, inner, "\u2026", "\\mathellipsis");
   defineSymbol(text, main, inner, "\u2026", "\\ldots", true);
-  defineSymbol(math4, main, inner, "\u2026", "\\ldots", true);
-  defineSymbol(math4, main, inner, "\u22EF", "\\@cdots", true);
-  defineSymbol(math4, main, inner, "\u22F1", "\\ddots", true);
-  defineSymbol(math4, main, textord, "\u22EE", "\\varvdots");
+  defineSymbol(math3, main, inner, "\u2026", "\\ldots", true);
+  defineSymbol(math3, main, inner, "\u22EF", "\\@cdots", true);
+  defineSymbol(math3, main, inner, "\u22F1", "\\ddots", true);
+  defineSymbol(math3, main, textord, "\u22EE", "\\varvdots");
   defineSymbol(text, main, textord, "\u22EE", "\\varvdots");
-  defineSymbol(math4, main, accent, "\u02CA", "\\acute");
-  defineSymbol(math4, main, accent, "\u02CB", "\\grave");
-  defineSymbol(math4, main, accent, "\xA8", "\\ddot");
-  defineSymbol(math4, main, accent, "~", "\\tilde");
-  defineSymbol(math4, main, accent, "\u02C9", "\\bar");
-  defineSymbol(math4, main, accent, "\u02D8", "\\breve");
-  defineSymbol(math4, main, accent, "\u02C7", "\\check");
-  defineSymbol(math4, main, accent, "^", "\\hat");
-  defineSymbol(math4, main, accent, "\u20D7", "\\vec");
-  defineSymbol(math4, main, accent, "\u02D9", "\\dot");
-  defineSymbol(math4, main, accent, "\u02DA", "\\mathring");
-  defineSymbol(math4, main, mathord, "\uE131", "\\@imath");
-  defineSymbol(math4, main, mathord, "\uE237", "\\@jmath");
-  defineSymbol(math4, main, textord, "\u0131", "\u0131");
-  defineSymbol(math4, main, textord, "\u0237", "\u0237");
+  defineSymbol(math3, main, accent, "\u02CA", "\\acute");
+  defineSymbol(math3, main, accent, "\u02CB", "\\grave");
+  defineSymbol(math3, main, accent, "\xA8", "\\ddot");
+  defineSymbol(math3, main, accent, "~", "\\tilde");
+  defineSymbol(math3, main, accent, "\u02C9", "\\bar");
+  defineSymbol(math3, main, accent, "\u02D8", "\\breve");
+  defineSymbol(math3, main, accent, "\u02C7", "\\check");
+  defineSymbol(math3, main, accent, "^", "\\hat");
+  defineSymbol(math3, main, accent, "\u20D7", "\\vec");
+  defineSymbol(math3, main, accent, "\u02D9", "\\dot");
+  defineSymbol(math3, main, accent, "\u02DA", "\\mathring");
+  defineSymbol(math3, main, mathord, "\uE131", "\\@imath");
+  defineSymbol(math3, main, mathord, "\uE237", "\\@jmath");
+  defineSymbol(math3, main, textord, "\u0131", "\u0131");
+  defineSymbol(math3, main, textord, "\u0237", "\u0237");
   defineSymbol(text, main, textord, "\u0131", "\\i", true);
   defineSymbol(text, main, textord, "\u0237", "\\j", true);
   defineSymbol(text, main, textord, "\xDF", "\\ss", true);
@@ -53556,19 +51616,19 @@
   defineSymbol(text, main, textord, "\u201C", "\\textquotedblleft");
   defineSymbol(text, main, textord, "\u201D", "''", true);
   defineSymbol(text, main, textord, "\u201D", "\\textquotedblright");
-  defineSymbol(math4, main, textord, "\xB0", "\\degree", true);
+  defineSymbol(math3, main, textord, "\xB0", "\\degree", true);
   defineSymbol(text, main, textord, "\xB0", "\\degree");
   defineSymbol(text, main, textord, "\xB0", "\\textdegree", true);
-  defineSymbol(math4, main, textord, "\xA3", "\\pounds");
-  defineSymbol(math4, main, textord, "\xA3", "\\mathsterling", true);
+  defineSymbol(math3, main, textord, "\xA3", "\\pounds");
+  defineSymbol(math3, main, textord, "\xA3", "\\mathsterling", true);
   defineSymbol(text, main, textord, "\xA3", "\\pounds");
   defineSymbol(text, main, textord, "\xA3", "\\textsterling", true);
-  defineSymbol(math4, ams, textord, "\u2720", "\\maltese");
+  defineSymbol(math3, ams, textord, "\u2720", "\\maltese");
   defineSymbol(text, ams, textord, "\u2720", "\\maltese");
   var mathTextSymbols = '0123456789/@."';
   for (i2 = 0; i2 < mathTextSymbols.length; i2++) {
     ch = mathTextSymbols.charAt(i2);
-    defineSymbol(math4, main, textord, ch, ch);
+    defineSymbol(math3, main, textord, ch, ch);
   }
   var ch;
   var i2;
@@ -53582,84 +51642,84 @@
   var letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
   for (_i2 = 0; _i2 < letters.length; _i2++) {
     _ch2 = letters.charAt(_i2);
-    defineSymbol(math4, main, mathord, _ch2, _ch2);
+    defineSymbol(math3, main, mathord, _ch2, _ch2);
     defineSymbol(text, main, textord, _ch2, _ch2);
   }
   var _ch2;
   var _i2;
-  defineSymbol(math4, ams, textord, "C", "\u2102");
+  defineSymbol(math3, ams, textord, "C", "\u2102");
   defineSymbol(text, ams, textord, "C", "\u2102");
-  defineSymbol(math4, ams, textord, "H", "\u210D");
+  defineSymbol(math3, ams, textord, "H", "\u210D");
   defineSymbol(text, ams, textord, "H", "\u210D");
-  defineSymbol(math4, ams, textord, "N", "\u2115");
+  defineSymbol(math3, ams, textord, "N", "\u2115");
   defineSymbol(text, ams, textord, "N", "\u2115");
-  defineSymbol(math4, ams, textord, "P", "\u2119");
+  defineSymbol(math3, ams, textord, "P", "\u2119");
   defineSymbol(text, ams, textord, "P", "\u2119");
-  defineSymbol(math4, ams, textord, "Q", "\u211A");
+  defineSymbol(math3, ams, textord, "Q", "\u211A");
   defineSymbol(text, ams, textord, "Q", "\u211A");
-  defineSymbol(math4, ams, textord, "R", "\u211D");
+  defineSymbol(math3, ams, textord, "R", "\u211D");
   defineSymbol(text, ams, textord, "R", "\u211D");
-  defineSymbol(math4, ams, textord, "Z", "\u2124");
+  defineSymbol(math3, ams, textord, "Z", "\u2124");
   defineSymbol(text, ams, textord, "Z", "\u2124");
-  defineSymbol(math4, main, mathord, "h", "\u210E");
+  defineSymbol(math3, main, mathord, "h", "\u210E");
   defineSymbol(text, main, mathord, "h", "\u210E");
   var wideChar = "";
   for (_i3 = 0; _i3 < letters.length; _i3++) {
     _ch3 = letters.charAt(_i3);
     wideChar = String.fromCharCode(55349, 56320 + _i3);
-    defineSymbol(math4, main, mathord, _ch3, wideChar);
+    defineSymbol(math3, main, mathord, _ch3, wideChar);
     defineSymbol(text, main, textord, _ch3, wideChar);
     wideChar = String.fromCharCode(55349, 56372 + _i3);
-    defineSymbol(math4, main, mathord, _ch3, wideChar);
+    defineSymbol(math3, main, mathord, _ch3, wideChar);
     defineSymbol(text, main, textord, _ch3, wideChar);
     wideChar = String.fromCharCode(55349, 56424 + _i3);
-    defineSymbol(math4, main, mathord, _ch3, wideChar);
+    defineSymbol(math3, main, mathord, _ch3, wideChar);
     defineSymbol(text, main, textord, _ch3, wideChar);
     wideChar = String.fromCharCode(55349, 56580 + _i3);
-    defineSymbol(math4, main, mathord, _ch3, wideChar);
+    defineSymbol(math3, main, mathord, _ch3, wideChar);
     defineSymbol(text, main, textord, _ch3, wideChar);
     wideChar = String.fromCharCode(55349, 56684 + _i3);
-    defineSymbol(math4, main, mathord, _ch3, wideChar);
+    defineSymbol(math3, main, mathord, _ch3, wideChar);
     defineSymbol(text, main, textord, _ch3, wideChar);
     wideChar = String.fromCharCode(55349, 56736 + _i3);
-    defineSymbol(math4, main, mathord, _ch3, wideChar);
+    defineSymbol(math3, main, mathord, _ch3, wideChar);
     defineSymbol(text, main, textord, _ch3, wideChar);
     wideChar = String.fromCharCode(55349, 56788 + _i3);
-    defineSymbol(math4, main, mathord, _ch3, wideChar);
+    defineSymbol(math3, main, mathord, _ch3, wideChar);
     defineSymbol(text, main, textord, _ch3, wideChar);
     wideChar = String.fromCharCode(55349, 56840 + _i3);
-    defineSymbol(math4, main, mathord, _ch3, wideChar);
+    defineSymbol(math3, main, mathord, _ch3, wideChar);
     defineSymbol(text, main, textord, _ch3, wideChar);
     wideChar = String.fromCharCode(55349, 56944 + _i3);
-    defineSymbol(math4, main, mathord, _ch3, wideChar);
+    defineSymbol(math3, main, mathord, _ch3, wideChar);
     defineSymbol(text, main, textord, _ch3, wideChar);
     if (_i3 < 26) {
       wideChar = String.fromCharCode(55349, 56632 + _i3);
-      defineSymbol(math4, main, mathord, _ch3, wideChar);
+      defineSymbol(math3, main, mathord, _ch3, wideChar);
       defineSymbol(text, main, textord, _ch3, wideChar);
       wideChar = String.fromCharCode(55349, 56476 + _i3);
-      defineSymbol(math4, main, mathord, _ch3, wideChar);
+      defineSymbol(math3, main, mathord, _ch3, wideChar);
       defineSymbol(text, main, textord, _ch3, wideChar);
     }
   }
   var _ch3;
   var _i3;
   wideChar = String.fromCharCode(55349, 56668);
-  defineSymbol(math4, main, mathord, "k", wideChar);
+  defineSymbol(math3, main, mathord, "k", wideChar);
   defineSymbol(text, main, textord, "k", wideChar);
   for (_i4 = 0; _i4 < 10; _i4++) {
     _ch4 = _i4.toString();
     wideChar = String.fromCharCode(55349, 57294 + _i4);
-    defineSymbol(math4, main, mathord, _ch4, wideChar);
+    defineSymbol(math3, main, mathord, _ch4, wideChar);
     defineSymbol(text, main, textord, _ch4, wideChar);
     wideChar = String.fromCharCode(55349, 57314 + _i4);
-    defineSymbol(math4, main, mathord, _ch4, wideChar);
+    defineSymbol(math3, main, mathord, _ch4, wideChar);
     defineSymbol(text, main, textord, _ch4, wideChar);
     wideChar = String.fromCharCode(55349, 57324 + _i4);
-    defineSymbol(math4, main, mathord, _ch4, wideChar);
+    defineSymbol(math3, main, mathord, _ch4, wideChar);
     defineSymbol(text, main, textord, _ch4, wideChar);
     wideChar = String.fromCharCode(55349, 57334 + _i4);
-    defineSymbol(math4, main, mathord, _ch4, wideChar);
+    defineSymbol(math3, main, mathord, _ch4, wideChar);
     defineSymbol(text, main, textord, _ch4, wideChar);
   }
   var _ch4;
@@ -53667,7 +51727,7 @@
   var extraLatin = "\xD0\xDE\xFE";
   for (_i5 = 0; _i5 < extraLatin.length; _i5++) {
     _ch5 = extraLatin.charAt(_i5);
-    defineSymbol(math4, main, mathord, _ch5, _ch5);
+    defineSymbol(math3, main, mathord, _ch5, _ch5);
     defineSymbol(text, main, textord, _ch5, _ch5);
   }
   var _ch5;
@@ -54570,7 +52630,7 @@
   function newDocumentFragment(children) {
     return new DocumentFragment(children);
   }
-  var MathNode3 = class {
+  var MathNode2 = class {
     constructor(type, children, classes2) {
       this.type = type;
       this.attributes = {};
@@ -54741,7 +52801,7 @@
     if (body.length === 1) {
       return body[0];
     } else {
-      return new MathNode3("mrow", body);
+      return new MathNode2("mrow", body);
     }
   };
   var getVariant = function getVariant2(group, options) {
@@ -54821,7 +52881,7 @@
   var buildExpression2 = function buildExpression3(expression, options, isOrdgroup) {
     if (expression.length === 1) {
       var group = buildGroup2(expression[0], options);
-      if (isOrdgroup && group instanceof MathNode3 && group.type === "mo") {
+      if (isOrdgroup && group instanceof MathNode2 && group.type === "mo") {
         group.setAttribute("lspace", "0em");
         group.setAttribute("rspace", "0em");
       }
@@ -54831,7 +52891,7 @@
     var lastGroup;
     for (var i2 = 0; i2 < expression.length; i2++) {
       var _group = buildGroup2(expression[i2], options);
-      if (_group instanceof MathNode3 && lastGroup instanceof MathNode3) {
+      if (_group instanceof MathNode2 && lastGroup instanceof MathNode2) {
         if (_group.type === "mtext" && lastGroup.type === "mtext" && _group.getAttribute("mathvariant") === lastGroup.getAttribute("mathvariant")) {
           lastGroup.children.push(..._group.children);
           continue;
@@ -54846,7 +52906,7 @@
           groups.pop();
         } else if ((_group.type === "msup" || _group.type === "msub") && _group.children.length >= 1 && (lastGroup.type === "mn" || isNumberPunctuation(lastGroup))) {
           var base = _group.children[0];
-          if (base instanceof MathNode3 && base.type === "mn") {
+          if (base instanceof MathNode2 && base.type === "mn") {
             base.children = [...lastGroup.children, ...base.children];
             groups.pop();
           }
@@ -54871,7 +52931,7 @@
   };
   var buildGroup2 = function buildGroup3(group, options) {
     if (!group) {
-      return new MathNode3("mrow");
+      return new MathNode2("mrow");
     }
     if (_mathmlGroupBuilders[group.type]) {
       var result = _mathmlGroupBuilders[group.type](group, options);
@@ -54883,15 +52943,15 @@
   function buildMathML(tree, texExpression, options, isDisplayMode, forMathmlOnly) {
     var expression = buildExpression2(tree, options);
     var wrapper;
-    if (expression.length === 1 && expression[0] instanceof MathNode3 && rowLikeTypes.has(expression[0].type)) {
+    if (expression.length === 1 && expression[0] instanceof MathNode2 && rowLikeTypes.has(expression[0].type)) {
       wrapper = expression[0];
     } else {
-      wrapper = new MathNode3("mrow", expression);
+      wrapper = new MathNode2("mrow", expression);
     }
-    var annotation = new MathNode3("annotation", [new TextNode(texExpression)]);
+    var annotation = new MathNode2("annotation", [new TextNode(texExpression)]);
     annotation.setAttribute("encoding", "application/x-tex");
-    var semantics = new MathNode3("semantics", [wrapper, annotation]);
-    var math7 = new MathNode3("math", [semantics]);
+    var semantics = new MathNode2("semantics", [wrapper, annotation]);
+    var math7 = new MathNode2("math", [semantics]);
     math7.setAttribute("xmlns", "http://www.w3.org/1998/Math/MathML");
     if (isDisplayMode) {
       math7.setAttribute("display", "block");
@@ -55241,7 +53301,7 @@
     "\\cdlongequal": "="
   };
   var stretchyMathML = function stretchyMathML2(label) {
-    var node = new MathNode3("mo", [new TextNode(stretchyCodePoint[label.replace(/^\\/, "")])]);
+    var node = new MathNode2("mo", [new TextNode(stretchyCodePoint[label.replace(/^\\/, "")])]);
     node.setAttribute("stretchy", "true");
     return node;
   };
@@ -55571,8 +53631,8 @@
     }
   };
   var mathmlBuilder$9 = (group, options) => {
-    var accentNode = group.isStretchy ? stretchyMathML(group.label) : new MathNode3("mo", [makeText(group.label, group.mode)]);
-    var node = new MathNode3("mover", [buildGroup2(group.base, options), accentNode]);
+    var accentNode = group.isStretchy ? stretchyMathML(group.label) : new MathNode2("mo", [makeText(group.label, group.mode)]);
+    var node = new MathNode2("mover", [buildGroup2(group.base, options), accentNode]);
     node.setAttribute("accent", "true");
     return node;
   };
@@ -55670,13 +53730,13 @@
     },
     mathmlBuilder: (group, options) => {
       var accentNode = stretchyMathML(group.label);
-      var node = new MathNode3("munder", [buildGroup2(group.base, options), accentNode]);
+      var node = new MathNode2("munder", [buildGroup2(group.base, options), accentNode]);
       node.setAttribute("accentunder", "true");
       return node;
     }
   });
   var paddedNode = (group) => {
-    var node = new MathNode3("mpadded", group ? [group] : []);
+    var node = new MathNode2("mpadded", group ? [group] : []);
     node.setAttribute("width", "+0.6em");
     node.setAttribute("lspace", "0.3em");
     return node;
@@ -55792,16 +53852,16 @@
         var upperNode = paddedNode(buildGroup2(group.body, options));
         if (group.below) {
           var lowerNode = paddedNode(buildGroup2(group.below, options));
-          node = new MathNode3("munderover", [arrowNode, lowerNode, upperNode]);
+          node = new MathNode2("munderover", [arrowNode, lowerNode, upperNode]);
         } else {
-          node = new MathNode3("mover", [arrowNode, upperNode]);
+          node = new MathNode2("mover", [arrowNode, upperNode]);
         }
       } else if (group.below) {
         var _lowerNode = paddedNode(buildGroup2(group.below, options));
-        node = new MathNode3("munder", [arrowNode, _lowerNode]);
+        node = new MathNode2("munder", [arrowNode, _lowerNode]);
       } else {
         node = paddedNode();
-        node = new MathNode3("mover", [arrowNode, node]);
+        node = new MathNode2("mover", [arrowNode, node]);
       }
       return node;
     }
@@ -55814,20 +53874,20 @@
     var node;
     var inner2 = buildExpression2(group.body, options);
     if (group.mclass === "minner") {
-      node = new MathNode3("mpadded", inner2);
+      node = new MathNode2("mpadded", inner2);
     } else if (group.mclass === "mord") {
       if (group.isCharacterBox) {
         node = inner2[0];
         node.type = "mi";
       } else {
-        node = new MathNode3("mi", inner2);
+        node = new MathNode2("mi", inner2);
       }
     } else {
       if (group.isCharacterBox) {
         node = inner2[0];
         node.type = "mo";
       } else {
-        node = new MathNode3("mo", inner2);
+        node = new MathNode2("mo", inner2);
       }
       if (group.mclass === "mbin") {
         node.attributes.lspace = "0.22em";
@@ -55970,7 +54030,7 @@
     },
     mathmlBuilder(group, style) {
       var inner2 = buildExpression2(group.body, style);
-      var node = new MathNode3("mstyle", inner2);
+      var node = new MathNode2("mstyle", inner2);
       node.setAttribute("style", "text-shadow: 0.02em 0.01em 0.04px");
       return node;
     }
@@ -56176,14 +54236,14 @@
       return label;
     },
     mathmlBuilder(group, options) {
-      var label = new MathNode3("mrow", [buildGroup2(group.label, options)]);
-      label = new MathNode3("mpadded", [label]);
+      var label = new MathNode2("mrow", [buildGroup2(group.label, options)]);
+      label = new MathNode2("mpadded", [label]);
       label.setAttribute("width", "0");
       if (group.side === "left") {
         label.setAttribute("lspace", "-1width");
       }
       label.setAttribute("voffset", "0.7em");
-      label = new MathNode3("mstyle", [label]);
+      label = new MathNode2("mstyle", [label]);
       label.setAttribute("displaystyle", "false");
       label.setAttribute("scriptlevel", "1");
       return label;
@@ -56211,7 +54271,7 @@
       return parent;
     },
     mathmlBuilder(group, options) {
-      return new MathNode3("mrow", [buildGroup2(group.fragment, options)]);
+      return new MathNode2("mrow", [buildGroup2(group.fragment, options)]);
     }
   });
   defineFunction({
@@ -56257,7 +54317,7 @@
   };
   var mathmlBuilder$7 = (group, options) => {
     var inner2 = buildExpression2(group.body, options.withColor(group.color));
-    var node = new MathNode3("mstyle", inner2);
+    var node = new MathNode2("mstyle", inner2);
     node.setAttribute("mathcolor", group.color);
     return node;
   };
@@ -56345,7 +54405,7 @@
       return span;
     },
     mathmlBuilder(group, options) {
-      var node = new MathNode3("mspace");
+      var node = new MathNode2("mspace");
       if (group.newLine) {
         node.setAttribute("linebreak", "newline");
         if (group.size) {
@@ -57133,7 +55193,7 @@
       if (group.delim !== ".") {
         children.push(makeText(group.delim, group.mode));
       }
-      var node = new MathNode3("mo", children);
+      var node = new MathNode2("mo", children);
       if (group.mclass === "mopen" || group.mclass === "mclose") {
         node.setAttribute("fence", "true");
       } else {
@@ -57242,12 +55302,12 @@
       assertParsed(group);
       var inner2 = buildExpression2(group.body, options);
       if (group.left !== ".") {
-        var leftNode = new MathNode3("mo", [makeText(group.left, group.mode)]);
+        var leftNode = new MathNode2("mo", [makeText(group.left, group.mode)]);
         leftNode.setAttribute("fence", "true");
         inner2.unshift(leftNode);
       }
       if (group.right !== ".") {
-        var rightNode = new MathNode3("mo", [makeText(group.right, group.mode)]);
+        var rightNode = new MathNode2("mo", [makeText(group.right, group.mode)]);
         rightNode.setAttribute("fence", "true");
         if (group.rightColor) {
           rightNode.setAttribute("mathcolor", group.rightColor);
@@ -57291,7 +55351,7 @@
     },
     mathmlBuilder: (group, options) => {
       var textNode = group.delim === "\\vert" || group.delim === "|" ? makeText("|", "text") : makeText(group.delim, group.mode);
-      var middleNode = new MathNode3("mo", [textNode]);
+      var middleNode = new MathNode2("mo", [textNode]);
       middleNode.setAttribute("fence", "true");
       middleNode.setAttribute("lspace", "0.05em");
       middleNode.setAttribute("rspace", "0.05em");
@@ -57428,7 +55488,7 @@
   };
   var mathmlBuilder$6 = (group, options) => {
     var fboxsep = 0;
-    var node = new MathNode3(group.label.includes("colorbox") ? "mpadded" : "menclose", [buildGroup2(group.body, options)]);
+    var node = new MathNode2(group.label.includes("colorbox") ? "mpadded" : "menclose", [buildGroup2(group.body, options)]);
     switch (group.label) {
       case "\\cancel":
         node.setAttribute("notation", "updiagonalstrike");
@@ -58085,13 +56145,13 @@
   };
   var mathmlBuilder$5 = function mathmlBuilder(group, options) {
     var tbl = [];
-    var glue = new MathNode3("mtd", [], ["mtr-glue"]);
-    var tag2 = new MathNode3("mtd", [], ["mml-eqn-num"]);
+    var glue = new MathNode2("mtd", [], ["mtr-glue"]);
+    var tag2 = new MathNode2("mtd", [], ["mml-eqn-num"]);
     for (var i2 = 0; i2 < group.body.length; i2++) {
       var rw = group.body[i2];
       var row2 = [];
       for (var j = 0; j < rw.length; j++) {
-        row2.push(new MathNode3("mtd", [buildGroup2(rw[j], options)]));
+        row2.push(new MathNode2("mtd", [buildGroup2(rw[j], options)]));
       }
       if (group.tags && group.tags[i2]) {
         row2.unshift(glue);
@@ -58102,9 +56162,9 @@
           row2.push(tag2);
         }
       }
-      tbl.push(new MathNode3("mtr", row2));
+      tbl.push(new MathNode2("mtr", row2));
     }
-    var table = new MathNode3("mtable", tbl);
+    var table = new MathNode2("mtable", tbl);
     var gap = group.arraystretch === 0.5 ? 0.1 : 0.16 + group.arraystretch - 1 + (group.addJot ? 0.09 : 0);
     table.setAttribute("rowspacing", makeEm(gap));
     var menclose = "";
@@ -58170,11 +56230,11 @@
       table.setAttribute("rowlines", rowLines.trim());
     }
     if (menclose !== "") {
-      table = new MathNode3("menclose", [table]);
+      table = new MathNode2("menclose", [table]);
       table.setAttribute("notation", menclose.trim());
     }
     if (group.arraystretch && group.arraystretch < 1) {
-      table = new MathNode3("mstyle", [table]);
+      table = new MathNode2("mstyle", [table]);
       table.setAttribute("scriptlevel", "1");
     }
     return table;
@@ -58831,7 +56891,7 @@
     return makeSpan(["mord"].concat(newOptions.sizingClasses(options)), [leftDelim, makeSpan(["mfrac"], [frac]), rightDelim], options);
   };
   var mathmlBuilder$3 = (group, options) => {
-    var node = new MathNode3("mfrac", [buildGroup2(group.numer, options), buildGroup2(group.denom, options)]);
+    var node = new MathNode2("mfrac", [buildGroup2(group.numer, options), buildGroup2(group.denom, options)]);
     if (!group.hasBarLine) {
       node.setAttribute("linethickness", "0px");
     } else if (group.barSize) {
@@ -58841,13 +56901,13 @@
     if (group.leftDelim != null || group.rightDelim != null) {
       var withDelims = [];
       if (group.leftDelim != null) {
-        var leftOp = new MathNode3("mo", [new TextNode(group.leftDelim.replace("\\", ""))]);
+        var leftOp = new MathNode2("mo", [new TextNode(group.leftDelim.replace("\\", ""))]);
         leftOp.setAttribute("fence", "true");
         withDelims.push(leftOp);
       }
       withDelims.push(node);
       if (group.rightDelim != null) {
-        var rightOp = new MathNode3("mo", [new TextNode(group.rightDelim.replace("\\", ""))]);
+        var rightOp = new MathNode2("mo", [new TextNode(group.rightDelim.replace("\\", ""))]);
         rightOp.setAttribute("fence", "true");
         withDelims.push(rightOp);
       }
@@ -59187,7 +57247,7 @@
   };
   var mathmlBuilder$2 = (group, options) => {
     var accentNode = stretchyMathML(group.label);
-    return new MathNode3(group.isOver ? "mover" : "munder", [buildGroup2(group.base, options), accentNode]);
+    return new MathNode2(group.isOver ? "mover" : "munder", [buildGroup2(group.base, options), accentNode]);
   };
   defineFunction({
     type: "horizBrace",
@@ -59244,8 +57304,8 @@
     },
     mathmlBuilder: (group, options) => {
       var math7 = buildExpressionRow(group.body, options);
-      if (!(math7 instanceof MathNode3)) {
-        math7 = new MathNode3("mrow", [math7]);
+      if (!(math7 instanceof MathNode2)) {
+        math7 = new MathNode2("mrow", [math7]);
       }
       math7.setAttribute("href", group.href);
       return math7;
@@ -59320,7 +57380,7 @@
       return makeFragment(elements2);
     },
     mathmlBuilder(group, options) {
-      return new MathNode3("mrow", buildExpression2(group.body, options));
+      return new MathNode2("mrow", buildExpression2(group.body, options));
     }
   });
   defineFunction({
@@ -59563,7 +57623,7 @@
       return node;
     },
     mathmlBuilder: (group, options) => {
-      var node = new MathNode3("mglyph", []);
+      var node = new MathNode2("mglyph", []);
       node.setAttribute("alt", group.alt);
       var height = calculateSize(group.height, options);
       var depth = 0;
@@ -59665,7 +57725,7 @@
       return makeSpan(["mord", "vbox"], [node], options);
     },
     mathmlBuilder: (group, options) => {
-      var node = new MathNode3("mpadded", [buildGroup2(group.body, options)]);
+      var node = new MathNode2("mpadded", [buildGroup2(group.body, options)]);
       if (group.alignment !== "rlap") {
         var offset = group.alignment === "llap" ? "-1" : "-0.5";
         node.setAttribute("lspace", offset + "width");
@@ -59940,17 +58000,17 @@
   var mathmlBuilder$1 = (group, options) => {
     var node;
     if (group.symbol) {
-      node = new MathNode3("mo", [makeText(group.name, group.mode)]);
+      node = new MathNode2("mo", [makeText(group.name, group.mode)]);
       if (noSuccessor.has(group.name)) {
         node.setAttribute("largeop", "false");
       }
     } else if (group.body) {
-      node = new MathNode3("mo", buildExpression2(group.body, options));
+      node = new MathNode2("mo", buildExpression2(group.body, options));
     } else {
-      node = new MathNode3("mi", [new TextNode(group.name.slice(1))]);
-      var operator = new MathNode3("mo", [makeText("\u2061", "text")]);
+      node = new MathNode2("mi", [new TextNode(group.name.slice(1))]);
+      var operator = new MathNode2("mo", [makeText("\u2061", "text")]);
       if (group.parentIsSupSub) {
-        node = new MathNode3("mrow", [node, operator]);
+        node = new MathNode2("mrow", [node, operator]);
       } else {
         node = newDocumentFragment([node, operator]);
       }
@@ -60154,7 +58214,7 @@
     for (var i2 = 0; i2 < expression.length; i2++) {
       var node = expression[i2];
       if (node instanceof SpaceNode) ;
-      else if (node instanceof MathNode3) {
+      else if (node instanceof MathNode2) {
         switch (node.type) {
           case "mi":
           case "mn":
@@ -60182,11 +58242,11 @@
       var word = expression.map((node2) => node2.toText()).join("");
       expression = [new TextNode(word)];
     }
-    var identifier = new MathNode3("mi", expression);
+    var identifier = new MathNode2("mi", expression);
     identifier.setAttribute("mathvariant", "normal");
-    var operator = new MathNode3("mo", [makeText("\u2061", "text")]);
+    var operator = new MathNode2("mo", [makeText("\u2061", "text")]);
     if (group.parentIsSupSub) {
-      return new MathNode3("mrow", [identifier, operator]);
+      return new MathNode2("mrow", [identifier, operator]);
     } else {
       return newDocumentFragment([identifier, operator]);
     }
@@ -60268,9 +58328,9 @@
       return makeSpan(["mord", "overline"], [vlist], options);
     },
     mathmlBuilder(group, options) {
-      var operator = new MathNode3("mo", [new TextNode("\u203E")]);
+      var operator = new MathNode2("mo", [new TextNode("\u203E")]);
       operator.setAttribute("stretchy", "true");
-      var node = new MathNode3("mover", [buildGroup2(group.body, options), operator]);
+      var node = new MathNode2("mover", [buildGroup2(group.body, options), operator]);
       node.setAttribute("accent", "true");
       return node;
     }
@@ -60299,7 +58359,7 @@
     },
     mathmlBuilder: (group, options) => {
       var inner2 = buildExpression2(group.body, options);
-      return new MathNode3("mphantom", inner2);
+      return new MathNode2("mphantom", inner2);
     }
   });
   defineMacro("\\hphantom", "\\smash{\\phantom{#1}}");
@@ -60328,8 +58388,8 @@
     },
     mathmlBuilder: (group, options) => {
       var inner2 = buildExpression2(ordargument(group.body), options);
-      var phantom = new MathNode3("mphantom", inner2);
-      var node = new MathNode3("mpadded", [phantom]);
+      var phantom = new MathNode2("mphantom", inner2);
+      var node = new MathNode2("mpadded", [phantom]);
       node.setAttribute("width", "0px");
       return node;
     }
@@ -60368,7 +58428,7 @@
       });
     },
     mathmlBuilder(group, options) {
-      var node = new MathNode3("mpadded", [buildGroup2(group.body, options)]);
+      var node = new MathNode2("mpadded", [buildGroup2(group.body, options)]);
       var dy = group.dy.number + group.dy.unit;
       node.setAttribute("voffset", dy);
       return node;
@@ -60436,11 +58496,11 @@
       var height = calculateSize(group.height, options);
       var shift = group.shift ? calculateSize(group.shift, options) : 0;
       var color2 = options.color && options.getColor() || "black";
-      var rule = new MathNode3("mspace");
+      var rule = new MathNode2("mspace");
       rule.setAttribute("mathbackground", color2);
       rule.setAttribute("width", makeEm(width));
       rule.setAttribute("height", makeEm(height));
-      var wrapper = new MathNode3("mpadded", [rule]);
+      var wrapper = new MathNode2("mpadded", [rule]);
       if (shift >= 0) {
         wrapper.setAttribute("height", makeEm(shift));
       } else {
@@ -60497,7 +58557,7 @@
     mathmlBuilder: (group, options) => {
       var newOptions = options.havingSize(group.size);
       var inner2 = buildExpression2(group.body, newOptions);
-      var node = new MathNode3("mstyle", inner2);
+      var node = new MathNode2("mstyle", inner2);
       node.setAttribute("mathsize", makeEm(newOptions.sizeMultiplier));
       return node;
     }
@@ -60579,7 +58639,7 @@
       return makeSpan(["mord"], [smashedNode], options);
     },
     mathmlBuilder: (group, options) => {
-      var node = new MathNode3("mpadded", [buildGroup2(group.body, options)]);
+      var node = new MathNode2("mpadded", [buildGroup2(group.body, options)]);
       if (group.smashHeight) {
         node.setAttribute("height", "0px");
       }
@@ -60674,7 +58734,7 @@
         body,
         index: index3
       } = group;
-      return index3 ? new MathNode3("mroot", [buildGroup2(body, options), buildGroup2(index3, options)]) : new MathNode3("msqrt", [buildGroup2(body, options)]);
+      return index3 ? new MathNode2("mroot", [buildGroup2(body, options), buildGroup2(index3, options)]) : new MathNode2("msqrt", [buildGroup2(body, options)]);
     }
   });
   var styleMap = {
@@ -60717,7 +58777,7 @@
       var newStyle = styleMap[group.style];
       var newOptions = options.havingStyle(newStyle);
       var inner2 = buildExpression2(group.body, newOptions);
-      var node = new MathNode3("mstyle", inner2);
+      var node = new MathNode2("mstyle", inner2);
       var styleAttributes = {
         "display": ["0", "true"],
         "text": ["0", "false"],
@@ -60911,7 +58971,7 @@
           nodeType = "msubsup";
         }
       }
-      return new MathNode3(nodeType, children);
+      return new MathNode2(nodeType, children);
     }
   });
   defineFunctionBuilders({
@@ -60920,7 +58980,7 @@
       return mathsym(group.text, group.mode, options, ["m" + group.family]);
     },
     mathmlBuilder(group, options) {
-      var node = new MathNode3("mo", [makeText(group.text, group.mode)]);
+      var node = new MathNode2("mo", [makeText(group.text, group.mode)]);
       if (group.family === "bin") {
         var variant = getVariant(group, options);
         if (variant === "bold-italic") {
@@ -60945,7 +59005,7 @@
       return makeOrd(group, options, "mathord");
     },
     mathmlBuilder(group, options) {
-      var node = new MathNode3("mi", [makeText(group.text, group.mode, options)]);
+      var node = new MathNode2("mi", [makeText(group.text, group.mode, options)]);
       var variant = getVariant(group, options) || "italic";
       if (variant !== defaultVariant[node.type]) {
         node.setAttribute("mathvariant", variant);
@@ -60963,13 +59023,13 @@
       var variant = getVariant(group, options) || "normal";
       var node;
       if (group.mode === "text") {
-        node = new MathNode3("mtext", [text2]);
+        node = new MathNode2("mtext", [text2]);
       } else if (/[0-9]/.test(group.text)) {
-        node = new MathNode3("mn", [text2]);
+        node = new MathNode2("mn", [text2]);
       } else if (group.text === "\\prime") {
-        node = new MathNode3("mo", [text2]);
+        node = new MathNode2("mo", [text2]);
       } else {
-        node = new MathNode3("mi", [text2]);
+        node = new MathNode2("mi", [text2]);
       }
       if (variant !== defaultVariant[node.type]) {
         node.setAttribute("mathvariant", variant);
@@ -61013,9 +59073,9 @@
     mathmlBuilder(group, options) {
       var node;
       if (regularSpace.hasOwnProperty(group.text)) {
-        node = new MathNode3("mtext", [new TextNode("\xA0")]);
+        node = new MathNode2("mtext", [new TextNode("\xA0")]);
       } else if (cssSpace.hasOwnProperty(group.text)) {
-        return new MathNode3("mspace");
+        return new MathNode2("mspace");
       } else {
         throw new ParseError('Unknown type of space "' + group.text + '"');
       }
@@ -61023,14 +59083,14 @@
     }
   });
   var pad = () => {
-    var padNode = new MathNode3("mtd", []);
+    var padNode = new MathNode2("mtd", []);
     padNode.setAttribute("width", "50%");
     return padNode;
   };
   defineFunctionBuilders({
     type: "tag",
     mathmlBuilder(group, options) {
-      var table = new MathNode3("mtable", [new MathNode3("mtr", [pad(), new MathNode3("mtd", [buildExpressionRow(group.body, options)]), pad(), new MathNode3("mtd", [buildExpressionRow(group.tag, options)])])]);
+      var table = new MathNode2("mtable", [new MathNode2("mtr", [pad(), new MathNode2("mtd", [buildExpressionRow(group.body, options)]), pad(), new MathNode2("mtd", [buildExpressionRow(group.tag, options)])])]);
       table.setAttribute("width", "100%");
       return table;
     }
@@ -61150,9 +59210,9 @@
       return makeSpan(["mord", "underline"], [vlist], options);
     },
     mathmlBuilder(group, options) {
-      var operator = new MathNode3("mo", [new TextNode("\u203E")]);
+      var operator = new MathNode2("mo", [new TextNode("\u203E")]);
       operator.setAttribute("stretchy", "true");
-      var node = new MathNode3("munder", [buildGroup2(group.body, options), operator]);
+      var node = new MathNode2("munder", [buildGroup2(group.body, options), operator]);
       node.setAttribute("accentunder", "true");
       return node;
     }
@@ -61190,7 +59250,7 @@
       });
     },
     mathmlBuilder(group, options) {
-      return new MathNode3("mpadded", [buildGroup2(group.body, options)], ["vcenter"]);
+      return new MathNode2("mpadded", [buildGroup2(group.body, options)], ["vcenter"]);
     }
   });
   defineFunction({
@@ -61218,7 +59278,7 @@
     },
     mathmlBuilder(group, options) {
       var text2 = new TextNode(makeVerb(group));
-      var node = new MathNode3("mtext", [text2]);
+      var node = new MathNode2("mtext", [text2]);
       node.setAttribute("mathvariant", "monospace");
       return node;
     }
@@ -63903,7 +61963,7 @@
   };
 
   // src/latex.ts
-  var math5 = create(all);
+  var math4 = create(all);
   function tex(latex, displayMode = false) {
     try {
       return katex.renderToString(latex, {
@@ -63923,7 +61983,7 @@
   }
   function exprToTex(expr) {
     try {
-      const node = math5.parse(expr);
+      const node = math4.parse(expr);
       return node.toTex({ parenthesis: "auto" });
     } catch {
       return expr;
@@ -63946,6 +62006,2462 @@
     if (s.indexOf(".") >= 0) s = s.replace(/0+$/, "").replace(/\.$/, "");
     return texInline(sign5 + s);
   }
+
+  // src/integrationHelpers.ts
+  var math5 = create(all);
+  function fmtNum(n, p = 8) {
+    if (!isFinite(n)) return "NaN";
+    if (n === 0) return "0";
+    let s = Math.abs(n) < 1e-4 || Math.abs(n) >= 1e8 ? n.toExponential(p - 1) : n.toPrecision(p);
+    if (s.indexOf(".") >= 0 && !/e/i.test(s)) s = s.replace(/0+$/, "").replace(/\.$/, "");
+    return s;
+  }
+  function evaluateDerivativeAt(expr, order, xi) {
+    try {
+      let node = math5.parse(expr);
+      for (let k = 0; k < order; k++) {
+        node = math5.derivative(node, "x");
+      }
+      const simplified = math5.simplify(node);
+      const derivativeExpr = simplified.toString();
+      const compiled = math5.compile(derivativeExpr);
+      const v = compiled.evaluate({ x: xi, e: Math.E, pi: Math.PI });
+      return { value: typeof v === "number" ? v : NaN, derivativeExpr };
+    } catch {
+      const f = parseExpression(expr);
+      return { value: numericalHighOrderDerivative(f, xi, order), derivativeExpr: null };
+    }
+  }
+  function maxAbsDerivative(expr, order, a, b, samples = 400) {
+    let derivedFn = null;
+    let derivedStr = null;
+    try {
+      let node = math5.parse(expr);
+      for (let k = 0; k < order; k++) {
+        node = math5.derivative(node, "x");
+      }
+      derivedStr = math5.simplify(node).toString();
+      const compiled = math5.compile(derivedStr);
+      derivedFn = (x) => {
+        const v = compiled.evaluate({ x, e: Math.E, pi: Math.PI });
+        return typeof v === "number" ? v : NaN;
+      };
+    } catch {
+      const f = parseExpression(expr);
+      derivedFn = (x) => numericalHighOrderDerivative(f, x, order);
+    }
+    const xs = linspace(a, b, samples);
+    let maxAbs = 0;
+    let xAtMax = a;
+    for (const x of xs) {
+      const v = derivedFn(x);
+      if (isFinite(v) && Math.abs(v) > maxAbs) {
+        maxAbs = Math.abs(v);
+        xAtMax = x;
+      }
+    }
+    return { max: maxAbs, xAtMax, derivativeExpr: derivedStr };
+  }
+  function numericalHighOrderDerivative(f, x, order, h = 1e-3) {
+    if (order === 0) return f(x);
+    if (order === 1) return (f(x + h) - f(x - h)) / (2 * h);
+    if (order === 2) return (f(x + h) - 2 * f(x) + f(x - h)) / (h * h);
+    if (order === 3) {
+      return (f(x + 2 * h) - 2 * f(x + h) + 2 * f(x - h) - f(x - 2 * h)) / (2 * h * h * h);
+    }
+    if (order === 4) {
+      return (f(x + 2 * h) - 4 * f(x + h) + 6 * f(x) - 4 * f(x - h) + f(x - 2 * h)) / (h * h * h * h);
+    }
+    const g = (t) => numericalHighOrderDerivative(f, t, order - 1, h);
+    return (g(x + h) - g(x - h)) / (2 * h);
+  }
+  function trapecioError(fxExpr, a, b, h) {
+    const d = maxAbsDerivative(fxExpr, 2, a, b);
+    const bound = (b - a) * h * h / 12 * d.max;
+    return { bound, max: d.max, xAtMax: d.xAtMax, derivativeExpr: d.derivativeExpr, order: 2 };
+  }
+  function midpointError(fxExpr, a, b, h) {
+    const d = maxAbsDerivative(fxExpr, 2, a, b);
+    const bound = (b - a) * h * h / 24 * d.max;
+    return { bound, max: d.max, xAtMax: d.xAtMax, derivativeExpr: d.derivativeExpr, order: 2 };
+  }
+  function simpson13Error(fxExpr, a, b, h) {
+    const d = maxAbsDerivative(fxExpr, 4, a, b);
+    const bound = (b - a) * Math.pow(h, 4) / 180 * d.max;
+    return { bound, max: d.max, xAtMax: d.xAtMax, derivativeExpr: d.derivativeExpr, order: 4 };
+  }
+  function simpson38Error(fxExpr, a, b, h) {
+    const d = maxAbsDerivative(fxExpr, 4, a, b);
+    const bound = (b - a) * Math.pow(h, 4) / 80 * d.max;
+    return { bound, max: d.max, xAtMax: d.xAtMax, derivativeExpr: d.derivativeExpr, order: 4 };
+  }
+  function renderPerPointBreakdownPanel(opts) {
+    const { methodName, n, h, prefactor, prefactorLabel, integral, points } = opts;
+    const rows = points.map((p) => `
+    <tr>
+      <td>${p.i}</td>
+      <td>${fmtNum(p.xi, 8)}</td>
+      <td>${fmtNum(p.fxi, 8)}</td>
+      <td>${p.coeff}</td>
+      <td>${fmtNum(p.contrib, 8)}</td>
+    </tr>
+  `).join("");
+    const sum3 = points.reduce((s, p) => s + p.contrib, 0);
+    return `
+    <div class="theorem-panel theorem-pass">
+      <div class="theorem-header"><span class="theorem-icon">\u03A3</span> Desglose por puntos \u2014 ${methodName} (n = ${n})</div>
+      <div class="theorem-body">
+        <div>Paso <code>h = ${fmtNum(h, 8)}</code>. Formula: <code>I \u2248 ${prefactorLabel} \xB7 \u03A3 c_i \xB7 f(x_i)</code>.</div>
+        <div class="iter-table-wrap" style="margin-top:8px">
+          <table class="iter-table">
+            <thead>
+              <tr><th>i</th><th>x_i</th><th>f(x_i)</th><th>c_i</th><th>c_i \xB7 f(x_i)</th></tr>
+            </thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>
+        <div style="margin-top:6px">
+          <code>\u03A3 c_i \xB7 f(x_i) = ${fmtNum(sum3, 8)}</code> &nbsp; \u21D2 &nbsp;
+          <code>I = ${prefactorLabel} \xB7 \u03A3 = ${fmtNum(prefactor, 8)} \xB7 ${fmtNum(sum3, 8)} = ${fmtNum(integral, 10)}</code>
+        </div>
+      </div>
+    </div>
+  `;
+  }
+  function renderIntegrationTruncationAtXi(opts) {
+    const { methodName, fxExpr, a, b, h, n, xi, order, denom, sign: sign5 } = opts;
+    if (!isFinite(xi)) return "";
+    if (xi < Math.min(a, b) || xi > Math.max(a, b)) {
+      return `
+      <div class="theorem-panel theorem-fail">
+        <div class="theorem-header"><span class="theorem-icon">\u03BE</span> Error de truncamiento en \u03BE \u2014 ${methodName}</div>
+        <div class="theorem-body">
+          <div>El valor <code>\u03BE = ${xi}</code> no pertenece al intervalo <code>[${a}, ${b}]</code>. El teorema del resto exige <code>\u03BE \u2208 (a, b)</code>.</div>
+        </div>
+      </div>
+    `;
+    }
+    const { value: fnAtXi, derivativeExpr } = evaluateDerivativeAt(fxExpr, order, xi);
+    const orderLatex = order === 2 ? "f''" : "f^{(4)}";
+    const hExpLatex = order === 2 ? "h^{2}" : "h^{4}";
+    const generalFormulaLatex = order === 2 ? `E = ${sign5 === "-" ? "-" : ""}\\frac{(b-a)\\,h^{2}}{${denom}}\\, f''(\\xi), \\quad \\xi \\in (a, b)` : `E = ${sign5 === "-" ? "-" : ""}\\frac{(b-a)\\,h^{4}}{${denom}}\\, f^{(4)}(\\xi), \\quad \\xi \\in (a, b)`;
+    if (!isFinite(fnAtXi)) {
+      return `
+      <div class="theorem-panel theorem-fail">
+        <div class="theorem-header"><span class="theorem-icon">\u03BE</span> Error de truncamiento en \u03BE = ${xi} \u2014 ${methodName}</div>
+        <div class="theorem-body">
+          <div><b>Formula general:</b></div>
+          ${texBlock(generalFormulaLatex)}
+          <div>No se pudo evaluar ${orderLatex}(\u03BE) en \u03BE = ${xi} (posible singularidad o derivada no disponible).</div>
+          ${derivativeExpr ? `<div>Derivada obtenida: <code>${orderLatex.replace(/[{}]/g, "")}(x) = ${derivativeExpr}</code></div>` : ""}
+        </div>
+      </div>
+    `;
+    }
+    const ba = b - a;
+    const hp = Math.pow(h, order);
+    const prefactor = ba * hp / denom;
+    const signMul = sign5 === "-" ? -1 : 1;
+    const signedE = signMul * prefactor * fnAtXi;
+    const absE = Math.abs(signedE);
+    const derivativeLine = derivativeExpr ? `${texBlock(`${orderLatex}(x) = ${derivativeExpr.replace(/\*/g, "\\cdot ")}`)}` : `<div><em>No se pudo derivar simbolicamente; se uso diferenciacion numerica.</em></div>`;
+    const evalLine = `${orderLatex}(${fmtNum(xi, 6)}) = ${fmtNum(fnAtXi, 8)}`;
+    const plugInLatex = order === 2 ? `E = ${sign5 === "-" ? "-" : ""}\\frac{(${fmtNum(ba, 6)})\\,(${fmtNum(h, 6)})^{2}}{${denom}}\\,(${fmtNum(fnAtXi, 6)}) = ${fmtNum(signedE, 8)}` : `E = ${sign5 === "-" ? "-" : ""}\\frac{(${fmtNum(ba, 6)})\\,(${fmtNum(h, 6)})^{4}}{${denom}}\\,(${fmtNum(fnAtXi, 6)}) = ${fmtNum(signedE, 8)}`;
+    return `
+    <div class="theorem-panel theorem-pass">
+      <div class="theorem-header"><span class="theorem-icon">\u03BE</span> Error de truncamiento en \u03BE = ${fmtNum(xi, 6)} \u2014 ${methodName}</div>
+      <div class="theorem-body">
+        <div><b>Formula general</b> (teorema del resto para ${methodName}):</div>
+        ${texBlock(generalFormulaLatex)}
+        <div><b>Datos:</b> <code>f(x) = ${fxExpr}</code>, <code>a = ${fmtNum(a, 6)}</code>, <code>b = ${fmtNum(b, 6)}</code>, <code>n = ${n}</code>, <code>h = (b-a)/n = ${fmtNum(h, 8)}</code>.</div>
+
+        <div style="margin-top:10px"><b>Paso 1 \u2014 Derivar ${order} veces y evaluar en \u03BE</b></div>
+        ${derivativeLine}
+        ${texBlock(evalLine)}
+
+        <div style="margin-top:10px"><b>Paso 2 \u2014 Reemplazar en la formula del error</b></div>
+        ${texBlock(plugInLatex)}
+
+        <div style="margin-top:10px"><b>Paso 3 \u2014 Cota del error en ese punto</b></div>
+        ${texBlock(`|E| = ${fmtNum(absE, 8)}`)}
+
+        <div class="result-highlight result-local">
+          <div class="result-label">Error de truncamiento en \u03BE = ${fmtNum(xi, 6)}</div>
+          <div class="result-value">E \u2248 ${fmtNum(signedE, 8)}</div>
+          <div class="result-label" style="margin-top:4px">|E| \u2248 ${fmtNum(absE, 8)}</div>
+        </div>
+
+        <div style="margin-top:8px; font-size:0.85rem; color: var(--subtext0);">
+          El signo proviene de la formula teorica; lo que se reporta como <b>cota</b> siempre es <code>|E|</code>. Compara este valor contra la <b>cota global</b> (peor caso sobre todo el intervalo) que ya aparece en el resumen.
+        </div>
+      </div>
+    </div>
+  `;
+  }
+  function renderIntegrationConvergencePanel(methodName, a, b, nValues, quadrature, exact) {
+    const rows = [];
+    let prevI = null;
+    for (const n of nValues) {
+      const I = quadrature(n);
+      if (!isFinite(I)) continue;
+      const h = (b - a) / n;
+      const dI = prevI === null ? null : Math.abs(I - prevI);
+      const errRel = prevI === null || Math.abs(I) < 1e-14 ? null : dI / Math.abs(I);
+      const errRelPct = errRel === null ? null : errRel * 100;
+      let errAbsEx = null;
+      let errRelEx = null;
+      let errRelPctEx = null;
+      let sigDigits = null;
+      if (exact !== void 0 && isFinite(exact)) {
+        errAbsEx = Math.abs(I - exact);
+        const denom = Math.abs(exact) > 1e-14 ? Math.abs(exact) : Math.abs(I);
+        errRelEx = denom === 0 ? 0 : errAbsEx / denom;
+        errRelPctEx = errRelEx * 100;
+        if (errRelEx > 0 && errRelEx < 1) {
+          const d = Math.floor(-Math.log10(2 * errRelEx));
+          sigDigits = d >= 0 ? d : null;
+        }
+      }
+      rows.push({ n, h, integral: I, dI, errRel, errRelPct, errAbsEx, errRelEx, errRelPctEx, sigDigits });
+      prevI = I;
+    }
+    const hasExact = exact !== void 0 && isFinite(exact);
+    const fmt2 = (v, digits2 = 8) => v === null ? "\u2014" : isFinite(v) ? v.toPrecision(digits2) : "\u2014";
+    const exactCols = hasExact ? `<th>|I<sub>n</sub> \u2212 exacto|</th><th>\u03B5<sub>rel</sub> vs exacto</th><th>\u03B5<sub>rel</sub> % vs exacto</th><th>Cifras sig.</th>` : "";
+    const tableRows = rows.map((r) => `
+    <tr>
+      <td>${r.n}</td>
+      <td>${fmt2(r.h, 6)}</td>
+      <td>${fmt2(r.integral)}</td>
+      <td>${fmt2(r.dI)}</td>
+      <td>${fmt2(r.errRel)}</td>
+      <td>${fmt2(r.errRelPct, 6)}</td>
+      ${hasExact ? `<td>${fmt2(r.errAbsEx)}</td><td>${fmt2(r.errRelEx)}</td><td>${fmt2(r.errRelPctEx, 6)}</td><td>${r.sigDigits === null ? "\u2014" : r.sigDigits}</td>` : ""}
+    </tr>
+  `).join("");
+    return `
+    <div class="theorem-panel theorem-pass">
+      <div class="theorem-header"><span class="theorem-icon">\u0394</span> Convergencia y tipos de error \u2014 ${methodName}</div>
+      <div class="theorem-body">
+        <div>Se repite la cuadratura duplicando <code>n</code>. Entre estimaciones sucesivas se calculan los errores <b>sin conocer el exacto</b>. Si ingres\xE1s valor exacto, tambien se comparan contra el.</div>
+        <div class="iter-table-wrap" style="margin-top:8px">
+          <table class="iter-table">
+            <thead>
+              <tr>
+                <th>n</th>
+                <th>h</th>
+                <th>I<sub>n</sub></th>
+                <th>|I<sub>n</sub> \u2212 I<sub>n/2</sub>|</th>
+                <th>\u03B5<sub>rel</sub></th>
+                <th>\u03B5<sub>rel</sub> %</th>
+                ${exactCols}
+              </tr>
+            </thead>
+            <tbody>${tableRows}</tbody>
+          </table>
+        </div>
+        <div style="margin-top:6px; font-size:0.85rem; color: var(--subtext0);">
+          <b>|I<sub>n</sub> \u2212 I<sub>n/2</sub>|</b>: error absoluto entre estimaciones sucesivas (se usa como criterio de parada cuando no hay exacto).
+          <b>\u03B5<sub>rel</sub></b> = |\u0394I| / |I<sub>n</sub>|. <b>\u03B5<sub>rel</sub> %</b> = \u03B5<sub>rel</sub> \xD7 100.
+          ${hasExact ? "<b>vs exacto</b>: |I<sub>n</sub> \u2212 exacto|, su fraccion y %. <b>Cifras sig.</b> = cifras significativas correctas respecto al exacto." : ""}
+        </div>
+      </div>
+    </div>
+  `;
+  }
+
+  // src/methods/integration/midpoint.ts
+  function computeMidpoint(f, a, b, n) {
+    const h = (b - a) / n;
+    const iterations = [];
+    let sum3 = 0;
+    for (let i2 = 0; i2 < n; i2++) {
+      const xMid = a + (i2 + 0.5) * h;
+      const fxMid = f(xMid);
+      const area = h * fxMid;
+      sum3 += fxMid;
+      iterations.push({ i: i2 + 1, xi_mid: xMid, fxi: fxMid, area });
+    }
+    return { integral: h * sum3, iterations, h };
+  }
+  var midpoint = {
+    id: "midpoint",
+    name: "Regla del Rectangulo (Punto Medio)",
+    category: "integration",
+    formula: "\u222Bf(x)dx \u2248 (b-a) \xB7 f((a+b)/2)",
+    latexFormula: "\\int_a^b f(x)\\,dx \\approx (b-a) \\cdot f\\!\\left(\\frac{a+b}{2}\\right)",
+    description: "Aproxima la integral usando el valor de f en el punto medio del intervalo.",
+    inputs: [
+      { id: "fx", label: "f(x)", placeholder: "x^2", defaultValue: "x^2" },
+      { id: "a", label: "a (limite inferior)", placeholder: "0", type: "number", defaultValue: "0" },
+      { id: "b", label: "b (limite superior)", placeholder: "1", type: "number", defaultValue: "1" },
+      { id: "n", label: "n (subintervalos)", placeholder: "10", type: "number", defaultValue: "10" },
+      { id: "exact", label: "Valor exacto (opcional)", placeholder: "p.ej. 0.333333", type: "number", hint: "Si se provee, se calcula el error relativo vs exacto." },
+      { id: "xi", label: "\u03BE para error de truncamiento (opcional)", placeholder: "p.ej. 0.5", type: "number", hint: "Punto donde evaluar E = (b-a)h\xB2/24 \xB7 f\xB4\xB4(\u03BE). Dejar vacio para mostrar solo la cota del peor caso." }
+    ],
+    tableColumns: [
+      { key: "i", label: "i", latex: "i" },
+      { key: "xi_mid", label: "x_mid", latex: "x_{\\text{mid}}" },
+      { key: "fxi", label: "f(x_mid)", latex: "f(x_{\\text{mid}})" },
+      { key: "area", label: "h\xB7f(x_mid)", latex: "h\\,f(x_{\\text{mid}})" }
+    ],
+    steps: [
+      "Escribe <code>f(x)</code> \u2014 ej. <code>exp(x^2)</code> para el ejercicio del parcial \u222B\u2080\xB2 e^(x\xB2) dx.",
+      "Completa limites <code>a</code> y <code>b</code>. Para el parcial 02/07/2025: <code>a=0</code>, <code>b=2</code>.",
+      "Pone <code>n</code> (subintervalos). Para el parcial 02/07/2025: <code>n = 10</code>. La app calcula <b>una sola vez</b> con ese n (sin duplicaciones automaticas).",
+      "Para poder medir error: calcula o pone <b>valor exacto</b>. Para \u222B\u2080\xB2 e^(x\xB2) dx el exacto es <code>\u2248 16.45262776</code> (usa Wolfram, Python <code>scipy.integrate.quad</code>, o una corrida con Simpson y n grande como referencia).",
+      "Pulsa <b>Resolver</b>. En cada subintervalo <code>[x_i, x_{i+1}]</code> la app evalua <code>f</code> en el <em>punto medio</em> <code>x_mid = (x_i + x_{i+1})/2</code> y suma <code>h \xB7 f(x_mid)</code> con <code>h = (b-a)/n</code>.",
+      "Revisa la <b>cota de truncamiento</b>: <code>|E| \u2264 (b-a)\xB7h\xB2/24 \xB7 M\u2082</code> donde <code>M\u2082 = max |f''(\u03BE)|</code> en [a, b]. La app calcula f'' simbolicamente y encuentra M\u2082 numericamente; te muestra \u03BE aproximado.",
+      "Para comparacion con Simpson (parte b del parcial): toma nota de <em>iteraciones</em>, <em>error relativo %</em>, y la cota de E. Simpson con el mismo n da error mucho menor porque converge mas rapido (O(h\u2074) vs O(h\xB2))."
+    ],
+    solve(params) {
+      const f = parseExpression(params.fx);
+      const a = parseFloat(params.a);
+      const b = parseFloat(params.b);
+      const n = parseInt(params.n) || 10;
+      const exactRaw = (params.exact ?? "").trim();
+      const exact = exactRaw === "" ? void 0 : parseFloat(exactRaw);
+      if (isNaN(a) || isNaN(b)) throw new Error("a y b deben ser numeros validos");
+      if (a >= b) throw new Error("a debe ser menor que b");
+      if (n < 1) throw new Error("n debe ser >= 1");
+      const run = computeMidpoint(f, a, b, n);
+      const errInfo = midpointError(params.fx, a, b, run.h);
+      const errRelPct = exact !== void 0 && !isNaN(exact) && exact !== 0 ? Math.abs((run.integral - exact) / exact) * 100 : void 0;
+      const msgParts = [`h = ${run.h.toPrecision(6)}, n = ${n}`];
+      if (errInfo.derivativeExpr) msgParts.push(`f''(x) = ${errInfo.derivativeExpr}`);
+      if (errRelPct !== void 0) msgParts.push(`error relativo vs exacto: ${errRelPct.toPrecision(4)}%`);
+      const panels = [];
+      panels.push(renderPerPointBreakdownPanel({
+        methodName: "Punto Medio",
+        n,
+        h: run.h,
+        prefactor: run.h,
+        prefactorLabel: "h",
+        integral: run.integral,
+        points: run.iterations.map((r) => ({
+          i: r.i,
+          xi: r.xi_mid,
+          fxi: r.fxi,
+          coeff: 1,
+          contrib: r.fxi
+        }))
+      }));
+      const xiRaw = (params.xi ?? "").trim();
+      if (xiRaw !== "") {
+        const xiVal = parseFloat(xiRaw);
+        if (!isNaN(xiVal)) {
+          panels.push(renderIntegrationTruncationAtXi({
+            methodName: "Punto Medio",
+            fxExpr: params.fx,
+            a,
+            b,
+            h: run.h,
+            n,
+            xi: xiVal,
+            order: 2,
+            denom: 24,
+            sign: "+"
+          }));
+        }
+      }
+      panels.push(renderIntegrationConvergencePanel(
+        "Punto Medio",
+        a,
+        b,
+        [1, 2, 4, 8, 16, 32, 64],
+        (nv) => computeMidpoint(f, a, b, nv).integral,
+        exact
+      ));
+      return {
+        integral: run.integral,
+        iterations: run.iterations,
+        converged: true,
+        error: errInfo.bound,
+        exact,
+        relativeErrorPercent: errRelPct,
+        truncationBound: errInfo.bound,
+        truncationOrder: 2,
+        maxDerivative: errInfo.max,
+        xiApprox: errInfo.xAtMax,
+        derivativeExpr: errInfo.derivativeExpr ?? void 0,
+        message: msgParts.join(" \xB7 "),
+        theoremPanels: panels
+      };
+    },
+    getCharts(params, result) {
+      const f = parseExpression(params.fx);
+      const a = parseFloat(params.a);
+      const b = parseFloat(params.b);
+      const n = result.iterations.length || (parseInt(params.n) || 10);
+      const h = (b - a) / n;
+      const pad2 = (b - a) * 0.1;
+      const xs = linspace(a - pad2, b + pad2, 500);
+      const ys = xs.map((x) => f(x));
+      const rectX = [];
+      const rectY = [];
+      for (let i2 = 0; i2 < n; i2++) {
+        const xL = a + i2 * h;
+        const xR = a + (i2 + 1) * h;
+        const xM = (xL + xR) / 2;
+        const fM = f(xM);
+        rectX.push(xL, xL, xR, xR, xL);
+        rectY.push(0, fM, fM, 0, 0);
+        rectX.push(NaN);
+        rectY.push(NaN);
+      }
+      const chart1 = {
+        title: "Regla del Punto Medio",
+        type: "line",
+        datasets: [
+          { label: "f(x)", x: xs, y: ys, color: "#89b4fa" },
+          { label: "Rectangulos", x: rectX, y: rectY, color: "#a6e3a1", fill: false }
+        ],
+        xLabel: "x",
+        yLabel: "f(x)"
+      };
+      const xmids = [];
+      const fvals = [];
+      let cumSum = 0;
+      const cumAreas = [];
+      for (let i2 = 0; i2 < n; i2++) {
+        const xm = a + (i2 + 0.5) * h;
+        const fm = f(xm);
+        xmids.push(xm);
+        fvals.push(fm);
+        cumSum += h * fm;
+        cumAreas.push(cumSum);
+      }
+      const iters = Array.from({ length: n }, (_, i2) => i2 + 1);
+      const chart2 = {
+        title: "Area acumulada",
+        type: "line",
+        datasets: [{ label: "Area acumulada", x: iters, y: cumAreas, color: "#cba6f7", pointRadius: 3 }],
+        xLabel: "Subintervalo",
+        yLabel: "Area"
+      };
+      const chart3 = {
+        title: "Valores f(x_i) en puntos medios",
+        type: "scatter",
+        datasets: [
+          { label: "f(x)", x: xs, y: ys, color: "#89b4fa", pointRadius: 0 },
+          { label: "f(x_i)", x: xmids, y: fvals, color: "#fab387", pointRadius: 4, showLine: false }
+        ],
+        xLabel: "x",
+        yLabel: "f(x)"
+      };
+      const nValues = [1, 2, 4, 8, 16, 32, 64, 128];
+      const integrals = nValues.map((nv) => {
+        const hv = (b - a) / nv;
+        let s = 0;
+        for (let i2 = 0; i2 < nv; i2++) s += f(a + (i2 + 0.5) * hv);
+        return hv * s;
+      });
+      const chart4 = {
+        title: "Convergencia con n",
+        type: "line",
+        datasets: [{ label: "Integral", x: nValues, y: integrals, color: "#f9e2af", pointRadius: 3 }],
+        xLabel: "n (subintervalos)",
+        yLabel: "Valor integral"
+      };
+      return [chart1, chart2, chart3, chart4];
+    }
+  };
+
+  // src/methods/integration/trapezoidal.ts
+  var trapezoidal = {
+    id: "trapezoidal",
+    name: "Regla del Trapecio (Simple)",
+    category: "integration",
+    formula: "\u222Bf(x)dx \u2248 (b-a)/2 \xB7 [f(a) + f(b)]",
+    latexFormula: "\\int_a^b f(x)\\,dx \\approx \\frac{b-a}{2}\\left[f(a) + f(b)\\right]",
+    description: "Aproxima el area bajo la curva con un solo trapecio entre a y b.",
+    inputs: [
+      { id: "fx", label: "f(x)", placeholder: "x^2", defaultValue: "x^2" },
+      { id: "a", label: "a (limite inferior)", placeholder: "0", type: "number", defaultValue: "0" },
+      { id: "b", label: "b (limite superior)", placeholder: "1", type: "number", defaultValue: "1" }
+    ],
+    tableColumns: [
+      { key: "punto", label: "Punto", latex: "\\text{Punto}" },
+      { key: "x", label: "x", latex: "x" },
+      { key: "fx", label: "f(x)", latex: "f(x)" }
+    ],
+    steps: [
+      "Version simple con un solo trapecio entre a y b. Util para <em>didactico</em> o verificar una formula \u2014 pero en el parcial siempre piden version compuesta (<code>trapezoidalComp</code>).",
+      "Formula: <code>I \u2248 (b-a)/2 \xB7 [f(a) + f(b)]</code>.",
+      "Si el parcial da <code>n = 4</code> o <code>n = 10</code>, usa <b>Trapecio compuesto</b>, no este.",
+      "La cota de error: <code>|E| = -(b-a)\xB3/12 \xB7 f''(\u03BE)</code> para algun \u03BE \u2208 (a, b)."
+    ],
+    solve(params) {
+      const f = parseExpression(params.fx);
+      const a = parseFloat(params.a);
+      const b = parseFloat(params.b);
+      if (isNaN(a) || isNaN(b)) throw new Error("a y b deben ser numeros validos");
+      if (a >= b) throw new Error("a debe ser menor que b");
+      const fa = f(a);
+      const fb = f(b);
+      const integral = (b - a) / 2 * (fa + fb);
+      const iterations = [
+        { punto: "a", x: a, fx: fa },
+        { punto: "b", x: b, fx: fb }
+      ];
+      return { integral, iterations, converged: true, error: 0, message: `Trapecio simple: (${b}-${a})/2 \xB7 [f(${a}) + f(${b})]` };
+    },
+    getCharts(params, result) {
+      const f = parseExpression(params.fx);
+      const a = parseFloat(params.a);
+      const b = parseFloat(params.b);
+      const fa = f(a);
+      const fb = f(b);
+      const pad2 = (b - a) * 0.3;
+      const xs = linspace(a - pad2, b + pad2, 500);
+      const ys = xs.map((x) => f(x));
+      const chart1 = {
+        title: "Regla del Trapecio Simple",
+        type: "line",
+        datasets: [
+          { label: "f(x)", x: xs, y: ys, color: "#89b4fa" },
+          { label: "Trapecio", x: [a, a, b, b, a], y: [0, fa, fb, 0, 0], color: "#a6e3a1", fill: true }
+        ],
+        xLabel: "x",
+        yLabel: "f(x)"
+      };
+      const xFill = linspace(a, b, 200);
+      const yFill = xFill.map((x) => f(x));
+      const chart2 = {
+        title: "Area exacta vs Trapecio",
+        type: "line",
+        datasets: [
+          { label: "f(x)", x: xs, y: ys, color: "#89b4fa" },
+          { label: "Area bajo curva", x: [...xFill, b, a], y: [...yFill, 0, 0], color: "#cba6f7", fill: true }
+        ],
+        xLabel: "x",
+        yLabel: "f(x)"
+      };
+      const nValues = [1, 2, 4, 8, 16, 32, 64];
+      const integrals = nValues.map((n) => {
+        const h = (b - a) / n;
+        let s = f(a) + f(b);
+        for (let i2 = 1; i2 < n; i2++) s += 2 * f(a + i2 * h);
+        return h / 2 * s;
+      });
+      const chart3 = {
+        title: "Convergencia Trapecio Compuesto",
+        type: "line",
+        datasets: [{ label: "Integral", x: nValues, y: integrals, color: "#f9e2af", pointRadius: 3 }],
+        xLabel: "n",
+        yLabel: "Valor"
+      };
+      const chart4 = {
+        title: "Puntos de evaluacion",
+        type: "scatter",
+        datasets: [
+          { label: "f(x)", x: xs, y: ys, color: "#89b4fa", pointRadius: 0 },
+          { label: "Puntos", x: [a, b], y: [fa, fb], color: "#fab387", pointRadius: 6, showLine: false }
+        ],
+        xLabel: "x",
+        yLabel: "f(x)"
+      };
+      return [chart1, chart2, chart3, chart4];
+    }
+  };
+
+  // src/methods/integration/trapezoidalComp.ts
+  function computeTrapecio(f, a, b, n) {
+    const h = (b - a) / n;
+    const iterations = [];
+    let sum3 = 0;
+    for (let i2 = 0; i2 <= n; i2++) {
+      const xi = a + i2 * h;
+      const fxi = f(xi);
+      const coeff = i2 === 0 || i2 === n ? 1 : 2;
+      const contrib = coeff * fxi;
+      sum3 += contrib;
+      iterations.push({ i: i2, xi, fxi, coeff, contrib });
+    }
+    return { integral: h / 2 * sum3, iterations, h };
+  }
+  var trapezoidalComp = {
+    id: "trapezoidalComp",
+    name: "Regla del Trapecio Compuesta",
+    category: "integration",
+    formula: "\u222Bf(x)dx \u2248 h/2 \xB7 [f(a) + 2\xB7\u03A3f(x_i) + f(b)]",
+    latexFormula: "\\int_a^b f(x)\\,dx \\approx \\frac{h}{2}\\left[f(a) + 2\\sum_{i=1}^{n-1} f(x_i) + f(b)\\right], \\quad h = \\frac{b-a}{n}",
+    description: "Divide [a,b] en n subintervalos y aplica la regla del trapecio en cada uno.",
+    inputs: [
+      { id: "fx", label: "f(x)", placeholder: "x^2", defaultValue: "x^2" },
+      { id: "a", label: "a (limite inferior)", placeholder: "0", type: "number", defaultValue: "0" },
+      { id: "b", label: "b (limite superior)", placeholder: "1", type: "number", defaultValue: "1" },
+      { id: "n", label: "n (subintervalos iniciales)", placeholder: "10", type: "number", defaultValue: "10" },
+      { id: "exact", label: "Valor exacto (opcional)", placeholder: "p.ej. 0.333333", type: "number", hint: 'Si se provee, se muestran errores vs exacto y se pueden usar criterios "vs exacto".' },
+      { id: "xi", label: "\u03BE para error de truncamiento (opcional)", placeholder: "p.ej. 0.5", type: "number", hint: "Punto donde evaluar E = -(b-a)h\xB2/12 \xB7 f\xB4\xB4(\u03BE). Dejar vacio para mostrar solo la cota del peor caso." },
+      { id: "stop", label: "Criterio de parada", placeholder: "err_rel_pct:1", type: "stopCriterion", defaultValue: "err_rel_pct:1", hint: "Se duplica n hasta que se cumplen los criterios. Default: error relativo < 1%." },
+      { id: "maxIter", label: "Max duplicaciones de n", placeholder: "5", type: "number", defaultValue: "5" }
+    ],
+    tableColumns: [
+      { key: "step", label: "Paso", latex: "k" },
+      { key: "n", label: "n", latex: "n" },
+      { key: "h", label: "h", latex: "h" },
+      { key: "integral", label: "I_n", latex: "I_n" },
+      { key: "errAbs", label: "|\u0394I|", latex: "|I_n - I_{n/2}|" },
+      { key: "errRel", label: "\u03B5_rel", latex: "\\varepsilon_{\\text{rel}}" },
+      { key: "errRelPct", label: "\u03B5_rel %", latex: "\\varepsilon_{\\text{rel}}\\,(\\%)" },
+      { key: "errAbsExact", label: "|I_n \u2212 exacto|", latex: "|I_n - I_{\\text{ex}}|" },
+      { key: "errRelExact", label: "\u03B5 vs ex", latex: "\\varepsilon_{\\text{ex}}" },
+      { key: "errRelPctExact", label: "\u03B5 vs ex %", latex: "\\varepsilon_{\\text{ex}}\\,(\\%)" }
+    ],
+    steps: [
+      "Escribe <code>f(x)</code>. Para el <b>parcial 2025-I</b>: <code>ln(x+1)/x</code> sobre <code>[0, 1]</code>. Ojo, en <code>x=0</code> la funcion tiene singularidad removible \u2014 el parser lanzaria <code>NaN</code>; usa <code>a = 1e-10</code> (\u2248 0) o redefine como <code>ln(x+1)/x</code> y prueba primero n=4. Para <b>parcial 30/04/2025</b>: <code>sqrt(2)\xB7exp(x^2)</code> sobre <code>[0, 1]</code>.",
+      "Completa <code>a</code>, <code>b</code>, y <code>n</code>. El parcial te pide <code>n = 4</code> (y luego <code>n = 10</code> en el de 30/04 para comparar). El paso es <code>h = (b - a)/n</code>.",
+      "Formula compuesta: <code>I \u2248 h/2 \xB7 [f(a) + 2\xB7\u03A3 f(x_i) + f(b)]</code> con pesos <b>1, 2, 2, ..., 2, 1</b>. La tabla te muestra en la columna <em>Coeficiente</em> exactamente esto: 1 en los extremos y 2 en los puntos interiores.",
+      "Pulsa <b>Resolver</b>. La columna <em>Contribucion = coef \xB7 f(x_i)</em> y la suma total multiplicada por <code>h/2</code> da la integral aproximada.",
+      "<b>Error de truncamiento</b>: <code>|E| = -(b-a)\xB7h\xB2/12 \xB7 f''(\u03BE)</code> para algun <code>\u03BE \u2208 (a, b)</code>. La app calcula <code>f''(x)</code> simbolicamente y halla el <code>\u03BE</code> que maximiza <code>|f''|</code> en [a,b] (peor caso \u2014 cota superior).",
+      "Si el parcial te fija <code>\u03BE = 0.5</code> (como en 30/04/2025), evalua a mano <code>f''(0.5)</code> y calcula la cota con ese valor concreto: <code>|E| = (b-a)h\xB2/12 \xB7 |f''(0.5)|</code>. La app siempre reporta el peor caso; puedes usarlo de referencia.",
+      "Si das <b>valor exacto</b>: la app calcula <em>error relativo %</em> y si supera 1% reintenta con <code>n = 20</code> (te lo indica en el resumen).",
+      "Para la <b>comparacion con Simpson 1/3</b> (ultima parte del parcial): anota el <em>valor integral</em>, <em>error relativo</em> y la <em>cota</em>. Simpson con mismo n baja el error porque converge <code>O(h\u2074)</code> vs <code>O(h\xB2)</code> del trapecio \u2014 se ve claramente en la grafica de convergencia."
+    ],
+    solve(params) {
+      const f = parseExpression(params.fx);
+      const a = parseFloat(params.a);
+      const b = parseFloat(params.b);
+      const n0 = parseInt(params.n) || 10;
+      const exactRaw = (params.exact ?? "").trim();
+      const exact = exactRaw === "" ? void 0 : parseFloat(exactRaw);
+      const stop = parseStop(params.stop);
+      const maxIter = Math.max(1, parseInt(params.maxIter) || 5);
+      if (isNaN(a) || isNaN(b)) throw new Error("a y b deben ser numeros validos");
+      if (a >= b) throw new Error("a debe ser menor que b");
+      if (n0 < 1) throw new Error("n debe ser >= 1");
+      let n = n0;
+      let run = computeTrapecio(f, a, b, n);
+      let prevIntegral = null;
+      let converged = false;
+      let steps2 = 1;
+      const stepRows = [];
+      const firstFull = withExactErrors({ errAbs: 0, errRel: 0, errRelPct: 0 }, run.integral, exact);
+      stepRows.push({
+        step: 1,
+        n,
+        h: run.h,
+        integral: run.integral,
+        errAbs: null,
+        errRel: null,
+        errRelPct: null,
+        errAbsExact: firstFull.errAbsExact ?? null,
+        errRelExact: firstFull.errRelExact ?? null,
+        errRelPctExact: firstFull.errRelPctExact ?? null
+      });
+      if (exact !== void 0 && !isNaN(exact) && hasConverged(stop, firstFull)) {
+        converged = true;
+      }
+      while (!converged && steps2 < maxIter) {
+        prevIntegral = run.integral;
+        n *= 2;
+        run = computeTrapecio(f, a, b, n);
+        steps2++;
+        const errs = computeErrors(prevIntegral, run.integral);
+        const errsFull = withExactErrors(errs, run.integral, exact);
+        stepRows.push({
+          step: steps2,
+          n,
+          h: run.h,
+          integral: run.integral,
+          errAbs: errsFull.errAbs,
+          errRel: errsFull.errRel,
+          errRelPct: errsFull.errRelPct,
+          errAbsExact: errsFull.errAbsExact ?? null,
+          errRelExact: errsFull.errRelExact ?? null,
+          errRelPctExact: errsFull.errRelPctExact ?? null
+        });
+        if (hasConverged(stop, errsFull)) {
+          converged = true;
+          break;
+        }
+      }
+      const lastErr = stepRows[stepRows.length - 1];
+      const errInfo = trapecioError(params.fx, a, b, run.h);
+      const msgParts = [`h = ${run.h.toPrecision(6)}, n = ${n}`];
+      if (errInfo.derivativeExpr) msgParts.push(`f''(x) = ${errInfo.derivativeExpr}`);
+      msgParts.push(`Criterio: ${describeStop(stop)}`);
+      if (steps2 > 1) msgParts.push(`${steps2 - 1} duplicacion(es) (n: ${n0} \u2192 ${n})`);
+      if (!converged) msgParts.push("no convergio en maxIter");
+      const panels = [];
+      panels.push(renderPerPointBreakdownPanel({
+        methodName: "Trapecio Compuesto",
+        n,
+        h: run.h,
+        prefactor: run.h / 2,
+        prefactorLabel: "h/2",
+        integral: run.integral,
+        points: run.iterations.map((r) => ({
+          i: r.i,
+          xi: r.xi,
+          fxi: r.fxi,
+          coeff: r.coeff,
+          contrib: r.contrib
+        }))
+      }));
+      const xiRaw = (params.xi ?? "").trim();
+      if (xiRaw !== "") {
+        const xiVal = parseFloat(xiRaw);
+        if (!isNaN(xiVal)) {
+          panels.push(renderIntegrationTruncationAtXi({
+            methodName: "Trapecio Compuesto",
+            fxExpr: params.fx,
+            a,
+            b,
+            h: run.h,
+            n,
+            xi: xiVal,
+            order: 2,
+            denom: 12,
+            sign: "-"
+          }));
+        }
+      }
+      panels.push(renderIntegrationConvergencePanel(
+        "Trapecio Compuesto",
+        a,
+        b,
+        [2, 4, 8, 16, 32, 64],
+        (nv) => computeTrapecio(f, a, b, nv).integral,
+        exact
+      ));
+      const lastErrRelPct = lastErr.errRelPctExact ?? lastErr.errRelPct;
+      return {
+        integral: run.integral,
+        iterations: stepRows,
+        converged,
+        error: errInfo.bound,
+        exact,
+        relativeErrorPercent: lastErrRelPct ?? void 0,
+        truncationBound: errInfo.bound,
+        truncationOrder: 2,
+        maxDerivative: errInfo.max,
+        xiApprox: errInfo.xAtMax,
+        derivativeExpr: errInfo.derivativeExpr ?? void 0,
+        retried: steps2 > 1,
+        message: msgParts.join(" \xB7 "),
+        theoremPanels: panels
+      };
+    },
+    getCharts(params, result) {
+      const f = parseExpression(params.fx);
+      const a = parseFloat(params.a);
+      const b = parseFloat(params.b);
+      const lastRow = result.iterations[result.iterations.length - 1];
+      const n = lastRow?.n || (parseInt(params.n) || 10);
+      const h = (b - a) / n;
+      const pad2 = (b - a) * 0.1;
+      const xs = linspace(a - pad2, b + pad2, 500);
+      const ys = xs.map((x) => f(x));
+      const trapX = [];
+      const trapY = [];
+      const xPts = [];
+      const yPts = [];
+      for (let i2 = 0; i2 < n; i2++) {
+        const xL = a + i2 * h;
+        const xR = a + (i2 + 1) * h;
+        trapX.push(xL, xL, xR, xR, xL);
+        trapY.push(0, f(xL), f(xR), 0, 0);
+        trapX.push(NaN);
+        trapY.push(NaN);
+      }
+      for (let i2 = 0; i2 <= n; i2++) {
+        const xi = a + i2 * h;
+        xPts.push(xi);
+        yPts.push(f(xi));
+      }
+      const chart1 = {
+        title: `Trapecio Compuesto (n=${n})`,
+        type: "line",
+        datasets: [
+          { label: "f(x)", x: xs, y: ys, color: "#89b4fa" },
+          { label: "Trapecios", x: trapX, y: trapY, color: "#a6e3a1", fill: false }
+        ],
+        xLabel: "x",
+        yLabel: "f(x)"
+      };
+      const chart2 = {
+        title: "Puntos de evaluacion",
+        type: "scatter",
+        datasets: [
+          { label: "f(x)", x: xs, y: ys, color: "#89b4fa", pointRadius: 0 },
+          { label: "x_i", x: xPts, y: yPts, color: "#fab387", pointRadius: 4, showLine: false }
+        ],
+        xLabel: "x",
+        yLabel: "f(x)"
+      };
+      const stepNs = result.iterations.map((r) => r.n);
+      const stepIs = result.iterations.map((r) => r.integral);
+      const chart3 = {
+        title: "Convergencia por duplicaciones",
+        type: "line",
+        datasets: [{ label: "I_n", x: stepNs, y: stepIs, color: "#cba6f7", pointRadius: 4 }],
+        xLabel: "n",
+        yLabel: "I_n"
+      };
+      const nValues = [2, 4, 8, 16, 32, 64, 128, 256];
+      const integrals = nValues.map((nv) => {
+        const hv = (b - a) / nv;
+        let s = f(a) + f(b);
+        for (let i2 = 1; i2 < nv; i2++) s += 2 * f(a + i2 * hv);
+        return hv / 2 * s;
+      });
+      const chart4 = {
+        title: "Convergencia con n",
+        type: "line",
+        datasets: [{ label: "Integral", x: nValues, y: integrals, color: "#f9e2af", pointRadius: 3 }],
+        xLabel: "n",
+        yLabel: "Valor integral"
+      };
+      return [chart1, chart2, chart3, chart4];
+    }
+  };
+
+  // src/methods/integration/simpson13.ts
+  var simpson13 = {
+    id: "simpson13",
+    name: "Simpson 1/3 (Simple)",
+    category: "integration",
+    formula: "\u222Bf(x)dx \u2248 (b-a)/6 \xB7 [f(a) + 4\xB7f(m) + f(b)]",
+    latexFormula: "\\int_a^b f(x)\\,dx \\approx \\frac{b-a}{6}\\left[f(a) + 4f\\!\\left(\\frac{a+b}{2}\\right) + f(b)\\right]",
+    description: "Aproxima la integral usando una parabola que pasa por 3 puntos: a, (a+b)/2, b.",
+    inputs: [
+      { id: "fx", label: "f(x)", placeholder: "x^2", defaultValue: "x^2" },
+      { id: "a", label: "a (limite inferior)", placeholder: "0", type: "number", defaultValue: "0" },
+      { id: "b", label: "b (limite superior)", placeholder: "1", type: "number", defaultValue: "1" }
+    ],
+    tableColumns: [
+      { key: "punto", label: "Punto", latex: "\\text{Punto}" },
+      { key: "x", label: "x", latex: "x" },
+      { key: "fx", label: "f(x)", latex: "f(x)" },
+      { key: "coeff", label: "Coeficiente", latex: "c_i" }
+    ],
+    steps: [
+      "Version <em>simple</em> de Simpson 1/3: usa solo <b>tres puntos</b> \u2014 <code>a</code>, <code>m = (a+b)/2</code>, <code>b</code> \u2014 y ajusta una <b>parabola</b> que pasa por ellos. Util para didactica o verificar formula; en parcial casi siempre piden la <b>version compuesta</b> con n subintervalos.",
+      "Escribe <code>f(x)</code> y los limites <code>a</code>, <code>b</code>.",
+      "Formula: <code>I \u2248 (b-a)/6 \xB7 [f(a) + 4\xB7f(m) + f(b)]</code>. Observa los pesos: <b>1, 4, 1</b>. El factor 4 viene de integrar la parabola de Lagrange.",
+      "Pulsa <b>Resolver</b>. La tabla muestra los 3 puntos con sus coeficientes. La grafica muestra la <em>parabola ajustada</em> vs <code>f(x)</code> real.",
+      "Error: <code>|E| = -(b-a)\u2075/2880 \xB7 f\u207D\u2074\u207E(\u03BE)</code> \u2014 es de orden <code>O(h\u2075)</code>. Si la funcion es un polinomio de grado \u2264 3, Simpson es <em>exacto</em>.",
+      "Si el parcial pide <code>n = 4</code> o similar, salta a <b>Simpson 1/3 compuesto</b>."
+    ],
+    solve(params) {
+      const f = parseExpression(params.fx);
+      const a = parseFloat(params.a);
+      const b = parseFloat(params.b);
+      if (isNaN(a) || isNaN(b)) throw new Error("a y b deben ser numeros validos");
+      if (a >= b) throw new Error("a debe ser menor que b");
+      const m = (a + b) / 2;
+      const fa = f(a);
+      const fm = f(m);
+      const fb = f(b);
+      const integral = (b - a) / 6 * (fa + 4 * fm + fb);
+      const iterations = [
+        { punto: "a", x: a, fx: fa, coeff: 1 },
+        { punto: "m = (a+b)/2", x: m, fx: fm, coeff: 4 },
+        { punto: "b", x: b, fx: fb, coeff: 1 }
+      ];
+      return { integral, iterations, converged: true, error: 0 };
+    },
+    getCharts(params, result) {
+      const f = parseExpression(params.fx);
+      const a = parseFloat(params.a);
+      const b = parseFloat(params.b);
+      const m = (a + b) / 2;
+      const fa = f(a);
+      const fm = f(m);
+      const fb = f(b);
+      const pad2 = (b - a) * 0.3;
+      const xs = linspace(a - pad2, b + pad2, 500);
+      const ys = xs.map((x) => f(x));
+      const parXs = linspace(a, b, 200);
+      const parYs = parXs.map((x) => {
+        const L0 = (x - m) * (x - b) / ((a - m) * (a - b));
+        const L1 = (x - a) * (x - b) / ((m - a) * (m - b));
+        const L2 = (x - a) * (x - m) / ((b - a) * (b - m));
+        return fa * L0 + fm * L1 + fb * L2;
+      });
+      const chart1 = {
+        title: "Simpson 1/3 - Parabola interpolante",
+        type: "line",
+        datasets: [
+          { label: "f(x)", x: xs, y: ys, color: "#89b4fa" },
+          { label: "Parabola", x: parXs, y: parYs, color: "#a6e3a1", dashed: true },
+          { label: "Puntos", x: [a, m, b], y: [fa, fm, fb], color: "#fab387", pointRadius: 6, showLine: false }
+        ],
+        xLabel: "x",
+        yLabel: "f(x)"
+      };
+      const areaX = [...parXs, b, a];
+      const areaY = [...parYs, 0, 0];
+      const chart2 = {
+        title: "Area bajo la parabola",
+        type: "line",
+        datasets: [
+          { label: "f(x)", x: xs, y: ys, color: "#89b4fa" },
+          { label: "Area Simpson", x: areaX, y: areaY, color: "#a6e3a1", fill: true }
+        ],
+        xLabel: "x",
+        yLabel: "f(x)"
+      };
+      const nValues = [2, 4, 6, 8, 10, 20, 50, 100];
+      const integrals = nValues.map((n) => {
+        const h = (b - a) / n;
+        let s = f(a) + f(b);
+        for (let i2 = 1; i2 < n; i2++) {
+          s += (i2 % 2 === 0 ? 2 : 4) * f(a + i2 * h);
+        }
+        return h / 3 * s;
+      });
+      const chart3 = {
+        title: "Convergencia Simpson 1/3 Compuesto",
+        type: "line",
+        datasets: [{ label: "Integral", x: nValues, y: integrals, color: "#f9e2af", pointRadius: 3 }],
+        xLabel: "n",
+        yLabel: "Valor"
+      };
+      const chart4 = {
+        title: "Coeficientes",
+        type: "bar",
+        datasets: [{ label: "Coef \xD7 f(x)", x: [a, m, b], y: [fa, 4 * fm, fb], color: "#cba6f7", pointRadius: 4, showLine: false }],
+        xLabel: "x",
+        yLabel: "Contribucion"
+      };
+      return [chart1, chart2, chart3, chart4];
+    }
+  };
+
+  // src/methods/integration/simpson13Comp.ts
+  function computeSimpson13(f, a, b, n) {
+    if (n % 2 !== 0) n = n + 1;
+    const h = (b - a) / n;
+    const iterations = [];
+    let sum3 = 0;
+    for (let i2 = 0; i2 <= n; i2++) {
+      const xi = a + i2 * h;
+      const fxi = f(xi);
+      let coeff;
+      if (i2 === 0 || i2 === n) coeff = 1;
+      else if (i2 % 2 === 1) coeff = 4;
+      else coeff = 2;
+      const contrib = coeff * fxi;
+      sum3 += contrib;
+      iterations.push({ i: i2, xi, fxi, coeff, contrib });
+    }
+    return { integral: h / 3 * sum3, iterations, h, n };
+  }
+  var simpson13Comp = {
+    id: "simpson13Comp",
+    name: "Simpson 1/3 Compuesta",
+    category: "integration",
+    formula: "\u222Bf(x)dx \u2248 h/3 \xB7 [f(x\u2080) + 4f(x\u2081) + 2f(x\u2082) + 4f(x\u2083) + ... + f(x\u2099)]",
+    latexFormula: "\\int_a^b f(x)\\,dx \\approx \\frac{h}{3}\\left[f(x_0) + 4\\!\\!\\!\\sum_{i\\,\\text{impar}}\\!\\!\\! f(x_i) + 2\\!\\!\\!\\sum_{i\\,\\text{par}}\\!\\!\\! f(x_i) + f(x_n)\\right], \\quad h = \\frac{b-a}{n}",
+    description: "Aplica Simpson 1/3 en cada par de subintervalos. Requiere n par.",
+    inputs: [
+      { id: "fx", label: "f(x)", placeholder: "x^2", defaultValue: "x^2" },
+      { id: "a", label: "a (limite inferior)", placeholder: "0", type: "number", defaultValue: "0" },
+      { id: "b", label: "b (limite superior)", placeholder: "1", type: "number", defaultValue: "1" },
+      { id: "n", label: "n (subintervalos iniciales, debe ser par)", placeholder: "10", type: "number", defaultValue: "10" },
+      { id: "exact", label: "Valor exacto (opcional)", placeholder: "p.ej. 0.333333", type: "number", hint: 'Si se provee, se muestran errores vs exacto y se pueden usar criterios "vs exacto".' },
+      { id: "xi", label: "\u03BE para error de truncamiento (opcional)", placeholder: "p.ej. 0.5", type: "number", hint: "Punto donde evaluar E = -(b-a)h\u2074/180 \xB7 f\u207D\u2074\u207E(\u03BE). Dejar vacio para mostrar solo la cota del peor caso." },
+      { id: "stop", label: "Criterio de parada", placeholder: "err_rel_pct:1", type: "stopCriterion", defaultValue: "err_rel_pct:1", hint: "Se duplica n hasta que se cumplen los criterios. Default: error relativo < 1%." },
+      { id: "maxIter", label: "Max duplicaciones de n", placeholder: "5", type: "number", defaultValue: "5" }
+    ],
+    tableColumns: [
+      { key: "step", label: "Paso", latex: "k" },
+      { key: "n", label: "n", latex: "n" },
+      { key: "h", label: "h", latex: "h" },
+      { key: "integral", label: "I_n", latex: "I_n" },
+      { key: "errAbs", label: "|\u0394I|", latex: "|I_n - I_{n/2}|" },
+      { key: "errRel", label: "\u03B5_rel", latex: "\\varepsilon_{\\text{rel}}" },
+      { key: "errRelPct", label: "\u03B5_rel %", latex: "\\varepsilon_{\\text{rel}}\\,(\\%)" },
+      { key: "errAbsExact", label: "|I_n \u2212 exacto|", latex: "|I_n - I_{\\text{ex}}|" },
+      { key: "errRelExact", label: "\u03B5 vs ex", latex: "\\varepsilon_{\\text{ex}}" },
+      { key: "errRelPctExact", label: "\u03B5 vs ex %", latex: "\\varepsilon_{\\text{ex}}\\,(\\%)" }
+    ],
+    steps: [
+      "Escribe <code>f(x)</code>. Para el <b>parcial 02/07/2025</b> (parte b): <code>exp(x^2)</code> sobre <code>[0, 2]</code> con <code>n = 10</code>. Para <b>parcial 2025-I</b>: <code>ln(x+1)/x</code> sobre <code>[0, 1]</code> con <code>n = 4</code>.",
+      "Llena <code>a</code>, <code>b</code>, y <code>n</code>. <b>Importante</b>: <code>n</code> debe ser <b>par</b> (la regla ajusta una parabola por cada par de subintervalos). Si pones impar, la app lo incrementa a <code>n+1</code> y lo avisa.",
+      "Paso <code>h = (b - a) / n</code>. Puntos: <code>x_i = a + i\xB7h</code> para <code>i = 0, 1, ..., n</code>.",
+      "Formula compuesta: <code>I \u2248 h/3 \xB7 [f(x_0) + 4\xB7f(x_1) + 2\xB7f(x_2) + 4\xB7f(x_3) + ... + 4\xB7f(x_{n-1}) + f(x_n)]</code>. Patron de pesos: <b>1, 4, 2, 4, 2, ..., 4, 1</b>. La columna <em>Coeficiente</em> en la tabla te lo confirma.",
+      "Pulsa <b>Resolver</b>. La columna <em>Contribucion = coef \xB7 f(x_i)</em>. Suma total \xD7 <code>h/3</code> = integral.",
+      "<b>Error de truncamiento</b>: <code>|E| = -(b-a)\xB7h\u2074/180 \xB7 f\u207D\u2074\u207E(\u03BE)</code> para algun <code>\u03BE \u2208 (a,b)</code>. Es <code>O(h\u2074)</code> \u2014 mucho mas preciso que trapecio <code>O(h\xB2)</code>. La app calcula <code>f\u207D\u2074\u207E</code> simbolicamente y su maximo en [a,b].",
+      "Si el parcial te fija <code>\u03BE</code> especifico, puedes comparar contra la cota reportada (peor caso). Para funciones suaves, Simpson da error <em>casi nulo</em> con n moderado.",
+      "Si diste <b>valor exacto</b>: app calcula error relativo y reintenta con <code>n = 20</code> si > 1%. Usa el exacto de Wolfram o <code>scipy.integrate.quad</code> \u2014 para \u222B\u2080\xB2 e^(x\xB2) dx: <code>\u2248 16.45262776</code>.",
+      '<b>Comparacion vs Trapecio</b> (cierre del parcial): anota (1) integral, (2) error relativo %, (3) cota teorica. Simpson debe ser varios ordenes de magnitud mejor. Menciona en el informe: "Simpson O(h\u2074) domina a Trapecio O(h\xB2)".'
+    ],
+    solve(params) {
+      const f = parseExpression(params.fx);
+      const a = parseFloat(params.a);
+      const b = parseFloat(params.b);
+      const nReq = parseInt(params.n) || 10;
+      const exactRaw = (params.exact ?? "").trim();
+      const exact = exactRaw === "" ? void 0 : parseFloat(exactRaw);
+      const stop = parseStop(params.stop);
+      const maxIter = Math.max(1, parseInt(params.maxIter) || 5);
+      if (isNaN(a) || isNaN(b)) throw new Error("a y b deben ser numeros validos");
+      if (a >= b) throw new Error("a debe ser menor que b");
+      if (nReq < 2) throw new Error("n debe ser >= 2");
+      let run = computeSimpson13(f, a, b, nReq);
+      const n0 = run.n;
+      let prevIntegral = null;
+      let converged = false;
+      let steps2 = 1;
+      const stepRows = [];
+      const firstFull = withExactErrors({ errAbs: 0, errRel: 0, errRelPct: 0 }, run.integral, exact);
+      stepRows.push({
+        step: 1,
+        n: run.n,
+        h: run.h,
+        integral: run.integral,
+        errAbs: null,
+        errRel: null,
+        errRelPct: null,
+        errAbsExact: firstFull.errAbsExact ?? null,
+        errRelExact: firstFull.errRelExact ?? null,
+        errRelPctExact: firstFull.errRelPctExact ?? null
+      });
+      if (exact !== void 0 && !isNaN(exact) && hasConverged(stop, firstFull)) {
+        converged = true;
+      }
+      while (!converged && steps2 < maxIter) {
+        prevIntegral = run.integral;
+        run = computeSimpson13(f, a, b, run.n * 2);
+        steps2++;
+        const errs = computeErrors(prevIntegral, run.integral);
+        const errsFull = withExactErrors(errs, run.integral, exact);
+        stepRows.push({
+          step: steps2,
+          n: run.n,
+          h: run.h,
+          integral: run.integral,
+          errAbs: errsFull.errAbs,
+          errRel: errsFull.errRel,
+          errRelPct: errsFull.errRelPct,
+          errAbsExact: errsFull.errAbsExact ?? null,
+          errRelExact: errsFull.errRelExact ?? null,
+          errRelPctExact: errsFull.errRelPctExact ?? null
+        });
+        if (hasConverged(stop, errsFull)) {
+          converged = true;
+          break;
+        }
+      }
+      const lastErr = stepRows[stepRows.length - 1];
+      const errInfo = simpson13Error(params.fx, a, b, run.h);
+      const msgParts = [`h = ${run.h.toPrecision(6)}, n = ${run.n} (par)`];
+      if (errInfo.derivativeExpr) msgParts.push(`f\u2074(x) = ${errInfo.derivativeExpr}`);
+      msgParts.push(`Criterio: ${describeStop(stop)}`);
+      if (steps2 > 1) msgParts.push(`${steps2 - 1} duplicacion(es) (n: ${n0} \u2192 ${run.n})`);
+      if (!converged) msgParts.push("no convergio en maxIter");
+      const panels = [];
+      panels.push(renderPerPointBreakdownPanel({
+        methodName: "Simpson 1/3 Compuesta",
+        n: run.n,
+        h: run.h,
+        prefactor: run.h / 3,
+        prefactorLabel: "h/3",
+        integral: run.integral,
+        points: run.iterations.map((r) => ({
+          i: r.i,
+          xi: r.xi,
+          fxi: r.fxi,
+          coeff: r.coeff,
+          contrib: r.contrib
+        }))
+      }));
+      const xiRaw = (params.xi ?? "").trim();
+      if (xiRaw !== "") {
+        const xiVal = parseFloat(xiRaw);
+        if (!isNaN(xiVal)) {
+          panels.push(renderIntegrationTruncationAtXi({
+            methodName: "Simpson 1/3 Compuesta",
+            fxExpr: params.fx,
+            a,
+            b,
+            h: run.h,
+            n: run.n,
+            xi: xiVal,
+            order: 4,
+            denom: 180,
+            sign: "-"
+          }));
+        }
+      }
+      panels.push(renderIntegrationConvergencePanel(
+        "Simpson 1/3 Compuesta",
+        a,
+        b,
+        [2, 4, 8, 16, 32, 64],
+        (nv) => computeSimpson13(f, a, b, nv).integral,
+        exact
+      ));
+      const lastErrRelPct = lastErr.errRelPctExact ?? lastErr.errRelPct;
+      return {
+        integral: run.integral,
+        iterations: stepRows,
+        converged,
+        error: errInfo.bound,
+        exact,
+        relativeErrorPercent: lastErrRelPct ?? void 0,
+        truncationBound: errInfo.bound,
+        truncationOrder: 4,
+        maxDerivative: errInfo.max,
+        xiApprox: errInfo.xAtMax,
+        derivativeExpr: errInfo.derivativeExpr ?? void 0,
+        retried: steps2 > 1,
+        message: msgParts.join(" \xB7 "),
+        theoremPanels: panels
+      };
+    },
+    getCharts(params, result) {
+      const f = parseExpression(params.fx);
+      const a = parseFloat(params.a);
+      const b = parseFloat(params.b);
+      const lastRow = result.iterations[result.iterations.length - 1];
+      let n = lastRow?.n || (parseInt(params.n) || 10);
+      if (n % 2 !== 0) n++;
+      const h = (b - a) / n;
+      const pad2 = (b - a) * 0.1;
+      const xs = linspace(a - pad2, b + pad2, 500);
+      const ys = xs.map((x) => f(x));
+      const parabolaX = [];
+      const parabolaY = [];
+      for (let i2 = 0; i2 < n; i2 += 2) {
+        const x0 = a + i2 * h;
+        const x1 = a + (i2 + 1) * h;
+        const x2 = a + (i2 + 2) * h;
+        const f0 = f(x0);
+        const f1 = f(x1);
+        const f2 = f(x2);
+        const pxs = linspace(x0, x2, 50);
+        pxs.forEach((px) => {
+          const L0 = (px - x1) * (px - x2) / ((x0 - x1) * (x0 - x2));
+          const L1 = (px - x0) * (px - x2) / ((x1 - x0) * (x1 - x2));
+          const L2 = (px - x0) * (px - x1) / ((x2 - x0) * (x2 - x1));
+          parabolaX.push(px);
+          parabolaY.push(f0 * L0 + f1 * L1 + f2 * L2);
+        });
+        parabolaX.push(NaN);
+        parabolaY.push(NaN);
+      }
+      const chart1 = {
+        title: `Simpson 1/3 Compuesta (n=${n})`,
+        type: "line",
+        datasets: [
+          { label: "f(x)", x: xs, y: ys, color: "#89b4fa" },
+          { label: "Parabolas", x: parabolaX, y: parabolaY, color: "#a6e3a1" }
+        ],
+        xLabel: "x",
+        yLabel: "f(x)"
+      };
+      const xPts = [];
+      const yPts = [];
+      const coeffs = [];
+      for (let i2 = 0; i2 <= n; i2++) {
+        const xi = a + i2 * h;
+        xPts.push(xi);
+        yPts.push(f(xi));
+        const c = i2 === 0 || i2 === n ? 1 : i2 % 2 === 1 ? 4 : 2;
+        coeffs.push(c);
+      }
+      const chart2 = {
+        title: "Puntos de evaluacion",
+        type: "scatter",
+        datasets: [
+          { label: "f(x)", x: xs, y: ys, color: "#89b4fa", pointRadius: 0 },
+          { label: "x_i", x: xPts, y: yPts, color: "#fab387", pointRadius: 4, showLine: false }
+        ],
+        xLabel: "x",
+        yLabel: "f(x)"
+      };
+      const chart3 = {
+        title: "Patron de coeficientes (1-4-2-4-...-1)",
+        type: "scatter",
+        datasets: [{ label: "Coeficiente", x: xPts, y: coeffs, color: "#cba6f7", pointRadius: 4, showLine: false }],
+        xLabel: "x_i",
+        yLabel: "Coeficiente"
+      };
+      const nValues = [2, 4, 6, 8, 10, 20, 50, 100];
+      const integrals = nValues.map((nv) => {
+        const hv = (b - a) / nv;
+        let s = f(a) + f(b);
+        for (let i2 = 1; i2 < nv; i2++) s += (i2 % 2 === 0 ? 2 : 4) * f(a + i2 * hv);
+        return hv / 3 * s;
+      });
+      const chart4 = {
+        title: "Convergencia con n",
+        type: "line",
+        datasets: [{ label: "Integral", x: nValues, y: integrals, color: "#f9e2af", pointRadius: 3 }],
+        xLabel: "n",
+        yLabel: "Valor integral"
+      };
+      return [chart1, chart2, chart3, chart4];
+    }
+  };
+
+  // src/methods/integration/simpson38.ts
+  var simpson38 = {
+    id: "simpson38",
+    name: "Simpson 3/8 (Simple)",
+    category: "integration",
+    formula: "\u222Bf(x)dx \u2248 (b-a)/8 \xB7 [f(a) + 3f(x\u2081) + 3f(x\u2082) + f(b)]",
+    latexFormula: "\\int_a^b f(x)\\,dx \\approx \\frac{b-a}{8}\\left[f(a) + 3f(x_1) + 3f(x_2) + f(b)\\right], \\quad x_i = a + i\\cdot\\frac{b-a}{3}",
+    description: "Aproxima la integral usando un polinomio cubico que pasa por 4 puntos equiespaciados.",
+    inputs: [
+      { id: "fx", label: "f(x)", placeholder: "x^2", defaultValue: "x^2" },
+      { id: "a", label: "a (limite inferior)", placeholder: "0", type: "number", defaultValue: "0" },
+      { id: "b", label: "b (limite superior)", placeholder: "1", type: "number", defaultValue: "1" }
+    ],
+    tableColumns: [
+      { key: "punto", label: "Punto", latex: "\\text{Punto}" },
+      { key: "x", label: "x", latex: "x" },
+      { key: "fx", label: "f(x)", latex: "f(x)" },
+      { key: "coeff", label: "Coeficiente", latex: "c_i" }
+    ],
+    steps: [
+      "Version <em>simple</em> de Simpson 3/8: usa <b>4 puntos</b> equiespaciados \u2014 <code>a</code>, <code>x_1</code>, <code>x_2</code>, <code>b</code> con <code>h = (b-a)/3</code> \u2014 y ajusta un <b>polinomio cubico</b>.",
+      "Escribe <code>f(x)</code> y los limites <code>a</code>, <code>b</code>.",
+      "Formula: <code>I \u2248 (b-a)/8 \xB7 [f(a) + 3\xB7f(x_1) + 3\xB7f(x_2) + f(b)]</code>. Pesos: <b>1, 3, 3, 1</b>. Viene de integrar el polinomio cubico de Lagrange en [a, b].",
+      "Pulsa <b>Resolver</b>. La grafica muestra la cubica ajustada contra <code>f(x)</code>.",
+      "Error: <code>|E| = -3(b-a)\u2075/6480 \xB7 f\u207D\u2074\u207E(\u03BE)</code> \u2014 tambien <code>O(h\u2075)</code> como Simpson 1/3, pero la constante es un poco peor. Exacto para polinomios de grado \u2264 3 (igual que 1/3).",
+      "Se usa principalmente cuando el <b>numero de subintervalos no es par</b> (requisito de Simpson 1/3). Si <code>n = 5</code>, podes aplicar 3/8 en los primeros 3 y 1/3 en los ultimos 2.",
+      "Para n multiple de 3, usa <b>Simpson 3/8 compuesto</b>."
+    ],
+    solve(params) {
+      const f = parseExpression(params.fx);
+      const a = parseFloat(params.a);
+      const b = parseFloat(params.b);
+      if (isNaN(a) || isNaN(b)) throw new Error("a y b deben ser numeros validos");
+      if (a >= b) throw new Error("a debe ser menor que b");
+      const h = (b - a) / 3;
+      const x1 = a + h;
+      const x2 = a + 2 * h;
+      const fa = f(a);
+      const f1 = f(x1);
+      const f2 = f(x2);
+      const fb = f(b);
+      const integral = (b - a) / 8 * (fa + 3 * f1 + 3 * f2 + fb);
+      const iterations = [
+        { punto: "x\u2080 = a", x: a, fx: fa, coeff: 1 },
+        { punto: "x\u2081", x: x1, fx: f1, coeff: 3 },
+        { punto: "x\u2082", x: x2, fx: f2, coeff: 3 },
+        { punto: "x\u2083 = b", x: b, fx: fb, coeff: 1 }
+      ];
+      return { integral, iterations, converged: true, error: 0 };
+    },
+    getCharts(params, result) {
+      const f = parseExpression(params.fx);
+      const a = parseFloat(params.a);
+      const b = parseFloat(params.b);
+      const h = (b - a) / 3;
+      const x1 = a + h;
+      const x2 = a + 2 * h;
+      const fa = f(a);
+      const f1 = f(x1);
+      const f2 = f(x2);
+      const fb = f(b);
+      const pad2 = (b - a) * 0.3;
+      const xs = linspace(a - pad2, b + pad2, 500);
+      const ys = xs.map((x) => f(x));
+      const cubicXs = linspace(a, b, 200);
+      const cubicYs = cubicXs.map((x) => {
+        const L0 = (x - x1) * (x - x2) * (x - b) / ((a - x1) * (a - x2) * (a - b));
+        const L1 = (x - a) * (x - x2) * (x - b) / ((x1 - a) * (x1 - x2) * (x1 - b));
+        const L2 = (x - a) * (x - x1) * (x - b) / ((x2 - a) * (x2 - x1) * (x2 - b));
+        const L3 = (x - a) * (x - x1) * (x - x2) / ((b - a) * (b - x1) * (b - x2));
+        return fa * L0 + f1 * L1 + f2 * L2 + fb * L3;
+      });
+      const chart1 = {
+        title: "Simpson 3/8 - Interpolacion cubica",
+        type: "line",
+        datasets: [
+          { label: "f(x)", x: xs, y: ys, color: "#89b4fa" },
+          { label: "Cubica", x: cubicXs, y: cubicYs, color: "#a6e3a1", dashed: true },
+          { label: "Puntos", x: [a, x1, x2, b], y: [fa, f1, f2, fb], color: "#fab387", pointRadius: 6, showLine: false }
+        ],
+        xLabel: "x",
+        yLabel: "f(x)"
+      };
+      const areaX = [...cubicXs, b, a];
+      const areaY = [...cubicYs, 0, 0];
+      const chart2 = {
+        title: "Area bajo la cubica",
+        type: "line",
+        datasets: [
+          { label: "f(x)", x: xs, y: ys, color: "#89b4fa" },
+          { label: "Area", x: areaX, y: areaY, color: "#a6e3a1", fill: true }
+        ],
+        xLabel: "x",
+        yLabel: "f(x)"
+      };
+      const nValues = [3, 6, 9, 12, 15, 30, 60, 120];
+      const integrals = nValues.map((n) => {
+        const hv = (b - a) / n;
+        let s = f(a) + f(b);
+        for (let i2 = 1; i2 < n; i2++) {
+          s += (i2 % 3 === 0 ? 2 : 3) * f(a + i2 * hv);
+        }
+        return 3 * hv / 8 * s;
+      });
+      const chart3 = {
+        title: "Convergencia Simpson 3/8 Compuesto",
+        type: "line",
+        datasets: [{ label: "Integral", x: nValues, y: integrals, color: "#f9e2af", pointRadius: 3 }],
+        xLabel: "n",
+        yLabel: "Valor"
+      };
+      const chart4 = {
+        title: "Coeficientes (1-3-3-1)",
+        type: "scatter",
+        datasets: [{
+          label: "Coef \xD7 f(x)",
+          x: [a, x1, x2, b],
+          y: [fa, 3 * f1, 3 * f2, fb],
+          color: "#cba6f7",
+          pointRadius: 6,
+          showLine: false
+        }],
+        xLabel: "x",
+        yLabel: "Contribucion"
+      };
+      return [chart1, chart2, chart3, chart4];
+    }
+  };
+
+  // src/methods/integration/simpson38Comp.ts
+  function runSimpson38(f, a, b, nReq) {
+    let n = nReq;
+    if (n % 3 !== 0) n = n + (3 - n % 3);
+    const h = (b - a) / n;
+    const iterations = [];
+    let sum3 = 0;
+    for (let i2 = 0; i2 <= n; i2++) {
+      const xi = a + i2 * h;
+      const fxi = f(xi);
+      let coeff;
+      if (i2 === 0 || i2 === n) coeff = 1;
+      else if (i2 % 3 === 0) coeff = 2;
+      else coeff = 3;
+      const contrib = coeff * fxi;
+      sum3 += contrib;
+      iterations.push({ i: i2, xi, fxi, coeff, contrib });
+    }
+    return { integral: 3 * h / 8 * sum3, iterations, h, n };
+  }
+  var simpson38Comp = {
+    id: "simpson38Comp",
+    name: "Simpson 3/8 Compuesta",
+    category: "integration",
+    formula: "\u222Bf(x)dx \u2248 3h/8 \xB7 [f(x\u2080) + 3f(x\u2081) + 3f(x\u2082) + 2f(x\u2083) + 3f(x\u2084) + ...]",
+    latexFormula: "\\int_a^b f(x)\\,dx \\approx \\frac{3h}{8}\\left[f(x_0) + 3f(x_1) + 3f(x_2) + 2f(x_3) + 3f(x_4) + 3f(x_5) + \\cdots + f(x_n)\\right], \\quad h = \\frac{b-a}{n}",
+    description: "Aplica Simpson 3/8 en cada grupo de 3 subintervalos. Requiere n multiplo de 3.",
+    inputs: [
+      { id: "fx", label: "f(x)", placeholder: "x^2", defaultValue: "x^2" },
+      { id: "a", label: "a (limite inferior)", placeholder: "0", type: "number", defaultValue: "0" },
+      { id: "b", label: "b (limite superior)", placeholder: "1", type: "number", defaultValue: "1" },
+      { id: "n", label: "n (subintervalos iniciales, multiplo de 3)", placeholder: "9", type: "number", defaultValue: "9" },
+      { id: "exact", label: "Valor exacto (opcional)", placeholder: "p.ej. 0.333333", type: "number", hint: 'Si se provee, se muestran errores vs exacto y se pueden usar criterios "vs exacto".' },
+      { id: "xi", label: "\u03BE para error de truncamiento (opcional)", placeholder: "p.ej. 0.5", type: "number", hint: "Punto donde evaluar E = -(b-a)h\u2074/80 \xB7 f\u207D\u2074\u207E(\u03BE). Dejar vacio para mostrar solo la cota del peor caso." },
+      { id: "stop", label: "Criterio de parada", placeholder: "err_rel_pct:1", type: "stopCriterion", defaultValue: "err_rel_pct:1", hint: "Se duplica n hasta que se cumplen los criterios. Default: error relativo < 1%." },
+      { id: "maxIter", label: "Max duplicaciones de n", placeholder: "5", type: "number", defaultValue: "5" }
+    ],
+    tableColumns: [
+      { key: "step", label: "Paso", latex: "k" },
+      { key: "n", label: "n", latex: "n" },
+      { key: "h", label: "h", latex: "h" },
+      { key: "integral", label: "I_n", latex: "I_n" },
+      { key: "errAbs", label: "|\u0394I|", latex: "|I_n - I_{n/2}|" },
+      { key: "errRel", label: "\u03B5_rel", latex: "\\varepsilon_{\\text{rel}}" },
+      { key: "errRelPct", label: "\u03B5_rel %", latex: "\\varepsilon_{\\text{rel}}\\,(\\%)" },
+      { key: "errAbsExact", label: "|I_n \u2212 exacto|", latex: "|I_n - I_{\\text{ex}}|" },
+      { key: "errRelExact", label: "\u03B5 vs ex", latex: "\\varepsilon_{\\text{ex}}" },
+      { key: "errRelPctExact", label: "\u03B5 vs ex %", latex: "\\varepsilon_{\\text{ex}}\\,(\\%)" }
+    ],
+    steps: [
+      "Escribe <code>f(x)</code>, limites <code>a</code>, <code>b</code>, y subintervalos <code>n</code>. <b>Importante</b>: <code>n</code> debe ser <b>multiplo de 3</b> (la regla agrupa los puntos de 3 en 3). Si no lo es, la app lo redondea al siguiente multiplo (y te avisa).",
+      "Paso <code>h = (b - a) / n</code>. Puntos <code>x_i = a + i\xB7h</code> para <code>i = 0, 1, ..., n</code>.",
+      "Formula: <code>I \u2248 3h/8 \xB7 [f(x_0) + 3f(x_1) + 3f(x_2) + 2f(x_3) + 3f(x_4) + 3f(x_5) + 2f(x_6) + ... + f(x_n)]</code>. Patron: <b>1, 3, 3, 2, 3, 3, 2, ..., 3, 3, 1</b>.",
+      "Pulsa <b>Resolver</b>. La tabla muestra cada punto con su coeficiente; verifica el patron visualmente en la grafica de coeficientes.",
+      "<b>Error de truncamiento</b>: <code>|E| \u2264 (b-a)\xB7h\u2074/80 \xB7 M\u2084</code> con <code>M\u2084 = max|f\u207D\u2074\u207E|</code>. Orden <code>O(h\u2074)</code> igual que Simpson 1/3, pero la constante (<code>1/80</code>) es peor que <code>1/180</code>.",
+      "En practica <em>Simpson 1/3 es preferible</em>. Usa 3/8 cuando <code>n</code> no sea par, o como complemento: por ejemplo, si <code>n = 7</code>, aplica 1/3 con <code>n = 4</code> y 3/8 con <code>n = 3</code>.",
+      "Si diste <b>valor exacto</b>: calcula error relativo y reintenta con <code>n = 21</code> si > 1%."
+    ],
+    solve(params) {
+      const f = parseExpression(params.fx);
+      const a = parseFloat(params.a);
+      const b = parseFloat(params.b);
+      const nReq = parseInt(params.n) || 9;
+      const exactRaw = (params.exact ?? "").trim();
+      const exact = exactRaw === "" ? void 0 : parseFloat(exactRaw);
+      const stop = parseStop(params.stop);
+      const maxIter = Math.max(1, parseInt(params.maxIter) || 5);
+      if (isNaN(a) || isNaN(b)) throw new Error("a y b deben ser numeros validos");
+      if (a >= b) throw new Error("a debe ser menor que b");
+      if (nReq < 3) throw new Error("n debe ser >= 3");
+      let run = runSimpson38(f, a, b, nReq);
+      const n0 = run.n;
+      let prevIntegral = null;
+      let converged = false;
+      let steps2 = 1;
+      const stepRows = [];
+      const firstFull = withExactErrors({ errAbs: 0, errRel: 0, errRelPct: 0 }, run.integral, exact);
+      stepRows.push({
+        step: 1,
+        n: run.n,
+        h: run.h,
+        integral: run.integral,
+        errAbs: null,
+        errRel: null,
+        errRelPct: null,
+        errAbsExact: firstFull.errAbsExact ?? null,
+        errRelExact: firstFull.errRelExact ?? null,
+        errRelPctExact: firstFull.errRelPctExact ?? null
+      });
+      if (exact !== void 0 && !isNaN(exact) && hasConverged(stop, firstFull)) {
+        converged = true;
+      }
+      while (!converged && steps2 < maxIter) {
+        prevIntegral = run.integral;
+        run = runSimpson38(f, a, b, run.n * 2);
+        steps2++;
+        const errs = computeErrors(prevIntegral, run.integral);
+        const errsFull = withExactErrors(errs, run.integral, exact);
+        stepRows.push({
+          step: steps2,
+          n: run.n,
+          h: run.h,
+          integral: run.integral,
+          errAbs: errsFull.errAbs,
+          errRel: errsFull.errRel,
+          errRelPct: errsFull.errRelPct,
+          errAbsExact: errsFull.errAbsExact ?? null,
+          errRelExact: errsFull.errRelExact ?? null,
+          errRelPctExact: errsFull.errRelPctExact ?? null
+        });
+        if (hasConverged(stop, errsFull)) {
+          converged = true;
+          break;
+        }
+      }
+      const lastErr = stepRows[stepRows.length - 1];
+      const errInfo = simpson38Error(params.fx, a, b, run.h);
+      const msgParts = [`h = ${run.h.toPrecision(6)}, n = ${run.n} (multiplo de 3)`];
+      if (errInfo.derivativeExpr) msgParts.push(`f\u2074(x) = ${errInfo.derivativeExpr}`);
+      msgParts.push(`Criterio: ${describeStop(stop)}`);
+      if (steps2 > 1) msgParts.push(`${steps2 - 1} duplicacion(es) (n: ${n0} \u2192 ${run.n})`);
+      if (!converged) msgParts.push("no convergio en maxIter");
+      const panels = [];
+      panels.push(renderPerPointBreakdownPanel({
+        methodName: "Simpson 3/8 Compuesta",
+        n: run.n,
+        h: run.h,
+        prefactor: 3 * run.h / 8,
+        prefactorLabel: "3h/8",
+        integral: run.integral,
+        points: run.iterations.map((r) => ({
+          i: r.i,
+          xi: r.xi,
+          fxi: r.fxi,
+          coeff: r.coeff,
+          contrib: r.contrib
+        }))
+      }));
+      const xiRaw = (params.xi ?? "").trim();
+      if (xiRaw !== "") {
+        const xiVal = parseFloat(xiRaw);
+        if (!isNaN(xiVal)) {
+          panels.push(renderIntegrationTruncationAtXi({
+            methodName: "Simpson 3/8 Compuesta",
+            fxExpr: params.fx,
+            a,
+            b,
+            h: run.h,
+            n: run.n,
+            xi: xiVal,
+            order: 4,
+            denom: 80,
+            sign: "-"
+          }));
+        }
+      }
+      panels.push(renderIntegrationConvergencePanel(
+        "Simpson 3/8 Compuesta",
+        a,
+        b,
+        [3, 6, 12, 24, 48, 96],
+        (nv) => runSimpson38(f, a, b, nv).integral,
+        exact
+      ));
+      const lastErrRelPct = lastErr.errRelPctExact ?? lastErr.errRelPct;
+      return {
+        integral: run.integral,
+        iterations: stepRows,
+        converged,
+        error: errInfo.bound,
+        exact,
+        relativeErrorPercent: lastErrRelPct ?? void 0,
+        truncationBound: errInfo.bound,
+        truncationOrder: 4,
+        maxDerivative: errInfo.max,
+        xiApprox: errInfo.xAtMax,
+        derivativeExpr: errInfo.derivativeExpr ?? void 0,
+        retried: steps2 > 1,
+        message: msgParts.join(" \xB7 "),
+        theoremPanels: panels
+      };
+    },
+    getCharts(params, result) {
+      const f = parseExpression(params.fx);
+      const a = parseFloat(params.a);
+      const b = parseFloat(params.b);
+      const lastRow = result.iterations[result.iterations.length - 1];
+      let n = lastRow?.n || (parseInt(params.n) || 9);
+      if (n % 3 !== 0) n = n + (3 - n % 3);
+      const h = (b - a) / n;
+      const pad2 = (b - a) * 0.1;
+      const xs = linspace(a - pad2, b + pad2, 500);
+      const ys = xs.map((x) => f(x));
+      const cubicX = [];
+      const cubicY = [];
+      for (let i2 = 0; i2 < n; i2 += 3) {
+        const pts = [0, 1, 2, 3].map((j) => {
+          const xj = a + (i2 + j) * h;
+          return { x: xj, y: f(xj) };
+        });
+        const segXs = linspace(pts[0].x, pts[3].x, 50);
+        segXs.forEach((x) => {
+          const L0 = (x - pts[1].x) * (x - pts[2].x) * (x - pts[3].x) / ((pts[0].x - pts[1].x) * (pts[0].x - pts[2].x) * (pts[0].x - pts[3].x));
+          const L1 = (x - pts[0].x) * (x - pts[2].x) * (x - pts[3].x) / ((pts[1].x - pts[0].x) * (pts[1].x - pts[2].x) * (pts[1].x - pts[3].x));
+          const L2 = (x - pts[0].x) * (x - pts[1].x) * (x - pts[3].x) / ((pts[2].x - pts[0].x) * (pts[2].x - pts[1].x) * (pts[2].x - pts[3].x));
+          const L3 = (x - pts[0].x) * (x - pts[1].x) * (x - pts[2].x) / ((pts[3].x - pts[0].x) * (pts[3].x - pts[1].x) * (pts[3].x - pts[2].x));
+          cubicX.push(x);
+          cubicY.push(pts[0].y * L0 + pts[1].y * L1 + pts[2].y * L2 + pts[3].y * L3);
+        });
+        cubicX.push(NaN);
+        cubicY.push(NaN);
+      }
+      const chart1 = {
+        title: `Simpson 3/8 Compuesta (n=${n})`,
+        type: "line",
+        datasets: [
+          { label: "f(x)", x: xs, y: ys, color: "#89b4fa" },
+          { label: "Cubicas", x: cubicX, y: cubicY, color: "#a6e3a1" }
+        ],
+        xLabel: "x",
+        yLabel: "f(x)"
+      };
+      const xPts = [];
+      const yPts = [];
+      const coeffs = [];
+      for (let i2 = 0; i2 <= n; i2++) {
+        const xi = a + i2 * h;
+        xPts.push(xi);
+        yPts.push(f(xi));
+        const c = i2 === 0 || i2 === n ? 1 : i2 % 3 === 0 ? 2 : 3;
+        coeffs.push(c);
+      }
+      const chart2 = {
+        title: "Puntos de evaluacion",
+        type: "scatter",
+        datasets: [
+          { label: "f(x)", x: xs, y: ys, color: "#89b4fa", pointRadius: 0 },
+          { label: "x_i", x: xPts, y: yPts, color: "#fab387", pointRadius: 4, showLine: false }
+        ],
+        xLabel: "x",
+        yLabel: "f(x)"
+      };
+      const chart3 = {
+        title: "Patron de coeficientes (1-3-3-2-3-3-...-1)",
+        type: "scatter",
+        datasets: [{ label: "Coef", x: xPts, y: coeffs, color: "#cba6f7", pointRadius: 4, showLine: false }],
+        xLabel: "x_i",
+        yLabel: "Coeficiente"
+      };
+      const nValues = [3, 6, 9, 12, 15, 30, 60, 120];
+      const integrals = nValues.map((nv) => {
+        const hv = (b - a) / nv;
+        let s = f(a) + f(b);
+        for (let i2 = 1; i2 < nv; i2++) s += (i2 % 3 === 0 ? 2 : 3) * f(a + i2 * hv);
+        return 3 * hv / 8 * s;
+      });
+      const chart4 = {
+        title: "Convergencia con n",
+        type: "line",
+        datasets: [{ label: "Integral", x: nValues, y: integrals, color: "#f9e2af", pointRadius: 3 }],
+        xLabel: "n",
+        yLabel: "Valor integral"
+      };
+      return [chart1, chart2, chart3, chart4];
+    }
+  };
+
+  // src/methods/integration/montecarlo.ts
+  function mulberry32(seed) {
+    let s = seed | 0;
+    return () => {
+      s = s + 1831565813 | 0;
+      let t = Math.imul(s ^ s >>> 15, 1 | s);
+      t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+      return ((t ^ t >>> 14) >>> 0) / 4294967296;
+    };
+  }
+  function hashString(str) {
+    let hash = 0;
+    for (let i2 = 0; i2 < str.length; i2++) {
+      hash = (hash << 5) - hash + str.charCodeAt(i2) | 0;
+    }
+    return hash;
+  }
+  function parseSeed(input) {
+    if (!input || input.trim() === "") return null;
+    const num = Number(input.trim());
+    if (!isNaN(num)) return num;
+    return hashString(input.trim());
+  }
+  var montecarlo = {
+    id: "montecarlo",
+    name: "Monte Carlo",
+    category: "integration",
+    formula: "\u222Bf(x)dx \u2248 (b-a)/N \xB7 \u03A3 f(x_i), x_i aleatorio en [a,b]",
+    latexFormula: "\\int_a^b f(x)\\,dx \\approx \\frac{b-a}{N} \\sum_{i=1}^{N} f(x_i), \\quad x_i \\sim U(a,b)",
+    description: "Aproxima la integral usando puntos aleatorios uniformes. Convergencia O(1/\u221AN). Semilla opcional para reproducibilidad.",
+    inputs: [
+      { id: "fx", label: "f(x)", placeholder: "x^2", defaultValue: "x^2" },
+      { id: "a", label: "a (limite inferior)", placeholder: "0", type: "number", defaultValue: "0" },
+      { id: "b", label: "b (limite superior)", placeholder: "1", type: "number", defaultValue: "1" },
+      { id: "n", label: "N (puntos)", placeholder: "10000", type: "number", defaultValue: "10000" },
+      { id: "seed", label: "Semilla (opcional)", placeholder: "Vacio = aleatorio", hint: "Numero o texto. Misma semilla = mismos resultados." }
+    ],
+    tableColumns: [
+      { key: "batch", label: "Lote", latex: "\\text{Lote}" },
+      { key: "nAccum", label: "N acumulado", latex: "N_{\\text{acum}}" },
+      { key: "estimate", label: "Estimacion", latex: "\\hat{I}" },
+      { key: "stdDev", label: "Desv. Estandar", latex: "\\sigma(f)" },
+      { key: "stdErr", label: "Error Estandar", latex: "SE" },
+      { key: "ci95Lower", label: "IC 95% inf", latex: "IC_{95}^{\\text{inf}}" },
+      { key: "ci95Upper", label: "IC 95% sup", latex: "IC_{95}^{\\text{sup}}" }
+    ],
+    steps: [
+      "Escribe <code>f(x)</code> y limites <code>[a, b]</code>. Para el <b>parcial 02/07/2025</b>: <code>exp(x^2)</code> sobre <code>[0, 2]</code>. Para <b>Prueba Evaluativa</b>: la funcion que te pidan.",
+      "Elige <code>N</code> = cantidad de puntos aleatorios. Parcial tipico: <code>N = 1000</code> o <code>N = 10000</code>. <em>Mas N \u2192 menor error</em> pero la convergencia es <b>O(1/\u221AN)</b> (lento vs Simpson <code>O(h\u2074)</code>).",
+      "Introduce una <b>semilla</b> (numero o texto). Misma semilla \u2192 mismos resultados, util para <em>reproducibilidad del informe</em>. Deja vacio para semilla aleatoria.",
+      "Pulsa <b>Resolver</b>. La formula es: <code>I \u2248 (b-a)/N \xB7 \u03A3\u1D62 f(x_i)</code>, donde cada <code>x_i</code> es uniforme en <code>[a, b]</code>.",
+      "La tabla muestra la estimacion en <b>lotes</b> (cada N/20 puntos) para visualizar como converge el promedio.",
+      "<b>Desviacion estandar</b> \u03C3(f): variabilidad de los valores muestreados <code>f(x_i)</code>. <b>Error estandar</b> SE = (b-a)\xB7\u03C3(f)/\u221AN \u2014 es la incertidumbre de la estimacion.",
+      "<b>Intervalo de confianza 95%</b>: <code>IC = estimacion \xB1 1.96\xB7SE</code>. El <em>valor verdadero</em> de la integral debe caer en este rango el 95% de las veces. Si te piden K repeticiones, el IC se aproxima mejor con <code>s/\u221AK</code> (usa el metodo <b>Monte Carlo 1D (K reps)</b>).",
+      "Para el informe: reporta (a) estimacion final, (b) \u03C3(f), (c) SE, (d) IC 95%, (e) semilla usada. Compara con Simpson del mismo ejercicio: Simpson sera <em>mucho mas preciso</em> pero Monte Carlo maneja bien dimensiones altas donde Simpson explota."
+    ],
+    solve(params) {
+      const f = parseExpression(params.fx);
+      const a = parseFloat(params.a);
+      const b = parseFloat(params.b);
+      const N = parseInt(params.n) || 1e4;
+      if (isNaN(a) || isNaN(b)) throw new Error("a y b deben ser numeros validos");
+      if (a >= b) throw new Error("a debe ser menor que b");
+      if (N < 1) throw new Error("N debe ser >= 1");
+      const seedVal = parseSeed(params.seed);
+      const actualSeed = seedVal !== null ? seedVal : Date.now() ^ Math.random() * 4294967295;
+      const rand = mulberry32(actualSeed);
+      const width = b - a;
+      let sum3 = 0;
+      let sumSq = 0;
+      const iterations = [];
+      const batchSize = Math.max(1, Math.floor(N / 20));
+      for (let i2 = 1; i2 <= N; i2++) {
+        const xi = a + rand() * width;
+        const fi = f(xi);
+        sum3 += fi;
+        sumSq += fi * fi;
+        if (i2 % batchSize === 0 || i2 === N) {
+          const mean2 = sum3 / i2;
+          const integral2 = width * mean2;
+          const varF2 = Math.max(0, sumSq / i2 - mean2 * mean2);
+          const stdDevF2 = Math.sqrt(varF2);
+          const stdDev2 = width * stdDevF2;
+          const stdErr2 = stdDev2 / Math.sqrt(i2);
+          const z952 = 1.96;
+          const ci95Lower2 = integral2 - z952 * stdErr2;
+          const ci95Upper2 = integral2 + z952 * stdErr2;
+          iterations.push({
+            batch: iterations.length + 1,
+            nAccum: i2,
+            estimate: integral2,
+            stdDev: stdDevF2,
+            stdErr: stdErr2,
+            ci95Lower: ci95Lower2,
+            ci95Upper: ci95Upper2
+          });
+        }
+      }
+      const finalMean = sum3 / N;
+      const integral = width * finalMean;
+      const varF = Math.max(0, sumSq / N - finalMean * finalMean);
+      const stdDevF = Math.sqrt(varF);
+      const stdDev = width * stdDevF;
+      const stdErr = stdDev / Math.sqrt(N);
+      const z95 = 1.96;
+      const ci95Lower = integral - z95 * stdErr;
+      const ci95Upper = integral + z95 * stdErr;
+      const seedMsg = seedVal !== null ? `semilla = ${seedVal}` : "semilla aleatoria";
+      return {
+        integral,
+        iterations,
+        converged: true,
+        error: stdErr,
+        message: `N=${N}, ${seedMsg} | \u03C3(f)=${stdDevF.toPrecision(6)} | IC 95%: [${ci95Lower.toPrecision(8)}, ${ci95Upper.toPrecision(8)}]`
+      };
+    },
+    getCharts(params, result) {
+      const f = parseExpression(params.fx);
+      const a = parseFloat(params.a);
+      const b = parseFloat(params.b);
+      const N = parseInt(params.n) || 1e4;
+      const width = b - a;
+      const seedVal = parseSeed(params.seed);
+      const chartSeed = seedVal !== null ? seedVal + 1 : Date.now() ^ 43981;
+      const rand = mulberry32(chartSeed);
+      const pad2 = width * 0.1;
+      const xs = linspace(a - pad2, b + pad2, 500);
+      const ys = xs.map((x) => f(x));
+      const nShow = Math.min(N, 500);
+      const sampleX = [];
+      const sampleY = [];
+      for (let i2 = 0; i2 < nShow; i2++) {
+        const xi = a + rand() * width;
+        sampleX.push(xi);
+        sampleY.push(f(xi));
+      }
+      const chart1 = {
+        title: `Monte Carlo \u2014 ${nShow} puntos aleatorios`,
+        type: "scatter",
+        datasets: [
+          { label: "f(x)", x: xs, y: ys, color: "#89b4fa", pointRadius: 0 },
+          { label: "Muestras", x: sampleX, y: sampleY, color: "#a6e3a1", pointRadius: 2, showLine: false }
+        ],
+        xLabel: "x",
+        yLabel: "f(x)"
+      };
+      const yMin = Math.min(0, ...ys.filter((v) => isFinite(v)));
+      const yMax = Math.max(0, ...ys.filter((v) => isFinite(v))) * 1.1;
+      const hitX = [];
+      const hitY = [];
+      const missX = [];
+      const missY = [];
+      const nVis = Math.min(N, 300);
+      for (let i2 = 0; i2 < nVis; i2++) {
+        const xi = a + rand() * width;
+        const yi = yMin + rand() * (yMax - yMin);
+        const fxi = f(xi);
+        if (fxi >= 0 && yi >= 0 && yi <= fxi || fxi < 0 && yi < 0 && yi >= fxi) {
+          hitX.push(xi);
+          hitY.push(yi);
+        } else {
+          missX.push(xi);
+          missY.push(yi);
+        }
+      }
+      const chart2 = {
+        title: "Hit-or-Miss (puntos bajo la curva)",
+        type: "scatter",
+        datasets: [
+          { label: "f(x)", x: xs, y: ys, color: "#89b4fa", pointRadius: 0 },
+          { label: "Bajo curva", x: hitX, y: hitY, color: "#a6e3a1", pointRadius: 2, showLine: false },
+          { label: "Fuera", x: missX, y: missY, color: "#f38ba8", pointRadius: 2, showLine: false }
+        ],
+        xLabel: "x",
+        yLabel: "y"
+      };
+      const batchNs = result.iterations.map((r) => r.nAccum);
+      const estimates = result.iterations.map((r) => r.estimate);
+      const ci95Lowers = result.iterations.map((r) => r.ci95Lower);
+      const ci95Uppers = result.iterations.map((r) => r.ci95Upper);
+      const chart3 = {
+        title: "Convergencia con intervalo de confianza 95%",
+        type: "line",
+        datasets: [
+          { label: "IC 95% sup", x: batchNs, y: ci95Uppers, color: "#a6e3a1", dashed: true, pointRadius: 0 },
+          { label: "Estimacion", x: batchNs, y: estimates, color: "#cba6f7", pointRadius: 3 },
+          { label: "IC 95% inf", x: batchNs, y: ci95Lowers, color: "#a6e3a1", dashed: true, pointRadius: 0 }
+        ],
+        xLabel: "N (muestras)",
+        yLabel: "Integral estimada"
+      };
+      const stdDevs = result.iterations.map((r) => r.stdDev);
+      const stdErrs = result.iterations.map((r) => r.stdErr).filter((e3) => e3 > 0);
+      const chart4 = {
+        title: "Desviacion estandar y error estandar vs N",
+        type: "line",
+        datasets: [
+          { label: "\u03C3(f) desv. est.", x: batchNs.slice(0, stdDevs.length), y: stdDevs, color: "#f9e2af", pointRadius: 2 },
+          { label: "SE (error est.)", x: batchNs.slice(0, stdErrs.length), y: stdErrs, color: "#fab387", pointRadius: 2 }
+        ],
+        xLabel: "N",
+        yLabel: "Valor",
+        yLog: true
+      };
+      return [chart1, chart2, chart3, chart4];
+    }
+  };
+
+  // src/methods/integration/montecarloPi.ts
+  function mulberry322(seed) {
+    let s = seed | 0;
+    return () => {
+      s = s + 1831565813 | 0;
+      let t = Math.imul(s ^ s >>> 15, 1 | s);
+      t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+      return ((t ^ t >>> 14) >>> 0) / 4294967296;
+    };
+  }
+  function hashString2(str) {
+    let hash = 0;
+    for (let i2 = 0; i2 < str.length; i2++) {
+      hash = (hash << 5) - hash + str.charCodeAt(i2) | 0;
+    }
+    return hash;
+  }
+  function parseSeed2(input) {
+    if (!input || input.trim() === "") return null;
+    const num = Number(input.trim());
+    if (!isNaN(num)) return num;
+    return hashString2(input.trim());
+  }
+  var montecarloPi = {
+    id: "montecarloPi",
+    name: "Monte Carlo \u2014 Aproximacion de \u03C0",
+    category: "integration",
+    formula: "\u03C0 \u2248 4 \xB7 (puntos en circulo) / (puntos totales)",
+    latexFormula: "\\pi \\approx 4 \\cdot \\frac{\\#\\{(x_i, y_i) : x_i^2 + y_i^2 \\le 1\\}}{N}, \\quad (x_i, y_i) \\sim U([-1,1]^2)",
+    description: "Aproxima \u03C0 por muestreo por rechazo: puntos aleatorios en un cuadrado de lado 2, se cuentan los que caen dentro del circulo unitario.",
+    inputs: [
+      { id: "n", label: "N (puntos aleatorios)", placeholder: "10000", type: "number", defaultValue: "10000" },
+      { id: "seed", label: "Semilla (opcional)", placeholder: "Vacio = aleatorio", hint: "Misma semilla = mismos resultados" }
+    ],
+    tableColumns: [
+      { key: "batch", label: "Lote", latex: "\\text{Lote}" },
+      { key: "nAccum", label: "N acumulado", latex: "N_{\\text{acum}}" },
+      { key: "inside", label: "Dentro", latex: "M" },
+      { key: "pHat", label: "p = dentro/N", latex: "\\hat{p} = M/N" },
+      { key: "piEstimate", label: "\u03C0 estimado", latex: "\\hat{\\pi} = 4\\hat{p}" },
+      { key: "variance", label: "Varianza p(1-p)", latex: "\\hat{p}(1-\\hat{p})" },
+      { key: "stdDev", label: "\u03C3 (desv. est.)", latex: "\\sigma" },
+      { key: "stdErr", label: "SE (err. est.)", latex: "SE" },
+      { key: "error", label: "|\u03C0_est - \u03C0|", latex: "|\\hat{\\pi} - \\pi|" },
+      { key: "ci95Lower", label: "IC 95% inf", latex: "IC_{95}^{\\text{inf}}" },
+      { key: "ci95Upper", label: "IC 95% sup", latex: "IC_{95}^{\\text{sup}}" }
+    ],
+    steps: [
+      "Este es el ejemplo clasico del <b>parcial Prueba Evaluativa</b>: aproximar <code>\u03C0</code> por muestreo por rechazo. <em>No necesita funcion</em> \u2014 solo N.",
+      "Elige <code>N</code> (puntos aleatorios). Recomendado: <code>N = 10000</code> como punto inicial. Para precision ~2 decimales, N \u2248 10\u2074; para 3 decimales, N \u2248 10\u2076.",
+      "<b>Semilla</b>: usa un valor fijo (ej. <code>42</code>) para reproducir la tabla exacta en tu informe.",
+      "Pulsa <b>Resolver</b>. El algoritmo:<br>&nbsp;&nbsp;1. Genera punto aleatorio <code>(x, y)</code> en el cuadrado <code>[-1, 1] \xD7 [-1, 1]</code> (lado 2).<br>&nbsp;&nbsp;2. Verifica si cae dentro del circulo unitario: <code>x\xB2 + y\xB2 \u2264 1</code>.<br>&nbsp;&nbsp;3. Cuenta <code>M</code> = puntos dentro, <code>N</code> = total.<br>&nbsp;&nbsp;4. Ratio <code>p\u0302 = M/N</code> aproxima <code>\u03C0/4</code>.",
+      "Por lo tanto: <code>\u03C0 \u2248 4 \xB7 M/N</code>. La grafica 1 visualiza el cuadrado con circulo y los puntos coloreados (verde = dentro, rojo = fuera).",
+      "<b>Probabilidad</b>: cada punto es Bernoulli con <code>p = \u03C0/4 \u2248 0.7854</code>. Varianza <code>p(1-p) \u2248 0.1686</code>. Error estandar de \u03C0\u0302: <code>SE = 4\xB7\u221A(p\u0302(1-p\u0302)/N)</code>.",
+      "<b>Intervalo de confianza 95%</b>: <code>\u03C0\u0302 \xB1 1.96\xB7SE</code>. Deberia contener a <code>\u03C0 = 3.14159...</code>.",
+      "La convergencia es <code>O(1/\u221AN)</code>: duplicar precision requiere 4\xD7 mas puntos. En la grafica 4 veras que <code>|error real|</code> sigue la curva teorica <code>1/\u221AN</code>.",
+      "Para el informe: reporta (a) N, (b) M, (c) p\u0302, (d) \u03C0\u0302, (e) |error|, (f) SE, (g) IC 95%, (h) semilla. Contrasta el IC con el valor verdadero \u03C0."
+    ],
+    solve(params) {
+      const N = parseInt(params.n) || 1e4;
+      if (N < 1) throw new Error("N debe ser >= 1");
+      const seedVal = parseSeed2(params.seed);
+      const actualSeed = seedVal !== null ? seedVal : Date.now() ^ Math.random() * 4294967295;
+      const rand = mulberry322(actualSeed);
+      const iterations = [];
+      const batchSize = Math.max(1, Math.floor(N / 20));
+      let insideCount = 0;
+      for (let i2 = 1; i2 <= N; i2++) {
+        const x = rand() * 2 - 1;
+        const y = rand() * 2 - 1;
+        if (x * x + y * y <= 1) {
+          insideCount++;
+        }
+        if (i2 % batchSize === 0 || i2 === N) {
+          const pHat = insideCount / i2;
+          const piEst = 4 * pHat;
+          const error = Math.abs(piEst - Math.PI);
+          const variance2 = pHat * (1 - pHat);
+          const stdDev = Math.sqrt(variance2);
+          const stdErrP = stdDev / Math.sqrt(i2);
+          const stdErr2 = 4 * stdErrP;
+          const z95 = 1.96;
+          iterations.push({
+            batch: iterations.length + 1,
+            nAccum: i2,
+            inside: insideCount,
+            pHat,
+            piEstimate: piEst,
+            variance: variance2,
+            stdDev,
+            stdErr: stdErr2,
+            error,
+            ci95Lower: piEst - z95 * stdErr2,
+            ci95Upper: piEst + z95 * stdErr2
+          });
+        }
+      }
+      const piEstimate = 4 * insideCount / N;
+      const pHatFinal = insideCount / N;
+      const varianceFinal = pHatFinal * (1 - pHatFinal);
+      const stdDevFinal = Math.sqrt(varianceFinal);
+      const stdErr = 4 * stdDevFinal / Math.sqrt(N);
+      const finalError = Math.abs(piEstimate - Math.PI);
+      const seedMsg = seedVal !== null ? `semilla=${seedVal}` : "semilla aleatoria";
+      return {
+        root: piEstimate,
+        iterations,
+        converged: true,
+        error: finalError,
+        message: `\u03C0 \u2248 ${piEstimate.toFixed(8)} | ${seedMsg} | ${insideCount}/${N} dentro | \u03C3=${stdDevFinal.toFixed(6)} | SE=${stdErr.toFixed(6)} | IC 95%: [${(piEstimate - 1.96 * stdErr).toFixed(6)}, ${(piEstimate + 1.96 * stdErr).toFixed(6)}]`
+      };
+    },
+    getCharts(params, result) {
+      const N = parseInt(params.n) || 1e4;
+      const seedVal = parseSeed2(params.seed);
+      const chartSeed = seedVal !== null ? seedVal : Date.now() ^ 43981;
+      const rand = mulberry322(chartSeed);
+      const nShow = Math.min(N, 3e3);
+      const hitX = [];
+      const hitY = [];
+      const missX = [];
+      const missY = [];
+      for (let i2 = 0; i2 < nShow; i2++) {
+        const x = rand() * 2 - 1;
+        const y = rand() * 2 - 1;
+        if (x * x + y * y <= 1) {
+          hitX.push(x);
+          hitY.push(y);
+        } else {
+          missX.push(x);
+          missY.push(y);
+        }
+      }
+      const circleX = [];
+      const circleY = [];
+      for (let i2 = 0; i2 <= 200; i2++) {
+        const theta = 2 * Math.PI * i2 / 200;
+        circleX.push(Math.cos(theta));
+        circleY.push(Math.sin(theta));
+      }
+      const chart1 = {
+        title: `Cuadrado lado 2, circulo r=1 (${nShow} puntos)`,
+        type: "scatter",
+        datasets: [
+          { label: "Circulo", x: circleX, y: circleY, color: "#f9e2af", pointRadius: 0 },
+          { label: `Dentro (${hitX.length})`, x: hitX, y: hitY, color: "#a6e3a1", pointRadius: 1.5, showLine: false },
+          { label: `Fuera (${missX.length})`, x: missX, y: missY, color: "#f38ba8", pointRadius: 1.5, showLine: false }
+        ],
+        xLabel: "x",
+        yLabel: "y"
+      };
+      const batchNs = result.iterations.map((r) => r.nAccum);
+      const piEsts = result.iterations.map((r) => r.piEstimate);
+      const ci95Lowers = result.iterations.map((r) => r.ci95Lower);
+      const ci95Uppers = result.iterations.map((r) => r.ci95Upper);
+      const variances = result.iterations.map((r) => r.variance);
+      const stdDevs = result.iterations.map((r) => r.stdDev);
+      const stdErrs = result.iterations.map((r) => r.stdErr);
+      const errors = result.iterations.map((r) => r.error);
+      const chart2 = {
+        title: "Convergencia a \u03C0 con IC 95%",
+        type: "line",
+        datasets: [
+          { label: "IC 95% sup", x: batchNs, y: ci95Uppers, color: "#a6e3a1", dashed: true, pointRadius: 0 },
+          { label: "\u03C0 estimado", x: batchNs, y: piEsts, color: "#cba6f7", pointRadius: 3 },
+          { label: "IC 95% inf", x: batchNs, y: ci95Lowers, color: "#a6e3a1", dashed: true, pointRadius: 0 },
+          { label: "\u03C0 real", x: [batchNs[0], batchNs[batchNs.length - 1]], y: [Math.PI, Math.PI], color: "#f9e2af", dashed: true, pointRadius: 0 }
+        ],
+        xLabel: "N",
+        yLabel: "\u03C0 estimado"
+      };
+      const chart3 = {
+        title: "Varianza p\u0302(1-p\u0302) y Desviacion Estandar \u03C3 vs N",
+        type: "line",
+        datasets: [
+          { label: "\u03C3 = \u221A(p\u0302(1-p\u0302))", x: batchNs, y: stdDevs, color: "#89b4fa", pointRadius: 2 },
+          { label: "Var = p\u0302(1-p\u0302)", x: batchNs, y: variances, color: "#94e2d5", pointRadius: 2 }
+        ],
+        xLabel: "N",
+        yLabel: "Valor"
+      };
+      const errFiltered = errors.filter((e3) => e3 > 0);
+      const seFiltered = stdErrs.filter((e3) => e3 > 0);
+      const theorN = batchNs.filter((n) => n > 0);
+      const theor1sqrtN = theorN.map((n) => 4 * 0.5 / Math.sqrt(n));
+      const chart4 = {
+        title: "|Error real| vs Error Estandar vs N (log)",
+        type: "line",
+        datasets: [
+          { label: "|\u03C0\u0302 - \u03C0|", x: batchNs.slice(0, errFiltered.length), y: errFiltered, color: "#f38ba8", pointRadius: 2 },
+          { label: "SE (error est.)", x: batchNs.slice(0, seFiltered.length), y: seFiltered, color: "#fab387", pointRadius: 2 },
+          { label: "~1/\u221AN (teorico)", x: theorN, y: theor1sqrtN, color: "#585b70", dashed: true, pointRadius: 0 }
+        ],
+        xLabel: "N",
+        yLabel: "Error",
+        yLog: true
+      };
+      return [chart1, chart2, chart3, chart4];
+    }
+  };
+
+  // src/methods/integration/montecarlo2D.ts
+  function mulberry323(seed) {
+    let s = seed | 0;
+    return () => {
+      s = s + 1831565813 | 0;
+      let t = Math.imul(s ^ s >>> 15, 1 | s);
+      t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+      return ((t ^ t >>> 14) >>> 0) / 4294967296;
+    };
+  }
+  function hashString3(str) {
+    let hash = 0;
+    for (let i2 = 0; i2 < str.length; i2++) {
+      hash = (hash << 5) - hash + str.charCodeAt(i2) | 0;
+    }
+    return hash;
+  }
+  function parseSeed3(input) {
+    if (!input || input.trim() === "") return null;
+    const num = Number(input.trim());
+    if (!isNaN(num)) return num;
+    return hashString3(input.trim());
+  }
+  var montecarlo2D = {
+    id: "montecarlo2D",
+    name: "Monte Carlo 2D (Integral Doble)",
+    category: "integration",
+    formula: "\u222B\u222Bf(x,y)dA \u2248 (Area)/N \xB7 \u03A3 f(x_i,y_i) \u2014 promedio de K repeticiones",
+    latexFormula: "\\iint_R f(x,y)\\,dA \\approx \\frac{(b-a)(d-c)}{N}\\sum_{i=1}^{N} f(x_i, y_i), \\quad (x_i, y_i) \\sim U([a,b]\\times[c,d])",
+    description: "Aproxima \u222B\u222Bf(x,y)dA en un rectangulo [a,b]\xD7[c,d]. Ejecuta K repeticiones independientes y promedia para reducir varianza. Convergencia O(1/\u221AN).",
+    inputs: [
+      { id: "fxy", label: "f(x, y)", placeholder: "x^2 + y^2", defaultValue: "x^2 + y^2" },
+      { id: "a", label: "a (x min)", placeholder: "0", type: "number", defaultValue: "0" },
+      { id: "b", label: "b (x max)", placeholder: "1", type: "number", defaultValue: "1" },
+      { id: "c", label: "c (y min)", placeholder: "0", type: "number", defaultValue: "0" },
+      { id: "d", label: "d (y max)", placeholder: "1", type: "number", defaultValue: "1" },
+      { id: "n", label: "N (puntos por repeticion)", placeholder: "10000", type: "number", defaultValue: "10000" },
+      { id: "K", label: "K (repeticiones a promediar)", placeholder: "10", type: "number", defaultValue: "10" },
+      { id: "exact", label: "Valor exacto (opcional)", placeholder: "", hint: "Para comparar con el promedio." },
+      { id: "seed", label: "Semilla (opcional)", placeholder: "Vacio = aleatorio", hint: "Numero o texto. Misma semilla = mismos resultados." }
+    ],
+    tableColumns: [
+      { key: "k", label: "k (repeticion)", latex: "k" },
+      { key: "estimate", label: "I_k", latex: "I_k" },
+      { key: "runningMean", label: "Promedio 1..k", latex: "\\bar{I}_{1..k}" },
+      { key: "stdDevRun", label: "\u03C3 entre lotes", latex: "\\sigma_{\\text{lotes}}" },
+      { key: "exactDiff", label: "|I_k - Exacto|", latex: "|I_k - I^*|" }
+    ],
+    steps: [
+      "Para el <b>parcial 2025-I (IMG_5755)</b> \u2014 integral doble Monte Carlo: introduce <code>f(x, y)</code>. Ejemplo: <code>x^2 + y^2</code> o la funcion que pida el parcial.",
+      "Define el dominio rectangular: <code>x \u2208 [a, b]</code> y <code>y \u2208 [c, d]</code>. Area = <code>(b-a)(d-c)</code>.",
+      "Configura <code>N</code> (puntos por repeticion) y <code>K</code> (numero de repeticiones independientes). Tipico del parcial: <code>N = 10000</code>, <code>K = 10</code>. Cada repeticion usa <b>semilla distinta</b> para ser estadisticamente independiente.",
+      "Formula: <code>I_k \u2248 (Area)/N \xB7 \u03A3\u1D62 f(x_i, y_i)</code> con <code>x_i</code>, <code>y_i</code> uniformes en [a,b] y [c,d]. El estimador final es <code>\xCE = (1/K) \u03A3\u2096 I_k</code>.",
+      "Si tienes <b>valor exacto</b>, ponlo para comparar cada <code>I_k</code> y el promedio. Exacto de <code>x\xB2 + y\xB2</code> en <code>[0,1]\xB2</code>: <code>2/3 \u2248 0.6667</code>.",
+      "Pulsa <b>Resolver</b>. La tabla muestra por cada repeticion <code>k</code>:<br>&nbsp;&nbsp;\u2022 <code>I_k</code>: estimacion individual.<br>&nbsp;&nbsp;\u2022 <em>Promedio acumulado</em>: media de <code>I_1, ..., I_k</code> (se estabiliza).<br>&nbsp;&nbsp;\u2022 <em>\u03C3 entre repeticiones</em>: variabilidad (deberia ser peque\xF1a si N es grande).",
+      "<b>Error estandar del promedio</b>: <code>SE = s / \u221AK</code> donde <code>s = \u03C3</code> entre repeticiones. <em>Este es el estimador correcto cuando repites K veces</em>.",
+      "Ventaja de K repeticiones: reduce la varianza global y permite <em>intervalo de confianza empirico</em>. Dobla K \u2192 SE se reduce \u221A2 \u2248 1.41\xD7 (mas realista que asumir distribucion normal).",
+      "Para el informe: (1) <code>N</code>, <code>K</code>, semilla base; (2) tabla de <code>I_k</code>; (3) promedio final <code>\xCE</code>; (4) \u03C3 entre repeticiones; (5) SE; (6) si hay exacto: |error| y error relativo %."
+    ],
+    solve(params) {
+      const f = parseExpression2(params.fxy);
+      const a = parseFloat(params.a);
+      const b = parseFloat(params.b);
+      const c = parseFloat(params.c);
+      const d = parseFloat(params.d);
+      const N = parseInt(params.n) || 1e4;
+      const K = Math.max(1, parseInt(params.K) || 10);
+      if ([a, b, c, d].some(isNaN)) throw new Error("a, b, c, d deben ser numeros validos");
+      if (a >= b) throw new Error("a debe ser menor que b");
+      if (c >= d) throw new Error("c debe ser menor que d");
+      if (N < 1) throw new Error("N debe ser >= 1");
+      const area = (b - a) * (d - c);
+      const widthX = b - a;
+      const heightY = d - c;
+      let exactVal;
+      if (params.exact && params.exact.trim() !== "") {
+        const parsed = parseFloat(params.exact);
+        if (!isNaN(parsed)) exactVal = parsed;
+      }
+      const seedVal = parseSeed3(params.seed);
+      const baseSeed = seedVal !== null ? seedVal : Date.now() ^ Math.random() * 4294967295;
+      const iterations = [];
+      const estimates = [];
+      let sumEst = 0;
+      let sumEstSq = 0;
+      for (let k = 1; k <= K; k++) {
+        const rand = mulberry323(baseSeed + k * 10007);
+        let sum3 = 0;
+        for (let i2 = 0; i2 < N; i2++) {
+          const xi = a + rand() * widthX;
+          const yi = c + rand() * heightY;
+          sum3 += f(xi, yi);
+        }
+        const I_k = area * (sum3 / N);
+        estimates.push(I_k);
+        sumEst += I_k;
+        sumEstSq += I_k * I_k;
+        const runningMean = sumEst / k;
+        const varRun = k > 1 ? Math.max(0, sumEstSq / k - runningMean * runningMean) : 0;
+        const stdDevRun = Math.sqrt(varRun);
+        const exactDiff = exactVal !== void 0 ? Math.abs(I_k - exactVal) : null;
+        iterations.push({
+          k,
+          estimate: I_k,
+          runningMean,
+          stdDevRun,
+          exactDiff
+        });
+      }
+      const avgEstimate = sumEst / K;
+      const varK = K > 1 ? Math.max(0, sumEstSq / K - avgEstimate * avgEstimate) : 0;
+      const stdDevK = Math.sqrt(varK);
+      const stdErrK = stdDevK / Math.sqrt(K);
+      let relativeErrorPercent;
+      let message = `I \u2248 ${avgEstimate.toPrecision(8)} (promedio de K=${K}) | \u03C3 entre repeticiones = ${stdDevK.toPrecision(6)} | SE = ${stdErrK.toPrecision(6)}`;
+      if (exactVal !== void 0) {
+        const absErr = Math.abs(avgEstimate - exactVal);
+        relativeErrorPercent = Math.abs(exactVal) > 1e-14 ? absErr / Math.abs(exactVal) * 100 : absErr * 100;
+        message += ` | Exacto = ${exactVal.toPrecision(8)} | |error| = ${absErr.toPrecision(6)}`;
+      }
+      return {
+        integral: avgEstimate,
+        iterations,
+        converged: true,
+        error: stdErrK,
+        exact: exactVal,
+        relativeErrorPercent,
+        message
+      };
+    },
+    getCharts(params, result) {
+      const a = parseFloat(params.a);
+      const b = parseFloat(params.b);
+      const c = parseFloat(params.c);
+      const d = parseFloat(params.d);
+      const N = parseInt(params.n) || 1e4;
+      const seedVal = parseSeed3(params.seed);
+      const baseSeed = seedVal !== null ? seedVal : Date.now() ^ 43981;
+      const ks = result.iterations.map((r) => r.k);
+      const estimates = result.iterations.map((r) => r.estimate);
+      const runningMeans = result.iterations.map((r) => r.runningMean);
+      const finalMean = runningMeans[runningMeans.length - 1];
+      const datasets1 = [
+        { label: "I_k (repeticion)", x: ks, y: estimates, color: "#f38ba8", pointRadius: 4, showLine: false },
+        { label: "Promedio acumulado", x: ks, y: runningMeans, color: "#cba6f7", pointRadius: 2 },
+        { label: "Promedio final", x: [ks[0], ks[ks.length - 1]], y: [finalMean, finalMean], color: "#a6e3a1", dashed: true, pointRadius: 0 }
+      ];
+      if (result.exact !== void 0) {
+        datasets1.push({ label: "Exacto", x: [ks[0], ks[ks.length - 1]], y: [result.exact, result.exact], color: "#89b4fa", dashed: true, pointRadius: 0 });
+      }
+      const chart1 = {
+        title: "K repeticiones y promedio acumulado",
+        type: "line",
+        datasets: datasets1,
+        xLabel: "k (repeticion)",
+        yLabel: "I"
+      };
+      const rand = mulberry323(baseSeed + 1);
+      const nShow = Math.min(N, 500);
+      const sampleX = [];
+      const sampleY = [];
+      for (let i2 = 0; i2 < nShow; i2++) {
+        sampleX.push(a + rand() * (b - a));
+        sampleY.push(c + rand() * (d - c));
+      }
+      const rectX = [a, b, b, a, a];
+      const rectY = [c, c, d, d, c];
+      const chart2 = {
+        title: `Muestras uniformes en [${a},${b}]\xD7[${c},${d}]`,
+        type: "scatter",
+        datasets: [
+          { label: "Dominio", x: rectX, y: rectY, color: "#89b4fa", pointRadius: 0 },
+          { label: "Muestras", x: sampleX, y: sampleY, color: "#a6e3a1", pointRadius: 2, showLine: false }
+        ],
+        xLabel: "x",
+        yLabel: "y"
+      };
+      const stdDevRuns = result.iterations.map((r) => r.stdDevRun);
+      const chart3 = {
+        title: "Desviacion estandar acumulada \u03C3(I_1..I_k)",
+        type: "line",
+        datasets: [
+          { label: "\u03C3 entre repeticiones", x: ks, y: stdDevRuns, color: "#fab387", pointRadius: 2 }
+        ],
+        xLabel: "k",
+        yLabel: "\u03C3"
+      };
+      let chart4;
+      if (result.exact !== void 0) {
+        const absErrs = result.iterations.map((r) => Math.abs(r.runningMean - result.exact));
+        chart4 = {
+          title: "|Promedio_k - Exacto|  vs  k",
+          type: "line",
+          datasets: [
+            { label: "|error|", x: ks, y: absErrs, color: "#f38ba8", pointRadius: 2 }
+          ],
+          xLabel: "k",
+          yLabel: "|error|",
+          yLog: absErrs.length > 2 && absErrs[0] / Math.max(absErrs[absErrs.length - 1], 1e-18) > 100
+        };
+      } else {
+        const diffs = ks.map((_, i2) => i2 > 0 ? Math.abs(estimates[i2] - estimates[i2 - 1]) : 0).slice(1);
+        chart4 = {
+          title: "|I_k - I_{k-1}|  vs  k",
+          type: "line",
+          datasets: [
+            { label: "|diff|", x: ks.slice(1), y: diffs, color: "#fab387", pointRadius: 2 }
+          ],
+          xLabel: "k",
+          yLabel: "|diff|"
+        };
+      }
+      return [chart1, chart2, chart3, chart4];
+    }
+  };
+
+  // src/methods/integration/montecarloArea.ts
+  function mulberry324(seed) {
+    let s = seed | 0;
+    return () => {
+      s = s + 1831565813 | 0;
+      let t = Math.imul(s ^ s >>> 15, 1 | s);
+      t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+      return ((t ^ t >>> 14) >>> 0) / 4294967296;
+    };
+  }
+  function hashString4(str) {
+    let hash = 0;
+    for (let i2 = 0; i2 < str.length; i2++) {
+      hash = (hash << 5) - hash + str.charCodeAt(i2) | 0;
+    }
+    return hash;
+  }
+  function parseSeed4(input) {
+    if (!input || input.trim() === "") return null;
+    const num = Number(input.trim());
+    if (!isNaN(num)) return num;
+    return hashString4(input.trim());
+  }
+  var montecarloArea = {
+    id: "montecarloArea",
+    name: "Monte Carlo \u2014 Area entre curvas",
+    category: "integration",
+    formula: "A = \u222B_a^b (f(x) - g(x)) dx \u2014 Hit-or-Miss sobre rectangulo circunscrito",
+    latexFormula: "A = \\int_a^b \\bigl(f(x) - g(x)\\bigr)\\,dx \\approx A_{\\text{rect}} \\cdot \\frac{\\#\\{\\text{puntos dentro}\\}}{N}",
+    description: "Estima el area entre f(x) y g(x) sobre [a,b] lanzando puntos aleatorios y contando cuantos caen en la region. Promedia K repeticiones.",
+    inputs: [
+      { id: "fx", label: "f(x) (curva superior)", placeholder: "x^2", defaultValue: "x^2" },
+      { id: "gx", label: "g(x) (curva inferior)", placeholder: "x^3", defaultValue: "x^3" },
+      { id: "a", label: "a (limite inferior x)", placeholder: "0", type: "number", defaultValue: "0" },
+      { id: "b", label: "b (limite superior x)", placeholder: "1", type: "number", defaultValue: "1" },
+      { id: "n", label: "N (puntos por repeticion)", placeholder: "10000", type: "number", defaultValue: "10000" },
+      { id: "K", label: "K (repeticiones a promediar)", placeholder: "10", type: "number", defaultValue: "10" },
+      { id: "exact", label: "Valor exacto (opcional)", placeholder: "", hint: "Para comparar con el promedio." },
+      { id: "seed", label: "Semilla (opcional)", placeholder: "Vacio = aleatorio", hint: "Numero o texto." }
+    ],
+    tableColumns: [
+      { key: "k", label: "k (repeticion)", latex: "k" },
+      { key: "hits", label: "Aciertos", latex: "M" },
+      { key: "estimate", label: "A_k", latex: "A_k" },
+      { key: "runningMean", label: "Promedio 1..k", latex: "\\bar{A}_{1..k}" },
+      { key: "stdDevRun", label: "\u03C3 entre repeticiones", latex: "\\sigma_{\\text{reps}}" },
+      { key: "exactDiff", label: "|A_k - Exacto|", latex: "|A_k - A^*|" }
+    ],
+    steps: [
+      "Para el <b>parcial 30/04/2025</b> (area entre curvas por Monte Carlo): escribe <code>f(x)</code> (curva <em>superior</em>) y <code>g(x)</code> (curva <em>inferior</em>). Ejemplo parcial: <code>f(x) = x\xB2</code>, <code>g(x) = x\xB3</code> en <code>[0, 1]</code>.",
+      "Define <code>[a, b]</code>. <em>Consejo</em>: verifica graficamente que <code>f \u2265 g</code> en todo el intervalo antes de correr \u2014 si se cruzan, la app usa <code>|f - g|</code> automaticamente.",
+      "Configura <code>N</code> (puntos por repeticion) y <code>K</code> (cantidad de repeticiones). Tipico: <code>N = 10000</code>, <code>K = 10</code>.",
+      "<b>Estrategia Hit-or-Miss</b>: la app construye un rectangulo circunscrito <code>[a, b] \xD7 [y_min, y_max]</code> que contiene ambas curvas. Lanza puntos uniformes en ese rectangulo y cuenta los que caen <em>entre</em> las curvas. Area \u2248 <code>(Area rect) \xB7 (hits / N)</code>.",
+      "Pulsa <b>Resolver</b>. Se muestran K repeticiones independientes, cada una con distintas semillas. Promedio de las K da la estimacion final.",
+      "Si tienes <b>valor exacto</b>: pone el valor analitico <code>A = \u222B(f - g) dx</code>. Para <code>x\xB2 - x\xB3</code> en <code>[0, 1]</code>: <code>A = 1/3 - 1/4 = 1/12 \u2248 0.0833</code>.",
+      "<b>Error estandar</b>: <code>SE = \u03C3_K / \u221AK</code> donde <code>\u03C3_K</code> es la desviacion estandar entre las K estimaciones.",
+      "Para el informe: (1) tabla de <code>A_k</code>; (2) promedio final; (3) \u03C3 entre repeticiones; (4) IC 95%: <code>\xC2 \xB1 1.96\xB7SE</code>; (5) comparacion con exacto si se tiene. Discutir por que N=10000 suele dar precision ~3 decimales.",
+      "Interpretacion visual: la grafica Hit-or-Miss muestra <em>verde</em> = puntos entre las curvas (cuentan), <em>rojo</em> = puntos fuera (no cuentan). Mientras mas verdes aciertos proporcionales, mejor la estimacion."
+    ],
+    solve(params) {
+      const f = parseExpression(params.fx);
+      const g = parseExpression(params.gx);
+      const a = parseFloat(params.a);
+      const b = parseFloat(params.b);
+      const N = parseInt(params.n) || 1e4;
+      const K = Math.max(1, parseInt(params.K) || 10);
+      if (isNaN(a) || isNaN(b)) throw new Error("a y b deben ser numeros validos");
+      if (a >= b) throw new Error("a debe ser menor que b");
+      if (N < 1) throw new Error("N debe ser >= 1");
+      const sampleXs = linspace(a, b, 200);
+      const fVals = sampleXs.map((x) => f(x));
+      const gVals = sampleXs.map((x) => g(x));
+      let yMin = Math.min(...fVals, ...gVals);
+      let yMax = Math.max(...fVals, ...gVals);
+      const yPad = (yMax - yMin) * 0.05 || 1;
+      yMin -= yPad;
+      yMax += yPad;
+      const rectArea = (b - a) * (yMax - yMin);
+      let exactVal;
+      if (params.exact && params.exact.trim() !== "") {
+        const parsed = parseFloat(params.exact);
+        if (!isNaN(parsed)) exactVal = parsed;
+      }
+      const seedVal = parseSeed4(params.seed);
+      const baseSeed = seedVal !== null ? seedVal : Date.now() ^ Math.random() * 4294967295;
+      const iterations = [];
+      let sumEst = 0;
+      let sumEstSq = 0;
+      for (let k = 1; k <= K; k++) {
+        const rand = mulberry324(baseSeed + k * 10007);
+        let hits = 0;
+        for (let i2 = 0; i2 < N; i2++) {
+          const xi = a + rand() * (b - a);
+          const yi = yMin + rand() * (yMax - yMin);
+          const fv = f(xi);
+          const gv = g(xi);
+          const top = Math.max(fv, gv);
+          const bot = Math.min(fv, gv);
+          if (yi >= bot && yi <= top) hits++;
+        }
+        const A_k = rectArea * (hits / N);
+        sumEst += A_k;
+        sumEstSq += A_k * A_k;
+        const runningMean = sumEst / k;
+        const varRun = k > 1 ? Math.max(0, sumEstSq / k - runningMean * runningMean) : 0;
+        const stdDevRun = Math.sqrt(varRun);
+        const exactDiff = exactVal !== void 0 ? Math.abs(A_k - exactVal) : null;
+        iterations.push({
+          k,
+          hits,
+          estimate: A_k,
+          runningMean,
+          stdDevRun,
+          exactDiff
+        });
+      }
+      const avgEstimate = sumEst / K;
+      const varK = K > 1 ? Math.max(0, sumEstSq / K - avgEstimate * avgEstimate) : 0;
+      const stdDevK = Math.sqrt(varK);
+      const stdErrK = stdDevK / Math.sqrt(K);
+      let relativeErrorPercent;
+      let message = `A \u2248 ${avgEstimate.toPrecision(8)} (promedio K=${K}, N=${N}) | \u03C3 repeticiones = ${stdDevK.toPrecision(6)} | rect area = ${rectArea.toPrecision(6)}`;
+      if (exactVal !== void 0) {
+        const absErr = Math.abs(avgEstimate - exactVal);
+        relativeErrorPercent = Math.abs(exactVal) > 1e-14 ? absErr / Math.abs(exactVal) * 100 : absErr * 100;
+        message += ` | Exacto = ${exactVal.toPrecision(8)} | |error| = ${absErr.toPrecision(6)}`;
+      }
+      return {
+        integral: avgEstimate,
+        iterations,
+        converged: true,
+        error: stdErrK,
+        exact: exactVal,
+        relativeErrorPercent,
+        message
+      };
+    },
+    getCharts(params, result) {
+      const f = parseExpression(params.fx);
+      const g = parseExpression(params.gx);
+      const a = parseFloat(params.a);
+      const b = parseFloat(params.b);
+      const N = parseInt(params.n) || 1e4;
+      const seedVal = parseSeed4(params.seed);
+      const baseSeed = seedVal !== null ? seedVal : Date.now() ^ 43981;
+      const xsPlot = linspace(a, b, 400);
+      const fYs = xsPlot.map((x) => f(x));
+      const gYs = xsPlot.map((x) => g(x));
+      const yMin = Math.min(...fYs, ...gYs);
+      const yMax = Math.max(...fYs, ...gYs);
+      const yPad = (yMax - yMin) * 0.05 || 1;
+      const yLo = yMin - yPad;
+      const yHi = yMax + yPad;
+      const rand = mulberry324(baseSeed + 1);
+      const nShow = Math.min(N, 600);
+      const hitX = [];
+      const hitY = [];
+      const missX = [];
+      const missY = [];
+      for (let i2 = 0; i2 < nShow; i2++) {
+        const xi = a + rand() * (b - a);
+        const yi = yLo + rand() * (yHi - yLo);
+        const fv = f(xi);
+        const gv = g(xi);
+        const top = Math.max(fv, gv);
+        const bot = Math.min(fv, gv);
+        if (yi >= bot && yi <= top) {
+          hitX.push(xi);
+          hitY.push(yi);
+        } else {
+          missX.push(xi);
+          missY.push(yi);
+        }
+      }
+      const chart1 = {
+        title: "Hit-or-Miss entre f(x) y g(x)",
+        type: "scatter",
+        datasets: [
+          { label: "f(x)", x: xsPlot, y: fYs, color: "#89b4fa", pointRadius: 0 },
+          { label: "g(x)", x: xsPlot, y: gYs, color: "#fab387", pointRadius: 0 },
+          { label: "Dentro", x: hitX, y: hitY, color: "#a6e3a1", pointRadius: 2, showLine: false },
+          { label: "Fuera", x: missX, y: missY, color: "#f38ba8", pointRadius: 1.5, showLine: false }
+        ],
+        xLabel: "x",
+        yLabel: "y"
+      };
+      const ks = result.iterations.map((r) => r.k);
+      const estimates = result.iterations.map((r) => r.estimate);
+      const runningMeans = result.iterations.map((r) => r.runningMean);
+      const finalMean = runningMeans[runningMeans.length - 1];
+      const datasets2 = [
+        { label: "A_k", x: ks, y: estimates, color: "#f38ba8", pointRadius: 4, showLine: false },
+        { label: "Promedio acumulado", x: ks, y: runningMeans, color: "#cba6f7", pointRadius: 2 },
+        { label: "Promedio final", x: [ks[0], ks[ks.length - 1]], y: [finalMean, finalMean], color: "#a6e3a1", dashed: true, pointRadius: 0 }
+      ];
+      if (result.exact !== void 0) {
+        datasets2.push({ label: "Exacto", x: [ks[0], ks[ks.length - 1]], y: [result.exact, result.exact], color: "#89b4fa", dashed: true, pointRadius: 0 });
+      }
+      const chart2 = {
+        title: "K repeticiones y promedio acumulado",
+        type: "line",
+        datasets: datasets2,
+        xLabel: "k (repeticion)",
+        yLabel: "Area"
+      };
+      const stdDevRuns = result.iterations.map((r) => r.stdDevRun);
+      const chart3 = {
+        title: "\u03C3(A_1..A_k) \u2014 dispersion entre repeticiones",
+        type: "line",
+        datasets: [
+          { label: "\u03C3", x: ks, y: stdDevRuns, color: "#fab387", pointRadius: 2 }
+        ],
+        xLabel: "k",
+        yLabel: "\u03C3"
+      };
+      let chart4;
+      if (result.exact !== void 0) {
+        const absErrs = runningMeans.map((v) => Math.abs(v - result.exact));
+        chart4 = {
+          title: "|Promedio_k - Exacto| vs k",
+          type: "line",
+          datasets: [
+            { label: "|error|", x: ks, y: absErrs, color: "#f38ba8", pointRadius: 2 }
+          ],
+          xLabel: "k",
+          yLabel: "|error|"
+        };
+      } else {
+        chart4 = {
+          title: "Aciertos por repeticion",
+          type: "bar",
+          datasets: [
+            { label: "hits", x: ks, y: result.iterations.map((r) => r.hits), color: "#94e2d5" }
+          ],
+          xLabel: "k",
+          yLabel: "hits"
+        };
+      }
+      return [chart1, chart2, chart3, chart4];
+    }
+  };
 
   // src/ui.ts
   function renderStopRow(selectedKind, value, placeholder) {
@@ -64209,10 +64725,21 @@
     }
     return values;
   }
+  function parseCell(raw) {
+    const s = raw.trim();
+    if (!s) return NaN;
+    const direct = parseFloat(s);
+    if (!isNaN(direct) && /^[-+]?(\d+\.?\d*|\.\d+)([eE][-+]?\d+)?$/.test(s)) return direct;
+    try {
+      return evaluateScalar(s);
+    } catch {
+      return NaN;
+    }
+  }
   function parseTableData(raw) {
     if (!raw || !raw.trim()) return [];
     return raw.split(";").map(
-      (row2) => row2.split(",").map((s) => parseFloat(s.trim())).filter((n) => !isNaN(n))
+      (row2) => row2.split(",").map(parseCell).filter((n) => !isNaN(n))
     ).filter((r) => r.length > 0);
   }
   function renderResultSummary(result) {
@@ -64226,9 +64753,20 @@
     if (result.exact !== void 0) {
       items.push(`<div class="result-item"><span class="label">Valor exacto</span><span class="value">${renderNumber(result.exact)}</span></div>`);
     }
+    const approxVal = result.integral ?? result.root ?? result.derivative;
+    if (result.exact !== void 0 && approxVal !== void 0 && isFinite(result.exact) && isFinite(approxVal)) {
+      const errAbs = Math.abs(approxVal - result.exact);
+      const errRelFrac = Math.abs(result.exact) > 1e-14 ? errAbs / Math.abs(result.exact) : errAbs;
+      items.push(`<div class="result-item"><span class="label">Error absoluto |x \u2212 x*|</span><span class="value">${renderNumber(errAbs)}</span></div>`);
+      items.push(`<div class="result-item"><span class="label">Error relativo (fraccion)</span><span class="value">${renderNumber(errRelFrac)}</span></div>`);
+      if (errRelFrac > 0 && errRelFrac < 1) {
+        const digits2 = Math.floor(-Math.log10(2 * errRelFrac));
+        if (digits2 >= 0) items.push(`<div class="result-item"><span class="label">Cifras significativas</span><span class="value">${digits2}</span></div>`);
+      }
+    }
     if (result.relativeErrorPercent !== void 0) {
       const pctClass = result.relativeErrorPercent > 1 ? "error" : "";
-      items.push(`<div class="result-item"><span class="label">Error relativo</span><span class="value ${pctClass}">${formatNum(result.relativeErrorPercent)} %</span></div>`);
+      items.push(`<div class="result-item"><span class="label">Error relativo %</span><span class="value ${pctClass}">${formatNum(result.relativeErrorPercent)} %</span></div>`);
     }
     if (result.truncationBound !== void 0) {
       const order = result.truncationOrder ?? 2;
@@ -64434,13 +64972,23 @@
       const prodLatex = `${productFactors(xiVal)} = ${productNumbers(xiVal)} = ${numToLatex(pAtXi)}`;
       const boundLatex = `|E_{${n}}(\\xi)| \\leq \\frac{M}{(n+1)!} \\cdot \\left|\\prod_{i=0}^{${n}} (\\xi - x_i)\\right| = \\frac{${numToLatex(M)}}{${fact}} \\cdot ${numToLatex(Math.abs(pAtXi))} = ${numToLatex(localBound ?? 0)}`;
       const actualLatex = fAtXi !== null && pnAtXi !== null ? `|f(\\xi) - P_{${n}}(\\xi)| = |${numToLatex(fAtXi)} - ${numToLatex(pnAtXi)}| = ${numToLatex(localActual ?? 0)}` : "";
+      const highlightLocal = `
+      <div class="result-highlight result-local">
+        <div class="result-label">Error local en \u03BE = ${numToLatex(xiVal)}</div>
+        <div class="result-value">
+          ${texBlock(`|E_{${n}}(${numToLatex(xiVal)})| \\leq ${numToLatex(localBound ?? 0)}`)}
+          ${localActual !== null ? `<div style="margin-top:4px; font-size:0.9rem;">Error real: ${texBlock(`|f(${numToLatex(xiVal)}) - P_{${n}}(${numToLatex(xiVal)})| = ${numToLatex(localActual)}`)}</div>` : ""}
+        </div>
+      </div>
+    `;
       localSection = `
-      <div style="margin-top:10px"><b>Error local en \u03BE = ${numToLatex(xiVal)}</b></div>
+      <div style="margin-top:10px"><b>Error local en \u03BE = ${numToLatex(xiVal)} \u2014 paso a paso</b></div>
       <div><em>Paso 1:</em> calcular el producto de nodos evaluado en \u03BE:</div>
       ${texBlock(`\\prod_{i=0}^{${n}}(\\xi - x_i) = ${prodLatex}`)}
       <div><em>Paso 2:</em> aplicar la cota de error (reemplazar en la formula general):</div>
       ${texBlock(boundLatex)}
       ${actualLatex ? `<div><em>Paso 3:</em> error real (ya que conocemos f):</div>${texBlock(actualLatex)}` : ""}
+      ${highlightLocal}
     `;
     } else {
       localSection = `
@@ -64450,6 +64998,17 @@
     }
     const prodMaxLatex = `\\max_{x \\in [${numToLatex(aInt)}, ${numToLatex(bInt)}]} \\left|\\prod_{i=0}^{${n}}(x - x_i)\\right| = ${numToLatex(maxProd)} \\quad (\\text{alcanzado en } x \\approx ${numToLatex(xAtProd)})`;
     const globalLatex = `\\max_{x \\in [a,b]} |E_{${n}}(x)| \\leq \\frac{M}{(n+1)!} \\cdot \\max \\left|\\prod(x - x_i)\\right| = \\frac{${numToLatex(M)}}{${fact}} \\cdot ${numToLatex(maxProd)} = ${numToLatex(globalBound)}`;
+    const highlightGlobal = `
+    <div class="result-highlight result-global">
+      <div class="result-label">Cota de error global en [${numToLatex(aInt)}, ${numToLatex(bInt)}]</div>
+      <div class="result-value">
+        ${texBlock(`\\max_{x \\in [a,b]} |E_{${n}}(x)| \\leq ${numToLatex(globalBound)}`)}
+      </div>
+      <div style="margin-top:4px; font-size:0.85rem; color: var(--subtext0);">
+        Garantiza que <b>cualquier</b> error en el intervalo no supera este valor.
+      </div>
+    </div>
+  `;
     return `
     <div class="theorem-panel theorem-pass">
       <div class="theorem-header"><span class="theorem-icon">\u0394</span> Analisis de error de Lagrange \u2014 paso a paso</div>
@@ -64466,12 +65025,12 @@
 
         ${localSection}
 
-        <div style="margin-top:10px"><b>Cota de error GLOBAL en [a, b]</b></div>
+        <div style="margin-top:10px"><b>Cota de error GLOBAL en [a, b] \u2014 paso a paso</b></div>
         <div><em>Paso 1:</em> maximizar el producto de nodos sobre todo el intervalo:</div>
         ${texBlock(prodMaxLatex)}
         <div><em>Paso 2:</em> multiplicar por M/(n+1)!:</div>
         ${texBlock(globalLatex)}
-        <div style="margin-top:6px"><em>Interpretacion:</em> para <b>cualquier</b> x en [${numToLatex(aInt)}, ${numToLatex(bInt)}], el error de interpolacion no supera <b>${numToLatex(globalBound)}</b>.</div>
+        ${highlightGlobal}
       </div>
     </div>
   `;
@@ -64524,7 +65083,8 @@
         type: "table",
         tableColumns: 2,
         tableHeaders: ["x_i", "y_i"],
-        defaultValue: "0,1;1,3;2,2;3,5"
+        defaultValue: "0,1;1,3;2,2;3,5",
+        hint: "Las celdas aceptan constantes y expresiones: pi, e, pi/2, sqrt(2), sin(1), etc."
       },
       { id: "xQuery", label: "x objetivo (opcional, donde evaluar P_n(x))", placeholder: "Vacio = solo polinomio", type: "number", hint: "Dejalo vacio si solo queres el polinomio (parte a del parcial)." },
       { id: "fx", label: "f(x) real (opcional, para error)", placeholder: "p.ej. sin(x)", hint: "Funcion subyacente para calcular error local y cota global." },
@@ -64538,10 +65098,13 @@
       { key: "yiLi", label: "y_i \xB7 L_i(x)", latex: "y_i \\cdot L_i(x)" }
     ],
     steps: [
-      "Carga la <b>tabla de puntos</b> (x_i, y_i) en el primer input. Podes:<br>&nbsp;&nbsp;\u2022 Pegar tabla discreta tal cual viene del parcial, ej: <code>0,1;1,3;3,0</code> (puntos (0,1), (1,3), (3,0)).<br>&nbsp;&nbsp;\u2022 Construirla evaluando <code>f(x)</code> en cada nodo. Ej: para <code>f(x) = sin(\u03C0x)</code> en nodos 0, 0.5, 1, 1.5 \u2192 <code>0,0;0.5,1;1,0;1.5,-1</code>.",
+      "Carga la <b>tabla de puntos</b> (x_i, y_i) en el primer input. Podes:<br>&nbsp;&nbsp;\u2022 Pegar tabla discreta tal cual viene del parcial, ej: <code>0,1;1,3;3,0</code> (puntos (0,1), (1,3), (3,0)).<br>&nbsp;&nbsp;\u2022 Construirla evaluando <code>f(x)</code> en cada nodo. Ej: para <code>f(x) = sin(\u03C0x)</code> en nodos 0, 0.5, 1, 1.5 \u2192 <code>0,0;0.5,1;1,0;1.5,-1</code>.<br>&nbsp;&nbsp;\u2022 Usar <b>constantes y expresiones</b> en las celdas: <code>pi</code>, <code>e</code>, <code>pi/2</code>, <code>pi/4</code>, <code>sqrt(2)</code>, <code>sin(1)</code>, etc. Ej: nodos en <code>0, pi/4, pi/2, 3*pi/4, pi</code>.",
       "El <b>grado</b> del polinomio interpolante sera <code>n - 1</code> donde n es la cantidad de puntos. Con 4 puntos \u2192 polinomio cubico.",
       'En "x objetivo" pone donde queres <b>evaluar</b> <code>P_n(x*)</code>. Ej: x = 2 para la tabla (0,1)(1,3)(3,0); o x = 0.45 o x = 0.75 segun el parcial.',
-      'Si el parcial da una <code>f(x)</code> original (no solo tabla), escribila en el campo "f(x) real". La app calcula:<br>&nbsp;&nbsp;\u2022 <b>Error local</b> en x*: <code>|f(x*) - P_n(x*)|</code>.<br>&nbsp;&nbsp;\u2022 <b>Cota global</b>: <code>|E| \u2264 max|f\u207D\u207F\u207A\xB9\u207E(\u03BE)| / (n+1)! \xB7 |\u220F(x - x_i)|</code>. La app deriva <code>f</code> simbolicamente orden n+1 y encuentra <code>max|f\u207D\u207F\u207A\xB9\u207E|</code> en [min(x_i), max(x_i)] numericamente. \u03BE es el punto donde ese maximo se alcanza.',
+      'Si el parcial da una <code>f(x)</code> original (no solo tabla), escribila en el campo "f(x) real". La app calcula el <b>error local</b> <code>|f(x*) - P_n(x*)|</code> y la <b>cota de error global</b>.',
+      "<b>Formula de la cota de error global</b>:<br><code>max_{x \u2208 [a,b]} |f(x) - P_n(x)| \u2264 M / (n+1)! \xB7 max_{x \u2208 [a,b]} |\u220F(x - x_i)|</code><br>Donde:<br>&nbsp;&nbsp;\u2022 <code>n</code> = grado del polinomio (= cantidad de nodos \u2212 1).<br>&nbsp;&nbsp;\u2022 <code>(n+1)!</code> = factorial (ej: con 4 nodos, n=3, (n+1)!=24).<br>&nbsp;&nbsp;\u2022 <code>M = max |f\u207D\u207F\u207A\xB9\u207E(x)|</code> en <code>[a, b]</code> \u2014 el mayor valor absoluto de la derivada n+1 en el intervalo.<br>&nbsp;&nbsp;\u2022 <code>max |\u220F(x - x_i)|</code> = mayor valor del producto de distancias a los nodos (se maximiza numericamente).",
+      '<b>Como se calcula M paso a paso</b>:<br>&nbsp;&nbsp;1. Deriv\xE1s <code>f(x)</code> <b>n+1 veces</b>. Ej: <code>f(x) = sin(x)</code>, n=3 \u2192 <code>f\u207D\u2074\u207E(x) = sin(x)</code>.<br>&nbsp;&nbsp;2. Tom\xE1s valor absoluto: <code>|f\u207D\u207F\u207A\xB9\u207E(x)|</code>.<br>&nbsp;&nbsp;3. Busc\xE1s el <b>maximo</b> en <code>[a, b]</code> (extremos del intervalo de nodos). Puede ser en un extremo o en un punto interior donde la derivada se anula.<br>&nbsp;&nbsp;Ej: <code>|sin(x)|</code> en <code>[0, 1.5]</code> crece \u2192 maximo en <code>x=1.5</code> \u2192 <code>M = sin(1.5) \u2248 0.997</code>.<br>&nbsp;&nbsp;La app muestra el paso A (derivada simbolica) y el paso B (valor de M y donde se alcanza) en el panel "Analisis de error".',
+      '<b>Error local en \u03BE</b>: si el enunciado pide "error en \u03BE = 0.45", pon\xE9 ese valor en el campo <code>\u03BE</code>. La app calcula <code>|E(\u03BE)| \u2264 M/(n+1)! \xB7 |\u220F(\u03BE - x_i)|</code> y tambien <code>|f(\u03BE) - P_n(\u03BE)|</code> (error real). <em>Error local</em>: en un punto especifico. <em>Cota global</em>: peor caso en todo el intervalo \u2014 siempre \u2265 local.',
       "Pulsa <b>Resolver</b>. La tabla muestra por nodo: <code>i, x_i, y_i, L_i(x*), y_i\xB7L_i(x*)</code>. La suma de la ultima columna es <code>P_n(x*)</code>. Cada <code>L_i(x)</code> es <code>\u220F_{j\u2260i} (x - x_j) / (x_i - x_j)</code>: vale 1 en x_i y 0 en los demas nodos.",
       "Revisa los graficos:<br>&nbsp;&nbsp;1. <em>Polinomio interpolante</em> con nodos marcados y, si diste f(x), la curva real superpuesta para ver donde divergen.<br>&nbsp;&nbsp;2. <em>Polinomios base L_i(x)</em> \u2014 cada L_i vale 1 en un solo nodo.<br>&nbsp;&nbsp;3. <em>Error |f - P_n|</em> o el factor <code>\u220F(x - x_i)</code>.<br>&nbsp;&nbsp;4. <em>Contribuciones y_i\xB7L_i(x*)</em>.",
       "Para el <b>punto b del parcial</b> (derivar en x*): copia <code>P_n(x*)</code> como <code>y_0</code> y usa <b>diferencias centrales</b> con paso chico sobre el polinomio. O mejor: re-evalua <code>P_n</code> en <code>x* \xB1 h</code> directamente con Lagrange y aplica <code>f'(x*) \u2248 [P_n(x*+h) - P_n(x*-h)] / (2h)</code>. La guia del metodo <em>Diferencia central</em> te indica como.",
@@ -64573,7 +65136,7 @@
         Li: hasQuery ? basis[i2] : null,
         yiLi: hasQuery ? ys[i2] * basis[i2] : null
       }));
-      let relativeErrorPercent2;
+      let relativeErrorPercent;
       let truncationBound;
       let maxDerivative;
       let xiApprox;
@@ -64610,7 +65173,7 @@
           }
           if (hasQuery) {
             const fVal = f(xQuery);
-            relativeErrorPercent2 = Math.abs(fVal) > 1e-14 ? Math.abs(value - fVal) / Math.abs(fVal) * 100 : Math.abs(value - fVal) * 100;
+            relativeErrorPercent = Math.abs(fVal) > 1e-14 ? Math.abs(value - fVal) / Math.abs(fVal) * 100 : Math.abs(value - fVal) * 100;
             let prodQ = 1;
             for (const xj of xs) prodQ *= xQuery - xj;
             truncationBound = d.max / factorial2(n + 1) * Math.abs(prodQ);
@@ -64649,7 +65212,7 @@
         converged: true,
         error: truncationBound ?? 0,
         exact: fxExpr !== "" && hasQuery ? parseExpression(fxExpr)(xQuery) : void 0,
-        relativeErrorPercent: relativeErrorPercent2,
+        relativeErrorPercent,
         truncationBound,
         truncationOrder: truncationBound !== void 0 ? n + 1 : void 0,
         maxDerivative,
@@ -64856,7 +65419,7 @@
         }
         return row2;
       });
-      let relativeErrorPercent2;
+      let relativeErrorPercent;
       let truncationBound;
       let maxDerivative;
       let xiApprox;
@@ -64868,7 +65431,7 @@
         try {
           const f = parseExpression(fxExpr);
           const fVal = f(xQuery);
-          relativeErrorPercent2 = Math.abs(fVal) > 1e-14 ? Math.abs(value - fVal) / Math.abs(fVal) * 100 : Math.abs(value - fVal) * 100;
+          relativeErrorPercent = Math.abs(fVal) > 1e-14 ? Math.abs(value - fVal) / Math.abs(fVal) * 100 : Math.abs(value - fVal) * 100;
           const aInt = Math.min(...xs);
           const bInt = Math.max(...xs);
           const d = maxAbsDerivative(fxExpr, n + 1, aInt, bInt);
@@ -64890,7 +65453,7 @@
         converged: true,
         error: truncationBound ?? 0,
         exact: fxExpr !== "" ? parseExpression(fxExpr)(xQuery) : void 0,
-        relativeErrorPercent: relativeErrorPercent2,
+        relativeErrorPercent,
         truncationBound,
         truncationOrder: truncationBound !== void 0 ? n + 1 : void 0,
         maxDerivative,

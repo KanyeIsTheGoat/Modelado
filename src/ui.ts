@@ -2,6 +2,7 @@ import type { MethodResult, MethodDefinition, MethodInput } from './methods/type
 import { texInline, texBlock, renderNumber } from './latex';
 import { formatNum, formatFull, getPrecisionMode, setPrecisionMode, ALL_PRECISION_MODES, precisionModeLabel, PrecisionMode } from './precision';
 import { STOP_CRITERION_LABELS, STOP_CRITERION_HINTS, parseStop, StopCriterionKind } from './stoppingCriteria';
+import { evaluateScalar } from './parser';
 
 function renderStopRow(selectedKind: StopCriterionKind, value: string | number, placeholder: string): string {
   const options = (Object.keys(STOP_CRITERION_LABELS) as StopCriterionKind[]).map(k =>
@@ -290,11 +291,24 @@ export function getInputValues(method: MethodDefinition): Record<string, string>
 
 /**
  * Parse a table-input string "x1,y1;x2,y2;..." into an array of number arrays.
+ * Cells accept constantes (pi, e) y expresiones matematicas (pi/2, sin(1), 2*pi).
  */
+function parseCell(raw: string): number {
+  const s = raw.trim();
+  if (!s) return NaN;
+  const direct = parseFloat(s);
+  if (!isNaN(direct) && /^[-+]?(\d+\.?\d*|\.\d+)([eE][-+]?\d+)?$/.test(s)) return direct;
+  try {
+    return evaluateScalar(s);
+  } catch {
+    return NaN;
+  }
+}
+
 export function parseTableData(raw: string): number[][] {
   if (!raw || !raw.trim()) return [];
   return raw.split(';').map(row =>
-    row.split(',').map(s => parseFloat(s.trim())).filter(n => !isNaN(n))
+    row.split(',').map(parseCell).filter(n => !isNaN(n))
   ).filter(r => r.length > 0);
 }
 
@@ -310,9 +324,22 @@ export function renderResultSummary(result: MethodResult): string {
   if (result.exact !== undefined) {
     items.push(`<div class="result-item"><span class="label">Valor exacto</span><span class="value">${renderNumber(result.exact)}</span></div>`);
   }
+  // Compute absolute and fractional errors if we have both approx and exact
+  const approxVal = result.integral ?? result.root ?? result.derivative;
+  if (result.exact !== undefined && approxVal !== undefined && isFinite(result.exact) && isFinite(approxVal)) {
+    const errAbs = Math.abs(approxVal - result.exact);
+    const errRelFrac = Math.abs(result.exact) > 1e-14 ? errAbs / Math.abs(result.exact) : errAbs;
+    items.push(`<div class="result-item"><span class="label">Error absoluto |x − x*|</span><span class="value">${renderNumber(errAbs)}</span></div>`);
+    items.push(`<div class="result-item"><span class="label">Error relativo (fraccion)</span><span class="value">${renderNumber(errRelFrac)}</span></div>`);
+    // Significant digits vs exact
+    if (errRelFrac > 0 && errRelFrac < 1) {
+      const digits = Math.floor(-Math.log10(2 * errRelFrac));
+      if (digits >= 0) items.push(`<div class="result-item"><span class="label">Cifras significativas</span><span class="value">${digits}</span></div>`);
+    }
+  }
   if (result.relativeErrorPercent !== undefined) {
     const pctClass = result.relativeErrorPercent > 1 ? 'error' : '';
-    items.push(`<div class="result-item"><span class="label">Error relativo</span><span class="value ${pctClass}">${formatNum(result.relativeErrorPercent)} %</span></div>`);
+    items.push(`<div class="result-item"><span class="label">Error relativo %</span><span class="value ${pctClass}">${formatNum(result.relativeErrorPercent)} %</span></div>`);
   }
   if (result.truncationBound !== undefined) {
     const order = result.truncationOrder ?? 2;

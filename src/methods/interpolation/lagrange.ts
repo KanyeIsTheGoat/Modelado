@@ -172,13 +172,24 @@ function renderErrorAnalysisPanel(
       ? `|f(\\xi) - P_{${n}}(\\xi)| = |${numToLatex(fAtXi)} - ${numToLatex(pnAtXi)}| = ${numToLatex(localActual ?? 0)}`
       : '';
 
+    const highlightLocal = `
+      <div class="result-highlight result-local">
+        <div class="result-label">Error local en ξ = ${numToLatex(xiVal)}</div>
+        <div class="result-value">
+          ${texBlock(`|E_{${n}}(${numToLatex(xiVal)})| \\leq ${numToLatex(localBound ?? 0)}`)}
+          ${localActual !== null ? `<div style="margin-top:4px; font-size:0.9rem;">Error real: ${texBlock(`|f(${numToLatex(xiVal)}) - P_{${n}}(${numToLatex(xiVal)})| = ${numToLatex(localActual)}`)}</div>` : ''}
+        </div>
+      </div>
+    `;
+
     localSection = `
-      <div style="margin-top:10px"><b>Error local en ξ = ${numToLatex(xiVal)}</b></div>
+      <div style="margin-top:10px"><b>Error local en ξ = ${numToLatex(xiVal)} — paso a paso</b></div>
       <div><em>Paso 1:</em> calcular el producto de nodos evaluado en ξ:</div>
       ${texBlock(`\\prod_{i=0}^{${n}}(\\xi - x_i) = ${prodLatex}`)}
       <div><em>Paso 2:</em> aplicar la cota de error (reemplazar en la formula general):</div>
       ${texBlock(boundLatex)}
       ${actualLatex ? `<div><em>Paso 3:</em> error real (ya que conocemos f):</div>${texBlock(actualLatex)}` : ''}
+      ${highlightLocal}
     `;
   } else {
     localSection = `
@@ -189,6 +200,18 @@ function renderErrorAnalysisPanel(
 
   const prodMaxLatex = `\\max_{x \\in [${numToLatex(aInt)}, ${numToLatex(bInt)}]} \\left|\\prod_{i=0}^{${n}}(x - x_i)\\right| = ${numToLatex(maxProd)} \\quad (\\text{alcanzado en } x \\approx ${numToLatex(xAtProd)})`;
   const globalLatex = `\\max_{x \\in [a,b]} |E_{${n}}(x)| \\leq \\frac{M}{(n+1)!} \\cdot \\max \\left|\\prod(x - x_i)\\right| = \\frac{${numToLatex(M)}}{${fact}} \\cdot ${numToLatex(maxProd)} = ${numToLatex(globalBound)}`;
+
+  const highlightGlobal = `
+    <div class="result-highlight result-global">
+      <div class="result-label">Cota de error global en [${numToLatex(aInt)}, ${numToLatex(bInt)}]</div>
+      <div class="result-value">
+        ${texBlock(`\\max_{x \\in [a,b]} |E_{${n}}(x)| \\leq ${numToLatex(globalBound)}`)}
+      </div>
+      <div style="margin-top:4px; font-size:0.85rem; color: var(--subtext0);">
+        Garantiza que <b>cualquier</b> error en el intervalo no supera este valor.
+      </div>
+    </div>
+  `;
 
   return `
     <div class="theorem-panel theorem-pass">
@@ -206,12 +229,12 @@ function renderErrorAnalysisPanel(
 
         ${localSection}
 
-        <div style="margin-top:10px"><b>Cota de error GLOBAL en [a, b]</b></div>
+        <div style="margin-top:10px"><b>Cota de error GLOBAL en [a, b] — paso a paso</b></div>
         <div><em>Paso 1:</em> maximizar el producto de nodos sobre todo el intervalo:</div>
         ${texBlock(prodMaxLatex)}
         <div><em>Paso 2:</em> multiplicar por M/(n+1)!:</div>
         ${texBlock(globalLatex)}
-        <div style="margin-top:6px"><em>Interpretacion:</em> para <b>cualquier</b> x en [${numToLatex(aInt)}, ${numToLatex(bInt)}], el error de interpolacion no supera <b>${numToLatex(globalBound)}</b>.</div>
+        ${highlightGlobal}
       </div>
     </div>
   `;
@@ -274,6 +297,7 @@ export const lagrange: MethodDefinition = {
       tableColumns: 2,
       tableHeaders: ['x_i', 'y_i'],
       defaultValue: '0,1;1,3;2,2;3,5',
+      hint: 'Las celdas aceptan constantes y expresiones: pi, e, pi/2, sqrt(2), sin(1), etc.',
     },
     { id: 'xQuery', label: 'x objetivo (opcional, donde evaluar P_n(x))', placeholder: 'Vacio = solo polinomio', type: 'number', hint: 'Dejalo vacio si solo queres el polinomio (parte a del parcial).' },
     { id: 'fx', label: 'f(x) real (opcional, para error)', placeholder: 'p.ej. sin(x)', hint: 'Funcion subyacente para calcular error local y cota global.' },
@@ -287,10 +311,13 @@ export const lagrange: MethodDefinition = {
     { key: 'yiLi', label: 'y_i · L_i(x)', latex: 'y_i \\cdot L_i(x)' },
   ],
   steps: [
-    'Carga la <b>tabla de puntos</b> (x_i, y_i) en el primer input. Podes:<br>&nbsp;&nbsp;• Pegar tabla discreta tal cual viene del parcial, ej: <code>0,1;1,3;3,0</code> (puntos (0,1), (1,3), (3,0)).<br>&nbsp;&nbsp;• Construirla evaluando <code>f(x)</code> en cada nodo. Ej: para <code>f(x) = sin(πx)</code> en nodos 0, 0.5, 1, 1.5 → <code>0,0;0.5,1;1,0;1.5,-1</code>.',
+    'Carga la <b>tabla de puntos</b> (x_i, y_i) en el primer input. Podes:<br>&nbsp;&nbsp;• Pegar tabla discreta tal cual viene del parcial, ej: <code>0,1;1,3;3,0</code> (puntos (0,1), (1,3), (3,0)).<br>&nbsp;&nbsp;• Construirla evaluando <code>f(x)</code> en cada nodo. Ej: para <code>f(x) = sin(πx)</code> en nodos 0, 0.5, 1, 1.5 → <code>0,0;0.5,1;1,0;1.5,-1</code>.<br>&nbsp;&nbsp;• Usar <b>constantes y expresiones</b> en las celdas: <code>pi</code>, <code>e</code>, <code>pi/2</code>, <code>pi/4</code>, <code>sqrt(2)</code>, <code>sin(1)</code>, etc. Ej: nodos en <code>0, pi/4, pi/2, 3*pi/4, pi</code>.',
     'El <b>grado</b> del polinomio interpolante sera <code>n - 1</code> donde n es la cantidad de puntos. Con 4 puntos → polinomio cubico.',
     'En "x objetivo" pone donde queres <b>evaluar</b> <code>P_n(x*)</code>. Ej: x = 2 para la tabla (0,1)(1,3)(3,0); o x = 0.45 o x = 0.75 segun el parcial.',
-    'Si el parcial da una <code>f(x)</code> original (no solo tabla), escribila en el campo "f(x) real". La app calcula:<br>&nbsp;&nbsp;• <b>Error local</b> en x*: <code>|f(x*) - P_n(x*)|</code>.<br>&nbsp;&nbsp;• <b>Cota global</b>: <code>|E| ≤ max|f⁽ⁿ⁺¹⁾(ξ)| / (n+1)! · |∏(x - x_i)|</code>. La app deriva <code>f</code> simbolicamente orden n+1 y encuentra <code>max|f⁽ⁿ⁺¹⁾|</code> en [min(x_i), max(x_i)] numericamente. ξ es el punto donde ese maximo se alcanza.',
+    'Si el parcial da una <code>f(x)</code> original (no solo tabla), escribila en el campo "f(x) real". La app calcula el <b>error local</b> <code>|f(x*) - P_n(x*)|</code> y la <b>cota de error global</b>.',
+    '<b>Formula de la cota de error global</b>:<br><code>max_{x ∈ [a,b]} |f(x) - P_n(x)| ≤ M / (n+1)! · max_{x ∈ [a,b]} |∏(x - x_i)|</code><br>Donde:<br>&nbsp;&nbsp;• <code>n</code> = grado del polinomio (= cantidad de nodos − 1).<br>&nbsp;&nbsp;• <code>(n+1)!</code> = factorial (ej: con 4 nodos, n=3, (n+1)!=24).<br>&nbsp;&nbsp;• <code>M = max |f⁽ⁿ⁺¹⁾(x)|</code> en <code>[a, b]</code> — el mayor valor absoluto de la derivada n+1 en el intervalo.<br>&nbsp;&nbsp;• <code>max |∏(x - x_i)|</code> = mayor valor del producto de distancias a los nodos (se maximiza numericamente).',
+    '<b>Como se calcula M paso a paso</b>:<br>&nbsp;&nbsp;1. Derivás <code>f(x)</code> <b>n+1 veces</b>. Ej: <code>f(x) = sin(x)</code>, n=3 → <code>f⁽⁴⁾(x) = sin(x)</code>.<br>&nbsp;&nbsp;2. Tomás valor absoluto: <code>|f⁽ⁿ⁺¹⁾(x)|</code>.<br>&nbsp;&nbsp;3. Buscás el <b>maximo</b> en <code>[a, b]</code> (extremos del intervalo de nodos). Puede ser en un extremo o en un punto interior donde la derivada se anula.<br>&nbsp;&nbsp;Ej: <code>|sin(x)|</code> en <code>[0, 1.5]</code> crece → maximo en <code>x=1.5</code> → <code>M = sin(1.5) ≈ 0.997</code>.<br>&nbsp;&nbsp;La app muestra el paso A (derivada simbolica) y el paso B (valor de M y donde se alcanza) en el panel "Analisis de error".',
+    '<b>Error local en ξ</b>: si el enunciado pide "error en ξ = 0.45", poné ese valor en el campo <code>ξ</code>. La app calcula <code>|E(ξ)| ≤ M/(n+1)! · |∏(ξ - x_i)|</code> y tambien <code>|f(ξ) - P_n(ξ)|</code> (error real). <em>Error local</em>: en un punto especifico. <em>Cota global</em>: peor caso en todo el intervalo — siempre ≥ local.',
     'Pulsa <b>Resolver</b>. La tabla muestra por nodo: <code>i, x_i, y_i, L_i(x*), y_i·L_i(x*)</code>. La suma de la ultima columna es <code>P_n(x*)</code>. Cada <code>L_i(x)</code> es <code>∏_{j≠i} (x - x_j) / (x_i - x_j)</code>: vale 1 en x_i y 0 en los demas nodos.',
     'Revisa los graficos:<br>&nbsp;&nbsp;1. <em>Polinomio interpolante</em> con nodos marcados y, si diste f(x), la curva real superpuesta para ver donde divergen.<br>&nbsp;&nbsp;2. <em>Polinomios base L_i(x)</em> — cada L_i vale 1 en un solo nodo.<br>&nbsp;&nbsp;3. <em>Error |f - P_n|</em> o el factor <code>∏(x - x_i)</code>.<br>&nbsp;&nbsp;4. <em>Contribuciones y_i·L_i(x*)</em>.',
     'Para el <b>punto b del parcial</b> (derivar en x*): copia <code>P_n(x*)</code> como <code>y_0</code> y usa <b>diferencias centrales</b> con paso chico sobre el polinomio. O mejor: re-evalua <code>P_n</code> en <code>x* ± h</code> directamente con Lagrange y aplica <code>f\'(x*) ≈ [P_n(x*+h) - P_n(x*-h)] / (2h)</code>. La guia del metodo <em>Diferencia central</em> te indica como.',

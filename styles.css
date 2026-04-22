@@ -939,6 +939,32 @@ body {
 .theorem-body { color: var(--subtext0); line-height: 1.5; }
 .theorem-message { margin-top: 4px; color: var(--text); font-style: italic; }
 
+/* Highlighted final result boxes inside theorem panels */
+.result-highlight {
+  margin: 10px 0;
+  padding: 10px 14px;
+  background: var(--surface0);
+  border: 2px solid var(--accent);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+}
+.result-highlight .result-label {
+  font-size: 0.82rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--accent);
+  margin-bottom: 4px;
+}
+.result-highlight.result-local { border-color: var(--peach); }
+.result-highlight.result-local .result-label { color: var(--peach); }
+.result-highlight.result-global { border-color: var(--mauve); }
+.result-highlight.result-global .result-label { color: var(--mauve); }
+.result-highlight .result-value {
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+
 /* Stop criterion compound input (multiple rows, all must be met) */
 .input-group-stop { grid-column: 1 / -1; flex: 1 1 100%; }
 .stop-rows {

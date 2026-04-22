@@ -1,6 +1,6 @@
 import type { MethodDefinition, MethodResult, ChartData } from '../types';
 import { parseExpression, linspace } from '../../parser';
-import { midpointError, relativeErrorPercent } from '../../integrationHelpers';
+import { midpointError, renderIntegrationConvergencePanel, renderIntegrationTruncationAtXi, renderPerPointBreakdownPanel } from '../../integrationHelpers';
 
 function computeMidpoint(f: (x: number) => number, a: number, b: number, n: number): { integral: number; iterations: MethodResult['iterations']; h: number } {
   const h = (b - a) / n;
@@ -28,18 +28,19 @@ export const midpoint: MethodDefinition = {
     { id: 'a', label: 'a (limite inferior)', placeholder: '0', type: 'number', defaultValue: '0' },
     { id: 'b', label: 'b (limite superior)', placeholder: '1', type: 'number', defaultValue: '1' },
     { id: 'n', label: 'n (subintervalos)', placeholder: '10', type: 'number', defaultValue: '10' },
-    { id: 'exact', label: 'Valor exacto (opcional)', placeholder: 'p.ej. 0.333333', type: 'number', hint: 'Si se provee, se calcula error relativo y se reintenta con n=20 si supera 1%.' },
+    { id: 'exact', label: 'Valor exacto (opcional)', placeholder: 'p.ej. 0.333333', type: 'number', hint: 'Si se provee, se calcula el error relativo vs exacto.' },
+    { id: 'xi', label: 'ξ para error de truncamiento (opcional)', placeholder: 'p.ej. 0.5', type: 'number', hint: 'Punto donde evaluar E = (b-a)h²/24 · f´´(ξ). Dejar vacio para mostrar solo la cota del peor caso.' },
   ],
   tableColumns: [
     { key: 'i', label: 'i', latex: 'i' },
-    { key: 'xi_mid', label: 'x_i (medio)', latex: 'x_i^{\\text{medio}}' },
-    { key: 'fxi', label: 'f(x_i)', latex: 'f(x_i)' },
-    { key: 'area', label: 'Area parcial', latex: 'h \\cdot f(x_i)' },
+    { key: 'xi_mid', label: 'x_mid', latex: 'x_{\\text{mid}}' },
+    { key: 'fxi', label: 'f(x_mid)', latex: 'f(x_{\\text{mid}})' },
+    { key: 'area', label: 'h·f(x_mid)', latex: 'h\\,f(x_{\\text{mid}})' },
   ],
   steps: [
     'Escribe <code>f(x)</code> — ej. <code>exp(x^2)</code> para el ejercicio del parcial ∫₀² e^(x²) dx.',
     'Completa limites <code>a</code> y <code>b</code>. Para el parcial 02/07/2025: <code>a=0</code>, <code>b=2</code>.',
-    'Pone <code>n = 10</code> como arranca el parcial. <b>Auto-retry</b>: si el "error relativo" supera 1 %, la app reintenta sola con <code>n = 20</code> y te lo marca en el resumen.',
+    'Pone <code>n</code> (subintervalos). Para el parcial 02/07/2025: <code>n = 10</code>. La app calcula <b>una sola vez</b> con ese n (sin duplicaciones automaticas).',
     'Para poder medir error: calcula o pone <b>valor exacto</b>. Para ∫₀² e^(x²) dx el exacto es <code>≈ 16.45262776</code> (usa Wolfram, Python <code>scipy.integrate.quad</code>, o una corrida con Simpson y n grande como referencia).',
     'Pulsa <b>Resolver</b>. En cada subintervalo <code>[x_i, x_{i+1}]</code> la app evalua <code>f</code> en el <em>punto medio</em> <code>x_mid = (x_i + x_{i+1})/2</code> y suma <code>h · f(x_mid)</code> con <code>h = (b-a)/n</code>.',
     'Revisa la <b>cota de truncamiento</b>: <code>|E| ≤ (b-a)·h²/24 · M₂</code> donde <code>M₂ = max |f\'\'(ξ)|</code> en [a, b]. La app calcula f\'\' simbolicamente y encuentra M₂ numericamente; te muestra ξ aproximado.',
@@ -50,7 +51,7 @@ export const midpoint: MethodDefinition = {
     const f = parseExpression(params.fx);
     const a = parseFloat(params.a);
     const b = parseFloat(params.b);
-    let n = parseInt(params.n) || 10;
+    const n = parseInt(params.n) || 10;
     const exactRaw = (params.exact ?? '').trim();
     const exact = exactRaw === '' ? undefined : parseFloat(exactRaw);
 
@@ -58,25 +59,50 @@ export const midpoint: MethodDefinition = {
     if (a >= b) throw new Error('a debe ser menor que b');
     if (n < 1) throw new Error('n debe ser >= 1');
 
-    let run = computeMidpoint(f, a, b, n);
-    let retried = false;
-    let relErr: number | undefined;
-
-    if (exact !== undefined && !isNaN(exact)) {
-      relErr = relativeErrorPercent(run.integral, exact);
-      if (relErr > 1 && n < 20) {
-        n = 20;
-        run = computeMidpoint(f, a, b, n);
-        relErr = relativeErrorPercent(run.integral, exact);
-        retried = true;
-      }
-    }
-
+    const run = computeMidpoint(f, a, b, n);
     const errInfo = midpointError(params.fx, a, b, run.h);
+
+    const errRelPct = exact !== undefined && !isNaN(exact) && exact !== 0
+      ? Math.abs((run.integral - exact) / exact) * 100
+      : undefined;
 
     const msgParts = [`h = ${run.h.toPrecision(6)}, n = ${n}`];
     if (errInfo.derivativeExpr) msgParts.push(`f''(x) = ${errInfo.derivativeExpr}`);
-    if (retried) msgParts.push('reintento automatico con n=20 tras error > 1%');
+    if (errRelPct !== undefined) msgParts.push(`error relativo vs exacto: ${errRelPct.toPrecision(4)}%`);
+
+    const panels: string[] = [];
+
+    panels.push(renderPerPointBreakdownPanel({
+      methodName: 'Punto Medio',
+      n, h: run.h, prefactor: run.h, prefactorLabel: 'h',
+      integral: run.integral,
+      points: run.iterations.map(r => ({
+        i: r.i as number,
+        xi: r.xi_mid as number,
+        fxi: r.fxi as number,
+        coeff: 1,
+        contrib: r.fxi as number,
+      })),
+    }));
+
+    const xiRaw = (params.xi ?? '').trim();
+    if (xiRaw !== '') {
+      const xiVal = parseFloat(xiRaw);
+      if (!isNaN(xiVal)) {
+        panels.push(renderIntegrationTruncationAtXi({
+          methodName: 'Punto Medio',
+          fxExpr: params.fx, a, b, h: run.h, n, xi: xiVal,
+          order: 2, denom: 24, sign: '+',
+        }));
+      }
+    }
+
+    panels.push(renderIntegrationConvergencePanel(
+      'Punto Medio', a, b,
+      [1, 2, 4, 8, 16, 32, 64],
+      (nv) => computeMidpoint(f, a, b, nv).integral,
+      exact,
+    ));
 
     return {
       integral: run.integral,
@@ -84,14 +110,14 @@ export const midpoint: MethodDefinition = {
       converged: true,
       error: errInfo.bound,
       exact,
-      relativeErrorPercent: relErr,
+      relativeErrorPercent: errRelPct,
       truncationBound: errInfo.bound,
       truncationOrder: 2,
       maxDerivative: errInfo.max,
       xiApprox: errInfo.xAtMax,
       derivativeExpr: errInfo.derivativeExpr ?? undefined,
-      retried,
       message: msgParts.join(' · '),
+      theoremPanels: panels,
     };
   },
 
@@ -99,8 +125,7 @@ export const midpoint: MethodDefinition = {
     const f = parseExpression(params.fx);
     const a = parseFloat(params.a);
     const b = parseFloat(params.b);
-    let n = parseInt(params.n) || 10;
-    if (result.retried) n = 20;
+    const n = result.iterations.length || (parseInt(params.n) || 10);
     const h = (b - a) / n;
 
     const pad = (b - a) * 0.1;
@@ -130,9 +155,19 @@ export const midpoint: MethodDefinition = {
       xLabel: 'x', yLabel: 'f(x)',
     };
 
-    const iters = result.iterations.map(r => r.i as number);
+    const xmids: number[] = [];
+    const fvals: number[] = [];
     let cumSum = 0;
-    const cumAreas = result.iterations.map(r => { cumSum += r.area as number; return cumSum; });
+    const cumAreas: number[] = [];
+    for (let i = 0; i < n; i++) {
+      const xm = a + (i + 0.5) * h;
+      const fm = f(xm);
+      xmids.push(xm);
+      fvals.push(fm);
+      cumSum += h * fm;
+      cumAreas.push(cumSum);
+    }
+    const iters = Array.from({ length: n }, (_, i) => i + 1);
     const chart2: ChartData = {
       title: 'Area acumulada',
       type: 'line',
@@ -140,8 +175,6 @@ export const midpoint: MethodDefinition = {
       xLabel: 'Subintervalo', yLabel: 'Area',
     };
 
-    const fvals = result.iterations.map(r => r.fxi as number);
-    const xmids = result.iterations.map(r => r.xi_mid as number);
     const chart3: ChartData = {
       title: 'Valores f(x_i) en puntos medios',
       type: 'scatter',

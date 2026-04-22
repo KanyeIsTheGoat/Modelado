@@ -1,6 +1,7 @@
 import type { MethodDefinition, MethodResult, ChartData } from '../types';
 import { parseExpression, linspace } from '../../parser';
-import { trapecioError, relativeErrorPercent } from '../../integrationHelpers';
+import { trapecioError, renderIntegrationConvergencePanel, renderIntegrationTruncationAtXi, renderPerPointBreakdownPanel } from '../../integrationHelpers';
+import { parseStop, computeErrors, withExactErrors, hasConverged, describeStop } from '../../stoppingCriteria';
 
 function computeTrapecio(f: (x: number) => number, a: number, b: number, n: number): { integral: number; iterations: MethodResult['iterations']; h: number } {
   const h = (b - a) / n;
@@ -28,15 +29,23 @@ export const trapezoidalComp: MethodDefinition = {
     { id: 'fx', label: 'f(x)', placeholder: 'x^2', defaultValue: 'x^2' },
     { id: 'a', label: 'a (limite inferior)', placeholder: '0', type: 'number', defaultValue: '0' },
     { id: 'b', label: 'b (limite superior)', placeholder: '1', type: 'number', defaultValue: '1' },
-    { id: 'n', label: 'n (subintervalos)', placeholder: '10', type: 'number', defaultValue: '10' },
-    { id: 'exact', label: 'Valor exacto (opcional)', placeholder: 'p.ej. 0.333333', type: 'number', hint: 'Si se provee, se calcula error relativo y se reintenta con n=20 si supera 1%.' },
+    { id: 'n', label: 'n (subintervalos iniciales)', placeholder: '10', type: 'number', defaultValue: '10' },
+    { id: 'exact', label: 'Valor exacto (opcional)', placeholder: 'p.ej. 0.333333', type: 'number', hint: 'Si se provee, se muestran errores vs exacto y se pueden usar criterios "vs exacto".' },
+    { id: 'xi', label: 'ξ para error de truncamiento (opcional)', placeholder: 'p.ej. 0.5', type: 'number', hint: 'Punto donde evaluar E = -(b-a)h²/12 · f´´(ξ). Dejar vacio para mostrar solo la cota del peor caso.' },
+    { id: 'stop', label: 'Criterio de parada', placeholder: 'err_rel_pct:1', type: 'stopCriterion', defaultValue: 'err_rel_pct:1', hint: 'Se duplica n hasta que se cumplen los criterios. Default: error relativo < 1%.' },
+    { id: 'maxIter', label: 'Max duplicaciones de n', placeholder: '5', type: 'number', defaultValue: '5' },
   ],
   tableColumns: [
-    { key: 'i', label: 'i', latex: 'i' },
-    { key: 'xi', label: 'x_i', latex: 'x_i' },
-    { key: 'fxi', label: 'f(x_i)', latex: 'f(x_i)' },
-    { key: 'coeff', label: 'Coeficiente', latex: 'c_i' },
-    { key: 'contrib', label: 'Contribucion', latex: 'c_i \\cdot f(x_i)' },
+    { key: 'step', label: 'Paso', latex: 'k' },
+    { key: 'n', label: 'n', latex: 'n' },
+    { key: 'h', label: 'h', latex: 'h' },
+    { key: 'integral', label: 'I_n', latex: 'I_n' },
+    { key: 'errAbs', label: '|ΔI|', latex: '|I_n - I_{n/2}|' },
+    { key: 'errRel', label: 'ε_rel', latex: '\\varepsilon_{\\text{rel}}' },
+    { key: 'errRelPct', label: 'ε_rel %', latex: '\\varepsilon_{\\text{rel}}\\,(\\%)' },
+    { key: 'errAbsExact', label: '|I_n − exacto|', latex: '|I_n - I_{\\text{ex}}|' },
+    { key: 'errRelExact', label: 'ε vs ex', latex: '\\varepsilon_{\\text{ex}}' },
+    { key: 'errRelPctExact', label: 'ε vs ex %', latex: '\\varepsilon_{\\text{ex}}\\,(\\%)' },
   ],
   steps: [
     'Escribe <code>f(x)</code>. Para el <b>parcial 2025-I</b>: <code>ln(x+1)/x</code> sobre <code>[0, 1]</code>. Ojo, en <code>x=0</code> la funcion tiene singularidad removible — el parser lanzaria <code>NaN</code>; usa <code>a = 1e-10</code> (≈ 0) o redefine como <code>ln(x+1)/x</code> y prueba primero n=4. Para <b>parcial 30/04/2025</b>: <code>sqrt(2)·exp(x^2)</code> sobre <code>[0, 1]</code>.',
@@ -53,48 +62,109 @@ export const trapezoidalComp: MethodDefinition = {
     const f = parseExpression(params.fx);
     const a = parseFloat(params.a);
     const b = parseFloat(params.b);
-    let n = parseInt(params.n) || 10;
+    const n0 = parseInt(params.n) || 10;
     const exactRaw = (params.exact ?? '').trim();
     const exact = exactRaw === '' ? undefined : parseFloat(exactRaw);
+    const stop = parseStop(params.stop);
+    const maxIter = Math.max(1, parseInt(params.maxIter) || 5);
 
     if (isNaN(a) || isNaN(b)) throw new Error('a y b deben ser numeros validos');
     if (a >= b) throw new Error('a debe ser menor que b');
-    if (n < 1) throw new Error('n debe ser >= 1');
+    if (n0 < 1) throw new Error('n debe ser >= 1');
 
+    let n = n0;
     let run = computeTrapecio(f, a, b, n);
-    let retried = false;
-    let relErr: number | undefined;
+    let prevIntegral: number | null = null;
+    let converged = false;
+    let steps = 1;
+    const stepRows: MethodResult['iterations'] = [];
 
-    if (exact !== undefined && !isNaN(exact)) {
-      relErr = relativeErrorPercent(run.integral, exact);
-      if (relErr > 1 && n < 20) {
-        n = 20;
-        run = computeTrapecio(f, a, b, n);
-        relErr = relativeErrorPercent(run.integral, exact);
-        retried = true;
-      }
+    const firstFull = withExactErrors({ errAbs: 0, errRel: 0, errRelPct: 0 }, run.integral, exact);
+    stepRows.push({
+      step: 1, n, h: run.h, integral: run.integral,
+      errAbs: null, errRel: null, errRelPct: null,
+      errAbsExact: firstFull.errAbsExact ?? null,
+      errRelExact: firstFull.errRelExact ?? null,
+      errRelPctExact: firstFull.errRelPctExact ?? null,
+    });
+    if (exact !== undefined && !isNaN(exact) && hasConverged(stop, firstFull)) {
+      converged = true;
     }
+
+    while (!converged && steps < maxIter) {
+      prevIntegral = run.integral;
+      n *= 2;
+      run = computeTrapecio(f, a, b, n);
+      steps++;
+      const errs = computeErrors(prevIntegral, run.integral);
+      const errsFull = withExactErrors(errs, run.integral, exact);
+      stepRows.push({
+        step: steps, n, h: run.h, integral: run.integral,
+        errAbs: errsFull.errAbs, errRel: errsFull.errRel, errRelPct: errsFull.errRelPct,
+        errAbsExact: errsFull.errAbsExact ?? null,
+        errRelExact: errsFull.errRelExact ?? null,
+        errRelPctExact: errsFull.errRelPctExact ?? null,
+      });
+      if (hasConverged(stop, errsFull)) { converged = true; break; }
+    }
+    const lastErr = stepRows[stepRows.length - 1];
 
     const errInfo = trapecioError(params.fx, a, b, run.h);
 
     const msgParts = [`h = ${run.h.toPrecision(6)}, n = ${n}`];
     if (errInfo.derivativeExpr) msgParts.push(`f''(x) = ${errInfo.derivativeExpr}`);
-    if (retried) msgParts.push('reintento automatico con n=20 tras error > 1%');
+    msgParts.push(`Criterio: ${describeStop(stop)}`);
+    if (steps > 1) msgParts.push(`${steps - 1} duplicacion(es) (n: ${n0} → ${n})`);
+    if (!converged) msgParts.push('no convergio en maxIter');
+
+    const panels: string[] = [];
+
+    panels.push(renderPerPointBreakdownPanel({
+      methodName: 'Trapecio Compuesto',
+      n, h: run.h, prefactor: run.h / 2, prefactorLabel: 'h/2',
+      integral: run.integral,
+      points: run.iterations.map(r => ({
+        i: r.i as number, xi: r.xi as number, fxi: r.fxi as number,
+        coeff: r.coeff as number, contrib: r.contrib as number,
+      })),
+    }));
+
+    const xiRaw = (params.xi ?? '').trim();
+    if (xiRaw !== '') {
+      const xiVal = parseFloat(xiRaw);
+      if (!isNaN(xiVal)) {
+        panels.push(renderIntegrationTruncationAtXi({
+          methodName: 'Trapecio Compuesto',
+          fxExpr: params.fx, a, b, h: run.h, n, xi: xiVal,
+          order: 2, denom: 12, sign: '-',
+        }));
+      }
+    }
+
+    panels.push(renderIntegrationConvergencePanel(
+      'Trapecio Compuesto', a, b,
+      [2, 4, 8, 16, 32, 64],
+      (nv) => computeTrapecio(f, a, b, nv).integral,
+      exact,
+    ));
+
+    const lastErrRelPct = (lastErr.errRelPctExact ?? lastErr.errRelPct) as number | null;
 
     return {
       integral: run.integral,
-      iterations: run.iterations,
-      converged: true,
+      iterations: stepRows,
+      converged,
       error: errInfo.bound,
       exact,
-      relativeErrorPercent: relErr,
+      relativeErrorPercent: lastErrRelPct ?? undefined,
       truncationBound: errInfo.bound,
       truncationOrder: 2,
       maxDerivative: errInfo.max,
       xiApprox: errInfo.xAtMax,
       derivativeExpr: errInfo.derivativeExpr ?? undefined,
-      retried,
+      retried: steps > 1,
       message: msgParts.join(' · '),
+      theoremPanels: panels,
     };
   },
 
@@ -102,8 +172,8 @@ export const trapezoidalComp: MethodDefinition = {
     const f = parseExpression(params.fx);
     const a = parseFloat(params.a);
     const b = parseFloat(params.b);
-    let n = parseInt(params.n) || 10;
-    if (result.retried) n = 20;
+    const lastRow = result.iterations[result.iterations.length - 1];
+    const n = (lastRow?.n as number) || (parseInt(params.n) || 10);
     const h = (b - a) / n;
 
     const pad = (b - a) * 0.1;
@@ -112,6 +182,8 @@ export const trapezoidalComp: MethodDefinition = {
 
     const trapX: number[] = [];
     const trapY: number[] = [];
+    const xPts: number[] = [];
+    const yPts: number[] = [];
     for (let i = 0; i < n; i++) {
       const xL = a + i * h;
       const xR = a + (i + 1) * h;
@@ -119,6 +191,11 @@ export const trapezoidalComp: MethodDefinition = {
       trapY.push(0, f(xL), f(xR), 0, 0);
       trapX.push(NaN);
       trapY.push(NaN);
+    }
+    for (let i = 0; i <= n; i++) {
+      const xi = a + i * h;
+      xPts.push(xi);
+      yPts.push(f(xi));
     }
 
     const chart1: ChartData = {
@@ -131,8 +208,6 @@ export const trapezoidalComp: MethodDefinition = {
       xLabel: 'x', yLabel: 'f(x)',
     };
 
-    const xPts = result.iterations.map(r => r.xi as number);
-    const yPts = result.iterations.map(r => r.fxi as number);
     const chart2: ChartData = {
       title: 'Puntos de evaluacion',
       type: 'scatter',
@@ -143,15 +218,13 @@ export const trapezoidalComp: MethodDefinition = {
       xLabel: 'x', yLabel: 'f(x)',
     };
 
-    const iters = result.iterations.map(r => r.i as number);
-    let cumSum = 0;
-    const hHalf = h / 2;
-    const cumAreas = result.iterations.map(r => { cumSum += (r.contrib as number); return hHalf * cumSum; });
+    const stepNs = result.iterations.map(r => r.n as number);
+    const stepIs = result.iterations.map(r => r.integral as number);
     const chart3: ChartData = {
-      title: 'Integral acumulada',
+      title: 'Convergencia por duplicaciones',
       type: 'line',
-      datasets: [{ label: 'Integral parcial', x: iters, y: cumAreas, color: '#cba6f7', pointRadius: 2 }],
-      xLabel: 'Punto i', yLabel: 'Integral parcial',
+      datasets: [{ label: 'I_n', x: stepNs, y: stepIs, color: '#cba6f7', pointRadius: 4 }],
+      xLabel: 'n', yLabel: 'I_n',
     };
 
     const nValues = [2, 4, 8, 16, 32, 64, 128, 256];

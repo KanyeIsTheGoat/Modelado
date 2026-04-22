@@ -1,6 +1,8 @@
 import { create, all, MathNode, OperatorNode, ConstantNode, SymbolNode, FunctionNode, ParenthesisNode } from 'mathjs';
+import { registerMathAliases } from './mathAliases';
 
 const math = create(all);
+registerMathAliases(math);
 
 export interface SymbolicStep {
   rule: string;

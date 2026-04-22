@@ -1,7 +1,6 @@
 import type { MethodDefinition, MethodResult, ChartData } from '../types';
 import { parseExpression, linspace } from '../../parser';
-import { simpson13Error, renderIntegrationConvergencePanel, renderIntegrationTruncationAtXi, renderPerPointBreakdownPanel } from '../../integrationHelpers';
-import { parseStop, computeErrors, withExactErrors, hasConverged, describeStop } from '../../stoppingCriteria';
+import { simpson13Error, renderIntegrationConvergencePanel, renderIntegrationTruncationAtXi, renderPerPointBreakdownPanel, detectRemovableSingularities, renderLhopitalPanel } from '../../integrationHelpers';
 
 function computeSimpson13(f: (x: number) => number, a: number, b: number, n: number): { integral: number; iterations: MethodResult['iterations']; h: number; n: number } {
   if (n % 2 !== 0) n = n + 1;
@@ -33,23 +32,16 @@ export const simpson13Comp: MethodDefinition = {
     { id: 'fx', label: 'f(x)', placeholder: 'x^2', defaultValue: 'x^2' },
     { id: 'a', label: 'a (limite inferior)', placeholder: '0', type: 'number', defaultValue: '0' },
     { id: 'b', label: 'b (limite superior)', placeholder: '1', type: 'number', defaultValue: '1' },
-    { id: 'n', label: 'n (subintervalos iniciales, debe ser par)', placeholder: '10', type: 'number', defaultValue: '10' },
-    { id: 'exact', label: 'Valor exacto (opcional)', placeholder: 'p.ej. 0.333333', type: 'number', hint: 'Si se provee, se muestran errores vs exacto y se pueden usar criterios "vs exacto".' },
+    { id: 'n', label: 'n (subintervalos, debe ser par)', placeholder: '10', type: 'number', defaultValue: '10' },
+    { id: 'exact', label: 'Valor exacto (opcional)', placeholder: 'p.ej. 0.333333', type: 'number', hint: 'Si se provee, se calcula el error relativo vs exacto.' },
     { id: 'xi', label: 'ξ para error de truncamiento (opcional)', placeholder: 'p.ej. 0.5', type: 'number', hint: 'Punto donde evaluar E = -(b-a)h⁴/180 · f⁽⁴⁾(ξ). Dejar vacio para mostrar solo la cota del peor caso.' },
-    { id: 'stop', label: 'Criterio de parada', placeholder: 'err_rel_pct:1', type: 'stopCriterion', defaultValue: 'err_rel_pct:1', hint: 'Se duplica n hasta que se cumplen los criterios. Default: error relativo < 1%.' },
-    { id: 'maxIter', label: 'Max duplicaciones de n', placeholder: '5', type: 'number', defaultValue: '5' },
   ],
   tableColumns: [
-    { key: 'step', label: 'Paso', latex: 'k' },
-    { key: 'n', label: 'n', latex: 'n' },
-    { key: 'h', label: 'h', latex: 'h' },
-    { key: 'integral', label: 'I_n', latex: 'I_n' },
-    { key: 'errAbs', label: '|ΔI|', latex: '|I_n - I_{n/2}|' },
-    { key: 'errRel', label: 'ε_rel', latex: '\\varepsilon_{\\text{rel}}' },
-    { key: 'errRelPct', label: 'ε_rel %', latex: '\\varepsilon_{\\text{rel}}\\,(\\%)' },
-    { key: 'errAbsExact', label: '|I_n − exacto|', latex: '|I_n - I_{\\text{ex}}|' },
-    { key: 'errRelExact', label: 'ε vs ex', latex: '\\varepsilon_{\\text{ex}}' },
-    { key: 'errRelPctExact', label: 'ε vs ex %', latex: '\\varepsilon_{\\text{ex}}\\,(\\%)' },
+    { key: 'i', label: 'i', latex: 'i' },
+    { key: 'xi', label: 'x_i', latex: 'x_i' },
+    { key: 'fxi', label: 'f(x_i)', latex: 'f(x_i)' },
+    { key: 'coeff', label: 'Coef', latex: 'c_i' },
+    { key: 'contrib', label: 'c_i·f(x_i)', latex: 'c_i \\cdot f(x_i)' },
   ],
   steps: [
     'Escribe <code>f(x)</code>. Para el <b>parcial 02/07/2025</b> (parte b): <code>exp(x^2)</code> sobre <code>[0, 2]</code> con <code>n = 10</code>. Para <b>parcial 2025-I</b>: <code>ln(x+1)/x</code> sobre <code>[0, 1]</code> con <code>n = 4</code>.',
@@ -59,7 +51,7 @@ export const simpson13Comp: MethodDefinition = {
     'Pulsa <b>Resolver</b>. La columna <em>Contribucion = coef · f(x_i)</em>. Suma total × <code>h/3</code> = integral.',
     '<b>Error de truncamiento</b>: <code>|E| = -(b-a)·h⁴/180 · f⁽⁴⁾(ξ)</code> para algun <code>ξ ∈ (a,b)</code>. Es <code>O(h⁴)</code> — mucho mas preciso que trapecio <code>O(h²)</code>. La app calcula <code>f⁽⁴⁾</code> simbolicamente y su maximo en [a,b].',
     'Si el parcial te fija <code>ξ</code> especifico, puedes comparar contra la cota reportada (peor caso). Para funciones suaves, Simpson da error <em>casi nulo</em> con n moderado.',
-    'Si diste <b>valor exacto</b>: app calcula error relativo y reintenta con <code>n = 20</code> si > 1%. Usa el exacto de Wolfram o <code>scipy.integrate.quad</code> — para ∫₀² e^(x²) dx: <code>≈ 16.45262776</code>.',
+    'Si diste <b>valor exacto</b>: la app calcula el error relativo vs ese exacto. No reintenta con otro n — si queres mas precision, cambia <code>n</code> manualmente. Usa el exacto de Wolfram o <code>scipy.integrate.quad</code> — para ∫₀² e^(x²) dx: <code>≈ 16.45262776</code>.',
     '<b>Comparacion vs Trapecio</b> (cierre del parcial): anota (1) integral, (2) error relativo %, (3) cota teorica. Simpson debe ser varios ordenes de magnitud mejor. Menciona en el informe: "Simpson O(h⁴) domina a Trapecio O(h²)".',
   ],
 
@@ -70,58 +62,30 @@ export const simpson13Comp: MethodDefinition = {
     const nReq = parseInt(params.n) || 10;
     const exactRaw = (params.exact ?? '').trim();
     const exact = exactRaw === '' ? undefined : parseFloat(exactRaw);
-    const stop = parseStop(params.stop);
-    const maxIter = Math.max(1, parseInt(params.maxIter) || 5);
 
     if (isNaN(a) || isNaN(b)) throw new Error('a y b deben ser numeros validos');
     if (a >= b) throw new Error('a debe ser menor que b');
     if (nReq < 2) throw new Error('n debe ser >= 2');
 
-    let run = computeSimpson13(f, a, b, nReq);
-    const n0 = run.n;
-    let prevIntegral: number | null = null;
-    let converged = false;
-    let steps = 1;
-    const stepRows: MethodResult['iterations'] = [];
-
-    const firstFull = withExactErrors({ errAbs: 0, errRel: 0, errRelPct: 0 }, run.integral, exact);
-    stepRows.push({
-      step: 1, n: run.n, h: run.h, integral: run.integral,
-      errAbs: null, errRel: null, errRelPct: null,
-      errAbsExact: firstFull.errAbsExact ?? null,
-      errRelExact: firstFull.errRelExact ?? null,
-      errRelPctExact: firstFull.errRelPctExact ?? null,
-    });
-    if (exact !== undefined && !isNaN(exact) && hasConverged(stop, firstFull)) {
-      converged = true;
-    }
-
-    while (!converged && steps < maxIter) {
-      prevIntegral = run.integral;
-      run = computeSimpson13(f, a, b, run.n * 2);
-      steps++;
-      const errs = computeErrors(prevIntegral, run.integral);
-      const errsFull = withExactErrors(errs, run.integral, exact);
-      stepRows.push({
-        step: steps, n: run.n, h: run.h, integral: run.integral,
-        errAbs: errsFull.errAbs, errRel: errsFull.errRel, errRelPct: errsFull.errRelPct,
-        errAbsExact: errsFull.errAbsExact ?? null,
-        errRelExact: errsFull.errRelExact ?? null,
-        errRelPctExact: errsFull.errRelPctExact ?? null,
-      });
-      if (hasConverged(stop, errsFull)) { converged = true; break; }
-    }
-    const lastErr = stepRows[stepRows.length - 1];
-
+    const run = computeSimpson13(f, a, b, nReq);
     const errInfo = simpson13Error(params.fx, a, b, run.h);
 
+    const errRelPct = exact !== undefined && !isNaN(exact) && exact !== 0
+      ? Math.abs((run.integral - exact) / exact) * 100
+      : undefined;
+
     const msgParts = [`h = ${run.h.toPrecision(6)}, n = ${run.n} (par)`];
+    if (run.n !== nReq) msgParts.push(`n ajustado de ${nReq} a ${run.n} (debe ser par)`);
     if (errInfo.derivativeExpr) msgParts.push(`f⁴(x) = ${errInfo.derivativeExpr}`);
-    msgParts.push(`Criterio: ${describeStop(stop)}`);
-    if (steps > 1) msgParts.push(`${steps - 1} duplicacion(es) (n: ${n0} → ${run.n})`);
-    if (!converged) msgParts.push('no convergio en maxIter');
+    if (errRelPct !== undefined) msgParts.push(`error relativo vs exacto: ${errRelPct.toPrecision(4)}%`);
 
     const panels: string[] = [];
+
+    const xsForDetect = run.iterations.map(r => r.xi as number);
+    const singularities = detectRemovableSingularities(params.fx, xsForDetect);
+    if (singularities.length > 0) {
+      panels.push(renderLhopitalPanel(singularities, params.fx));
+    }
 
     panels.push(renderPerPointBreakdownPanel({
       methodName: 'Simpson 1/3 Compuesta',
@@ -152,21 +116,18 @@ export const simpson13Comp: MethodDefinition = {
       exact,
     ));
 
-    const lastErrRelPct = (lastErr.errRelPctExact ?? lastErr.errRelPct) as number | null;
-
     return {
       integral: run.integral,
-      iterations: stepRows,
-      converged,
+      iterations: run.iterations,
+      converged: true,
       error: errInfo.bound,
       exact,
-      relativeErrorPercent: lastErrRelPct ?? undefined,
+      relativeErrorPercent: errRelPct,
       truncationBound: errInfo.bound,
       truncationOrder: 4,
       maxDerivative: errInfo.max,
       xiApprox: errInfo.xAtMax,
       derivativeExpr: errInfo.derivativeExpr ?? undefined,
-      retried: steps > 1,
       message: msgParts.join(' · '),
       theoremPanels: panels,
     };
@@ -176,8 +137,7 @@ export const simpson13Comp: MethodDefinition = {
     const f = parseExpression(params.fx);
     const a = parseFloat(params.a);
     const b = parseFloat(params.b);
-    const lastRow = result.iterations[result.iterations.length - 1];
-    let n = (lastRow?.n as number) || (parseInt(params.n) || 10);
+    let n = Math.max(2, result.iterations.length - 1) || (parseInt(params.n) || 10);
     if (n % 2 !== 0) n++;
     const h = (b - a) / n;
 

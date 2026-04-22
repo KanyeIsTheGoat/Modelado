@@ -4,8 +4,10 @@ import { parseTableData, parseTableDataWithStrings } from '../../ui';
 import { maxAbsDerivative } from '../../integrationHelpers';
 import { texBlock } from '../../latex';
 import { create, all } from 'mathjs';
+import { registerMathAliases } from '../../mathAliases';
 
 const math = create(all);
+registerMathAliases(math);
 
 function evalLagrange(xs: number[], ys: number[], x: number): { value: number; basis: number[] } {
   const n = xs.length;

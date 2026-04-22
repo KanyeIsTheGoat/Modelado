@@ -4,6 +4,14 @@ import { mountKeyboard, setupKeyboardListeners } from '../mathKeyboard';
 import { symbolicDerivativeSteps, symbolicIntegralSteps, type SymbolicStep } from '../symbolic';
 import { texBlock, tex, exprToTex } from '../latex';
 import { formatFull } from '../precision';
+import { detectRemovableSingularities, renderLhopitalPanel } from '../integrationHelpers';
+
+function lhopitalPanelForExpr(expr: string): string {
+  const samples = [-5, -4, -3, -2, -1, -0.5, 0, 0.5, 1, 2, 3, 4, 5];
+  const singularities = detectRemovableSingularities(expr, samples);
+  if (singularities.length === 0) return '';
+  return renderLhopitalPanel(singularities, expr);
+}
 
 interface HistoryEntry { expr: string; result: number; }
 const normalHistory: HistoryEntry[] = [];
@@ -297,6 +305,7 @@ function runIntegral(): void {
           </div>
           <div class="calc-result-expr">${result}</div>
         </div>
+        ${lhopitalPanelForExpr(fExpr)}
         ${renderStepsPanel('Procedimiento paso a paso', steps)}
       `;
     }

@@ -1,5 +1,6 @@
 import type { MethodDefinition, MethodResult, ChartData } from '../types';
 import { parseExpression, linspace } from '../../parser';
+import { detectRemovableSingularities, renderLhopitalPanel } from '../../integrationHelpers';
 
 export const trapezoidal: MethodDefinition = {
   id: 'trapezoidal',
@@ -42,7 +43,13 @@ export const trapezoidal: MethodDefinition = {
       { punto: 'b', x: b, fx: fb },
     ];
 
-    return { integral, iterations, converged: true, error: 0, message: `Trapecio simple: (${b}-${a})/2 · [f(${a}) + f(${b})]` };
+    const panels: string[] = [];
+    const singularities = detectRemovableSingularities(params.fx, [a, b]);
+    if (singularities.length > 0) {
+      panels.push(renderLhopitalPanel(singularities, params.fx));
+    }
+
+    return { integral, iterations, converged: true, error: 0, message: `Trapecio simple: (${b}-${a})/2 · [f(${a}) + f(${b})]`, theoremPanels: panels };
   },
 
   getCharts(params, result) {

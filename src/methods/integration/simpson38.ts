@@ -1,5 +1,6 @@
 import type { MethodDefinition, MethodResult, ChartData } from '../types';
 import { parseExpression, linspace } from '../../parser';
+import { detectRemovableSingularities, renderLhopitalPanel } from '../../integrationHelpers';
 
 export const simpson38: MethodDefinition = {
   id: 'simpson38',
@@ -56,7 +57,13 @@ export const simpson38: MethodDefinition = {
       { punto: 'x₃ = b', x: b, fx: fb, coeff: 1 },
     ];
 
-    return { integral, iterations, converged: true, error: 0 };
+    const panels: string[] = [];
+    const singularities = detectRemovableSingularities(params.fx, [a, x1, x2, b]);
+    if (singularities.length > 0) {
+      panels.push(renderLhopitalPanel(singularities, params.fx));
+    }
+
+    return { integral, iterations, converged: true, error: 0, theoremPanels: panels };
   },
 
   getCharts(params, result) {

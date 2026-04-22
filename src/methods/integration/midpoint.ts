@@ -1,6 +1,6 @@
 import type { MethodDefinition, MethodResult, ChartData } from '../types';
 import { parseExpression, linspace } from '../../parser';
-import { midpointError, renderIntegrationConvergencePanel, renderIntegrationTruncationAtXi, renderPerPointBreakdownPanel } from '../../integrationHelpers';
+import { midpointError, renderIntegrationConvergencePanel, renderIntegrationTruncationAtXi, renderPerPointBreakdownPanel, detectRemovableSingularities, renderLhopitalPanel } from '../../integrationHelpers';
 
 function computeMidpoint(f: (x: number) => number, a: number, b: number, n: number): { integral: number; iterations: MethodResult['iterations']; h: number } {
   const h = (b - a) / n;
@@ -71,6 +71,12 @@ export const midpoint: MethodDefinition = {
     if (errRelPct !== undefined) msgParts.push(`error relativo vs exacto: ${errRelPct.toPrecision(4)}%`);
 
     const panels: string[] = [];
+
+    const xsForDetect = run.iterations.map(r => r.xi_mid as number);
+    const singularities = detectRemovableSingularities(params.fx, [a, b, ...xsForDetect]);
+    if (singularities.length > 0) {
+      panels.push(renderLhopitalPanel(singularities, params.fx));
+    }
 
     panels.push(renderPerPointBreakdownPanel({
       methodName: 'Punto Medio',

@@ -1,7 +1,9 @@
 import katex from 'katex';
 import { create, all } from 'mathjs';
+import { registerMathAliases } from './mathAliases';
 
 const math = create(all);
+registerMathAliases(math);
 
 /**
  * Render a LaTeX string to HTML using KaTeX.

@@ -1,8 +1,10 @@
 import { create, all, MathNode } from 'mathjs';
-import { parseExpression, linspace } from './parser';
+import { parseExpression, linspace, evaluateAt } from './parser';
 import { texBlock } from './latex';
+import { registerMathAliases } from './mathAliases';
 
 const math = create(all);
+registerMathAliases(math);
 
 function fmtNum(n: number, p: number = 8): string {
   if (!isFinite(n)) return 'NaN';
@@ -389,6 +391,137 @@ export function renderIntegrationConvergencePanel(
           <b>|I<sub>n</sub> − I<sub>n/2</sub>|</b>: error absoluto entre estimaciones sucesivas (se usa como criterio de parada cuando no hay exacto).
           <b>ε<sub>rel</sub></b> = |ΔI| / |I<sub>n</sub>|. <b>ε<sub>rel</sub> %</b> = ε<sub>rel</sub> × 100.
           ${hasExact ? '<b>vs exacto</b>: |I<sub>n</sub> − exacto|, su fraccion y %. <b>Cifras sig.</b> = cifras significativas correctas respecto al exacto.' : ''}
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+/**
+ * Detecta puntos donde f(x) directa da NaN/Inf (forma indeterminada) pero el limite
+ * existe. Devuelve los puntos relevantes y el valor del limite computado.
+ */
+export interface RemovableSingularity {
+  x: number;
+  limitValue: number;
+  kind: '0/0' | 'Inf/Inf' | 'indeterminada';
+  numeratorExpr: string | null;
+  denominatorExpr: string | null;
+  numeratorAtX: number | null;
+  denominatorAtX: number | null;
+  // Derivadas simbolicas (si fueron obtenibles) para mostrar L'Hopital paso a paso
+  numDerivExpr: string | null;
+  denDerivExpr: string | null;
+  lhopitalValue: number | null;
+}
+
+function splitQuotient(expr: string): { num: string; den: string } | null {
+  try {
+    const node: MathNode = math.parse(expr);
+    const anyNode = node as any;
+    if (anyNode.op === '/' && Array.isArray(anyNode.args) && anyNode.args.length === 2) {
+      return {
+        num: anyNode.args[0].toString(),
+        den: anyNode.args[1].toString(),
+      };
+    }
+  } catch {}
+  return null;
+}
+
+export function detectRemovableSingularities(
+  fxExpr: string,
+  xPoints: number[],
+): RemovableSingularity[] {
+  const out: RemovableSingularity[] = [];
+  const quot = splitQuotient(fxExpr);
+  for (const x of xPoints) {
+    const info = evaluateAt(fxExpr, x);
+    if (info.usedLimit) {
+      let numAtX: number | null = null;
+      let denAtX: number | null = null;
+      let kind: RemovableSingularity['kind'] = 'indeterminada';
+      let numDerivExpr: string | null = null;
+      let denDerivExpr: string | null = null;
+      let lhopital: number | null = null;
+      if (quot) {
+        try {
+          const numF = parseExpression(quot.num);
+          const denF = parseExpression(quot.den);
+          const nv = numF(x);
+          const dv = denF(x);
+          numAtX = nv;
+          denAtX = dv;
+          if (Math.abs(nv) < 1e-10 && Math.abs(dv) < 1e-10) kind = '0/0';
+          else if (!isFinite(nv) && !isFinite(dv)) kind = 'Inf/Inf';
+        } catch {}
+        try {
+          const numNode = math.simplify(math.derivative(math.parse(quot.num), 'x'));
+          const denNode = math.simplify(math.derivative(math.parse(quot.den), 'x'));
+          numDerivExpr = numNode.toString();
+          denDerivExpr = denNode.toString();
+          const numDerF = parseExpression(numDerivExpr);
+          const denDerF = parseExpression(denDerivExpr);
+          const ndv = numDerF(x);
+          const ddv = denDerF(x);
+          if (isFinite(ndv) && isFinite(ddv) && Math.abs(ddv) > 1e-14) {
+            lhopital = ndv / ddv;
+          }
+        } catch {}
+      }
+      out.push({
+        x, limitValue: info.value, kind,
+        numeratorExpr: quot?.num ?? null,
+        denominatorExpr: quot?.den ?? null,
+        numeratorAtX: numAtX, denominatorAtX: denAtX,
+        numDerivExpr, denDerivExpr, lhopitalValue: lhopital,
+      });
+    }
+  }
+  return out;
+}
+
+export function renderLhopitalPanel(
+  singularities: RemovableSingularity[],
+  fxExpr: string,
+): string {
+  if (singularities.length === 0) return '';
+  const rows = singularities.map(s => {
+    const kindLabel = s.kind === '0/0' ? '\\frac{0}{0}' : s.kind === 'Inf/Inf' ? '\\frac{\\infty}{\\infty}' : '\\text{indeterminada}';
+    const quotLine = (s.numeratorExpr && s.denominatorExpr)
+      ? `${texBlock(`f(${fmtNum(s.x, 6)}) = \\frac{${s.numeratorExpr}}{${s.denominatorExpr}}\\bigg|_{x=${fmtNum(s.x, 6)}} = ${kindLabel}`)}`
+      : `<div><em>f(${fmtNum(s.x, 6)}) es indeterminada (directa: NaN/Inf).</em></div>`;
+    const lhopitalLine = (s.numDerivExpr && s.denDerivExpr && s.lhopitalValue !== null)
+      ? `
+        <div><b>Aplicando L'Hopital</b> — derivadas de numerador y denominador:</div>
+        ${texBlock(`\\lim_{x \\to ${fmtNum(s.x, 6)}} \\frac{${s.numeratorExpr}}{${s.denominatorExpr}} = \\lim_{x \\to ${fmtNum(s.x, 6)}} \\frac{${s.numDerivExpr}}{${s.denDerivExpr}} = ${fmtNum(s.lhopitalValue, 8)}`)}
+      `
+      : '';
+    const numericLine = `
+      <div><b>Limite numerico</b> (evaluando en x ± ε pequeño): <code>${fmtNum(s.limitValue, 8)}</code></div>
+    `;
+    const agreeLine = (s.lhopitalValue !== null && Math.abs(s.lhopitalValue - s.limitValue) / Math.max(Math.abs(s.limitValue), 1) < 1e-3)
+      ? `<div style="color:var(--green,#a6e3a1);">Los dos enfoques coinciden. La app usa <b>${fmtNum(s.limitValue, 8)}</b> como valor de f en x=${fmtNum(s.x, 6)}.</div>`
+      : '';
+    return `
+      <div style="margin-top:10px; padding:8px; border-left:2px solid var(--mauve,#cba6f7);">
+        <div><b>Punto x = ${fmtNum(s.x, 6)}</b></div>
+        ${quotLine}
+        ${lhopitalLine}
+        ${numericLine}
+        ${agreeLine}
+      </div>
+    `;
+  }).join('');
+
+  return `
+    <div class="theorem-panel theorem-pass">
+      <div class="theorem-header"><span class="theorem-icon">∞</span> Singularidad removible detectada — regla de L'Hopital</div>
+      <div class="theorem-body">
+        <div>Uno o mas puntos de evaluacion dan forma indeterminada (<code>0/0</code> o <code>∞/∞</code>) al sustituir directo. La app usa el <b>limite</b> en esos puntos para poder continuar con el metodo numerico; asi la integral <b>no explota</b> por singularidades removibles (caso clasico: <code>ln(x+1)/x</code> en x=0 → limite = 1).</div>
+        ${rows}
+        <div style="margin-top:10px; font-size:0.85rem; color: var(--subtext0);">
+          Nota: si una singularidad NO es removible (p.ej. <code>1/x</code> en x=0, donde los limites laterales difieren), la app devuelve <code>NaN</code> para ese punto y veras el error en la tabla de evaluaciones.
         </div>
       </div>
     </div>

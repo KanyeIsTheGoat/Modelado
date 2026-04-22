@@ -1,9 +1,46 @@
 import { create, all, MathNode } from 'mathjs';
+import { registerMathAliases } from './mathAliases';
 
 const math = create(all);
+registerMathAliases(math);
 
 // Compile and cache expressions for performance
 const cache = new Map<string, (scope: Record<string, number>) => number>();
+
+/**
+ * Intenta hallar el limite numerico de fn en x via muestreo simetrico (L'Hopital numerico).
+ * Si los limites izquierdo y derecho coinciden razonablemente, devuelve su promedio.
+ * Si solo uno existe (p.ej. dominio), devuelve ese. Si no, devuelve NaN.
+ */
+function numericalLimit(
+  fn: (scope: Record<string, number>) => number,
+  x: number,
+): number {
+  // Epsilons en escala relativa al punto; si x=0, usamos valores absolutos pequenos.
+  const scale = Math.max(Math.abs(x), 1);
+  const eps = [1e-6 * scale, 1e-8 * scale, 1e-10 * scale];
+  for (const e of eps) {
+    let left: number | null = null;
+    let right: number | null = null;
+    try {
+      const lv = fn({ x: x - e, e: Math.E, pi: Math.PI });
+      if (typeof lv === 'number' && isFinite(lv)) left = lv;
+    } catch {}
+    try {
+      const rv = fn({ x: x + e, e: Math.E, pi: Math.PI });
+      if (typeof rv === 'number' && isFinite(rv)) right = rv;
+    } catch {}
+    if (left !== null && right !== null) {
+      const scale2 = Math.max(Math.abs(left), Math.abs(right), 1);
+      if (Math.abs(left - right) / scale2 < 1e-3) return (left + right) / 2;
+    } else if (right !== null) {
+      return right;
+    } else if (left !== null) {
+      return left;
+    }
+  }
+  return NaN;
+}
 
 export function parseExpression(expr: string): (x: number) => number {
   const key = expr.trim();
@@ -17,10 +54,61 @@ export function parseExpression(expr: string): (x: number) => number {
   }
   const fn = cache.get(key)!;
   return (x: number) => {
-    const result = fn({ x, e: Math.E, pi: Math.PI });
-    if (typeof result !== 'number' || !isFinite(result)) return NaN;
-    return result;
+    let result: number;
+    try {
+      result = fn({ x, e: Math.E, pi: Math.PI });
+    } catch {
+      return numericalLimit(fn, x);
+    }
+    if (typeof result === 'number' && isFinite(result)) return result;
+    return numericalLimit(fn, x);
   };
+}
+
+/**
+ * Evalua una expresion en x y reporta si se uso el limite numerico (L'Hopital).
+ * Util para mostrar al usuario cuando hay una singularidad removible.
+ */
+export interface EvalInfo {
+  value: number;
+  usedLimit: boolean;
+  directValue: number;
+  leftLimit: number;
+  rightLimit: number;
+}
+
+export function evaluateAt(expr: string, x: number): EvalInfo {
+  const key = expr.trim();
+  if (!cache.has(key)) {
+    try {
+      const compiled = math.compile(key);
+      cache.set(key, (scope) => compiled.evaluate(scope) as number);
+    } catch (e: any) {
+      throw new Error(`Error de sintaxis en "${expr}": ${e.message}`);
+    }
+  }
+  const fn = cache.get(key)!;
+  let direct = NaN;
+  try {
+    const r = fn({ x, e: Math.E, pi: Math.PI });
+    if (typeof r === 'number') direct = r;
+  } catch {}
+  const scale = Math.max(Math.abs(x), 1);
+  const eps = 1e-8 * scale;
+  let left = NaN, right = NaN;
+  try {
+    const lv = fn({ x: x - eps, e: Math.E, pi: Math.PI });
+    if (typeof lv === 'number') left = lv;
+  } catch {}
+  try {
+    const rv = fn({ x: x + eps, e: Math.E, pi: Math.PI });
+    if (typeof rv === 'number') right = rv;
+  } catch {}
+  if (isFinite(direct)) {
+    return { value: direct, usedLimit: false, directValue: direct, leftLimit: left, rightLimit: right };
+  }
+  const limit = numericalLimit(fn, x);
+  return { value: limit, usedLimit: isFinite(limit), directValue: direct, leftLimit: left, rightLimit: right };
 }
 
 export function evalExpr(expr: string, x: number): number {

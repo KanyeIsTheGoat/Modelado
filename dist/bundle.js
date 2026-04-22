@@ -46241,9 +46241,51 @@
     return math8;
   }
 
+  // src/mathAliases.ts
+  function registerMathAliases(math8) {
+    math8.import(
+      {
+        ln: (x) => Math.log(x),
+        arctan: (x) => Math.atan(x),
+        arcsin: (x) => Math.asin(x),
+        arccos: (x) => Math.acos(x),
+        sen: (x) => Math.sin(x)
+      },
+      { override: false }
+    );
+  }
+
   // src/parser.ts
   var math2 = create(all);
+  registerMathAliases(math2);
   var cache = /* @__PURE__ */ new Map();
+  function numericalLimit(fn, x) {
+    const scale = Math.max(Math.abs(x), 1);
+    const eps = [1e-6 * scale, 1e-8 * scale, 1e-10 * scale];
+    for (const e3 of eps) {
+      let left = null;
+      let right = null;
+      try {
+        const lv = fn({ x: x - e3, e: Math.E, pi: Math.PI });
+        if (typeof lv === "number" && isFinite(lv)) left = lv;
+      } catch {
+      }
+      try {
+        const rv = fn({ x: x + e3, e: Math.E, pi: Math.PI });
+        if (typeof rv === "number" && isFinite(rv)) right = rv;
+      } catch {
+      }
+      if (left !== null && right !== null) {
+        const scale2 = Math.max(Math.abs(left), Math.abs(right), 1);
+        if (Math.abs(left - right) / scale2 < 1e-3) return (left + right) / 2;
+      } else if (right !== null) {
+        return right;
+      } else if (left !== null) {
+        return left;
+      }
+    }
+    return NaN;
+  }
   function parseExpression(expr) {
     const key = expr.trim();
     if (!cache.has(key)) {
@@ -46256,10 +46298,51 @@
     }
     const fn = cache.get(key);
     return (x) => {
-      const result = fn({ x, e: Math.E, pi: Math.PI });
-      if (typeof result !== "number" || !isFinite(result)) return NaN;
-      return result;
+      let result;
+      try {
+        result = fn({ x, e: Math.E, pi: Math.PI });
+      } catch {
+        return numericalLimit(fn, x);
+      }
+      if (typeof result === "number" && isFinite(result)) return result;
+      return numericalLimit(fn, x);
     };
+  }
+  function evaluateAt(expr, x) {
+    const key = expr.trim();
+    if (!cache.has(key)) {
+      try {
+        const compiled = math2.compile(key);
+        cache.set(key, (scope) => compiled.evaluate(scope));
+      } catch (e3) {
+        throw new Error(`Error de sintaxis en "${expr}": ${e3.message}`);
+      }
+    }
+    const fn = cache.get(key);
+    let direct = NaN;
+    try {
+      const r = fn({ x, e: Math.E, pi: Math.PI });
+      if (typeof r === "number") direct = r;
+    } catch {
+    }
+    const scale = Math.max(Math.abs(x), 1);
+    const eps = 1e-8 * scale;
+    let left = NaN, right = NaN;
+    try {
+      const lv = fn({ x: x - eps, e: Math.E, pi: Math.PI });
+      if (typeof lv === "number") left = lv;
+    } catch {
+    }
+    try {
+      const rv = fn({ x: x + eps, e: Math.E, pi: Math.PI });
+      if (typeof rv === "number") right = rv;
+    } catch {
+    }
+    if (isFinite(direct)) {
+      return { value: direct, usedLimit: false, directValue: direct, leftLimit: left, rightLimit: right };
+    }
+    const limit = numericalLimit(fn, x);
+    return { value: limit, usedLimit: isFinite(limit), directValue: direct, leftLimit: left, rightLimit: right };
   }
   function linspace(a, b, n = 500) {
     const step = (b - a) / (n - 1);
@@ -61976,6 +62059,7 @@
 
   // src/latex.ts
   var math4 = create(all);
+  registerMathAliases(math4);
   function tex(latex, displayMode = false) {
     try {
       return katex.renderToString(latex, {
@@ -62021,6 +62105,7 @@
 
   // src/integrationHelpers.ts
   var math5 = create(all);
+  registerMathAliases(math5);
   function fmtNum(n, p = 8) {
     if (!isFinite(n)) return "NaN";
     if (n === 0) return "0";
@@ -62285,6 +62370,111 @@
     </div>
   `;
   }
+  function splitQuotient(expr) {
+    try {
+      const node = math5.parse(expr);
+      const anyNode = node;
+      if (anyNode.op === "/" && Array.isArray(anyNode.args) && anyNode.args.length === 2) {
+        return {
+          num: anyNode.args[0].toString(),
+          den: anyNode.args[1].toString()
+        };
+      }
+    } catch {
+    }
+    return null;
+  }
+  function detectRemovableSingularities(fxExpr, xPoints) {
+    const out = [];
+    const quot = splitQuotient(fxExpr);
+    for (const x of xPoints) {
+      const info = evaluateAt(fxExpr, x);
+      if (info.usedLimit) {
+        let numAtX = null;
+        let denAtX = null;
+        let kind = "indeterminada";
+        let numDerivExpr = null;
+        let denDerivExpr = null;
+        let lhopital = null;
+        if (quot) {
+          try {
+            const numF = parseExpression(quot.num);
+            const denF = parseExpression(quot.den);
+            const nv = numF(x);
+            const dv = denF(x);
+            numAtX = nv;
+            denAtX = dv;
+            if (Math.abs(nv) < 1e-10 && Math.abs(dv) < 1e-10) kind = "0/0";
+            else if (!isFinite(nv) && !isFinite(dv)) kind = "Inf/Inf";
+          } catch {
+          }
+          try {
+            const numNode = math5.simplify(math5.derivative(math5.parse(quot.num), "x"));
+            const denNode = math5.simplify(math5.derivative(math5.parse(quot.den), "x"));
+            numDerivExpr = numNode.toString();
+            denDerivExpr = denNode.toString();
+            const numDerF = parseExpression(numDerivExpr);
+            const denDerF = parseExpression(denDerivExpr);
+            const ndv = numDerF(x);
+            const ddv = denDerF(x);
+            if (isFinite(ndv) && isFinite(ddv) && Math.abs(ddv) > 1e-14) {
+              lhopital = ndv / ddv;
+            }
+          } catch {
+          }
+        }
+        out.push({
+          x,
+          limitValue: info.value,
+          kind,
+          numeratorExpr: quot?.num ?? null,
+          denominatorExpr: quot?.den ?? null,
+          numeratorAtX: numAtX,
+          denominatorAtX: denAtX,
+          numDerivExpr,
+          denDerivExpr,
+          lhopitalValue: lhopital
+        });
+      }
+    }
+    return out;
+  }
+  function renderLhopitalPanel(singularities, fxExpr) {
+    if (singularities.length === 0) return "";
+    const rows = singularities.map((s) => {
+      const kindLabel = s.kind === "0/0" ? "\\frac{0}{0}" : s.kind === "Inf/Inf" ? "\\frac{\\infty}{\\infty}" : "\\text{indeterminada}";
+      const quotLine = s.numeratorExpr && s.denominatorExpr ? `${texBlock(`f(${fmtNum(s.x, 6)}) = \\frac{${s.numeratorExpr}}{${s.denominatorExpr}}\\bigg|_{x=${fmtNum(s.x, 6)}} = ${kindLabel}`)}` : `<div><em>f(${fmtNum(s.x, 6)}) es indeterminada (directa: NaN/Inf).</em></div>`;
+      const lhopitalLine = s.numDerivExpr && s.denDerivExpr && s.lhopitalValue !== null ? `
+        <div><b>Aplicando L'Hopital</b> \u2014 derivadas de numerador y denominador:</div>
+        ${texBlock(`\\lim_{x \\to ${fmtNum(s.x, 6)}} \\frac{${s.numeratorExpr}}{${s.denominatorExpr}} = \\lim_{x \\to ${fmtNum(s.x, 6)}} \\frac{${s.numDerivExpr}}{${s.denDerivExpr}} = ${fmtNum(s.lhopitalValue, 8)}`)}
+      ` : "";
+      const numericLine = `
+      <div><b>Limite numerico</b> (evaluando en x \xB1 \u03B5 peque\xF1o): <code>${fmtNum(s.limitValue, 8)}</code></div>
+    `;
+      const agreeLine = s.lhopitalValue !== null && Math.abs(s.lhopitalValue - s.limitValue) / Math.max(Math.abs(s.limitValue), 1) < 1e-3 ? `<div style="color:var(--green,#a6e3a1);">Los dos enfoques coinciden. La app usa <b>${fmtNum(s.limitValue, 8)}</b> como valor de f en x=${fmtNum(s.x, 6)}.</div>` : "";
+      return `
+      <div style="margin-top:10px; padding:8px; border-left:2px solid var(--mauve,#cba6f7);">
+        <div><b>Punto x = ${fmtNum(s.x, 6)}</b></div>
+        ${quotLine}
+        ${lhopitalLine}
+        ${numericLine}
+        ${agreeLine}
+      </div>
+    `;
+    }).join("");
+    return `
+    <div class="theorem-panel theorem-pass">
+      <div class="theorem-header"><span class="theorem-icon">\u221E</span> Singularidad removible detectada \u2014 regla de L'Hopital</div>
+      <div class="theorem-body">
+        <div>Uno o mas puntos de evaluacion dan forma indeterminada (<code>0/0</code> o <code>\u221E/\u221E</code>) al sustituir directo. La app usa el <b>limite</b> en esos puntos para poder continuar con el metodo numerico; asi la integral <b>no explota</b> por singularidades removibles (caso clasico: <code>ln(x+1)/x</code> en x=0 \u2192 limite = 1).</div>
+        ${rows}
+        <div style="margin-top:10px; font-size:0.85rem; color: var(--subtext0);">
+          Nota: si una singularidad NO es removible (p.ej. <code>1/x</code> en x=0, donde los limites laterales difieren), la app devuelve <code>NaN</code> para ese punto y veras el error en la tabla de evaluaciones.
+        </div>
+      </div>
+    </div>
+  `;
+  }
 
   // src/methods/integration/midpoint.ts
   function computeMidpoint(f, a, b, n) {
@@ -62347,6 +62537,11 @@
       if (errInfo.derivativeExpr) msgParts.push(`f''(x) = ${errInfo.derivativeExpr}`);
       if (errRelPct !== void 0) msgParts.push(`error relativo vs exacto: ${errRelPct.toPrecision(4)}%`);
       const panels = [];
+      const xsForDetect = run.iterations.map((r) => r.xi_mid);
+      const singularities = detectRemovableSingularities(params.fx, [a, b, ...xsForDetect]);
+      if (singularities.length > 0) {
+        panels.push(renderLhopitalPanel(singularities, params.fx));
+      }
       panels.push(renderPerPointBreakdownPanel({
         methodName: "Punto Medio",
         n,
@@ -62520,7 +62715,12 @@
         { punto: "a", x: a, fx: fa },
         { punto: "b", x: b, fx: fb }
       ];
-      return { integral, iterations, converged: true, error: 0, message: `Trapecio simple: (${b}-${a})/2 \xB7 [f(${a}) + f(${b})]` };
+      const panels = [];
+      const singularities = detectRemovableSingularities(params.fx, [a, b]);
+      if (singularities.length > 0) {
+        panels.push(renderLhopitalPanel(singularities, params.fx));
+      }
+      return { integral, iterations, converged: true, error: 0, message: `Trapecio simple: (${b}-${a})/2 \xB7 [f(${a}) + f(${b})]`, theoremPanels: panels };
     },
     getCharts(params, result) {
       const f = parseExpression(params.fx);
@@ -62607,100 +62807,49 @@
       { id: "fx", label: "f(x)", placeholder: "x^2", defaultValue: "x^2" },
       { id: "a", label: "a (limite inferior)", placeholder: "0", type: "number", defaultValue: "0" },
       { id: "b", label: "b (limite superior)", placeholder: "1", type: "number", defaultValue: "1" },
-      { id: "n", label: "n (subintervalos iniciales)", placeholder: "10", type: "number", defaultValue: "10" },
-      { id: "exact", label: "Valor exacto (opcional)", placeholder: "p.ej. 0.333333", type: "number", hint: 'Si se provee, se muestran errores vs exacto y se pueden usar criterios "vs exacto".' },
-      { id: "xi", label: "\u03BE para error de truncamiento (opcional)", placeholder: "p.ej. 0.5", type: "number", hint: "Punto donde evaluar E = -(b-a)h\xB2/12 \xB7 f\xB4\xB4(\u03BE). Dejar vacio para mostrar solo la cota del peor caso." },
-      { id: "stop", label: "Criterio de parada", placeholder: "err_rel_pct:1", type: "stopCriterion", defaultValue: "err_rel_pct:1", hint: "Se duplica n hasta que se cumplen los criterios. Default: error relativo < 1%." },
-      { id: "maxIter", label: "Max duplicaciones de n", placeholder: "5", type: "number", defaultValue: "5" }
+      { id: "n", label: "n (subintervalos)", placeholder: "10", type: "number", defaultValue: "10" },
+      { id: "exact", label: "Valor exacto (opcional)", placeholder: "p.ej. 0.333333", type: "number", hint: "Si se provee, se calcula el error relativo vs exacto." },
+      { id: "xi", label: "\u03BE para error de truncamiento (opcional)", placeholder: "p.ej. 0.5", type: "number", hint: "Punto donde evaluar E = -(b-a)h\xB2/12 \xB7 f\xB4\xB4(\u03BE). Dejar vacio para mostrar solo la cota del peor caso." }
     ],
     tableColumns: [
-      { key: "step", label: "Paso", latex: "k" },
-      { key: "n", label: "n", latex: "n" },
-      { key: "h", label: "h", latex: "h" },
-      { key: "integral", label: "I_n", latex: "I_n" },
-      { key: "errAbs", label: "|\u0394I|", latex: "|I_n - I_{n/2}|" },
-      { key: "errRel", label: "\u03B5_rel", latex: "\\varepsilon_{\\text{rel}}" },
-      { key: "errRelPct", label: "\u03B5_rel %", latex: "\\varepsilon_{\\text{rel}}\\,(\\%)" },
-      { key: "errAbsExact", label: "|I_n \u2212 exacto|", latex: "|I_n - I_{\\text{ex}}|" },
-      { key: "errRelExact", label: "\u03B5 vs ex", latex: "\\varepsilon_{\\text{ex}}" },
-      { key: "errRelPctExact", label: "\u03B5 vs ex %", latex: "\\varepsilon_{\\text{ex}}\\,(\\%)" }
+      { key: "i", label: "i", latex: "i" },
+      { key: "xi", label: "x_i", latex: "x_i" },
+      { key: "fxi", label: "f(x_i)", latex: "f(x_i)" },
+      { key: "coeff", label: "Coef", latex: "c_i" },
+      { key: "contrib", label: "c_i\xB7f(x_i)", latex: "c_i \\cdot f(x_i)" }
     ],
     steps: [
       "Escribe <code>f(x)</code>. Para el <b>parcial 2025-I</b>: <code>ln(x+1)/x</code> sobre <code>[0, 1]</code>. Ojo, en <code>x=0</code> la funcion tiene singularidad removible \u2014 el parser lanzaria <code>NaN</code>; usa <code>a = 1e-10</code> (\u2248 0) o redefine como <code>ln(x+1)/x</code> y prueba primero n=4. Para <b>parcial 30/04/2025</b>: <code>sqrt(2)\xB7exp(x^2)</code> sobre <code>[0, 1]</code>.",
-      "Completa <code>a</code>, <code>b</code>, y <code>n</code>. El parcial te pide <code>n = 4</code> (y luego <code>n = 10</code> en el de 30/04 para comparar). El paso es <code>h = (b - a)/n</code>.",
+      "Completa <code>a</code>, <code>b</code>, y <code>n</code>. El parcial te pide <code>n = 4</code> (y luego <code>n = 10</code> en el de 30/04 para comparar). El paso es <code>h = (b - a)/n</code>. La app calcula <b>una sola vez</b> con ese n (sin duplicaciones automaticas).",
       "Formula compuesta: <code>I \u2248 h/2 \xB7 [f(a) + 2\xB7\u03A3 f(x_i) + f(b)]</code> con pesos <b>1, 2, 2, ..., 2, 1</b>. La tabla te muestra en la columna <em>Coeficiente</em> exactamente esto: 1 en los extremos y 2 en los puntos interiores.",
       "Pulsa <b>Resolver</b>. La columna <em>Contribucion = coef \xB7 f(x_i)</em> y la suma total multiplicada por <code>h/2</code> da la integral aproximada.",
       "<b>Error de truncamiento</b>: <code>|E| = -(b-a)\xB7h\xB2/12 \xB7 f''(\u03BE)</code> para algun <code>\u03BE \u2208 (a, b)</code>. La app calcula <code>f''(x)</code> simbolicamente y halla el <code>\u03BE</code> que maximiza <code>|f''|</code> en [a,b] (peor caso \u2014 cota superior).",
       "Si el parcial te fija <code>\u03BE = 0.5</code> (como en 30/04/2025), evalua a mano <code>f''(0.5)</code> y calcula la cota con ese valor concreto: <code>|E| = (b-a)h\xB2/12 \xB7 |f''(0.5)|</code>. La app siempre reporta el peor caso; puedes usarlo de referencia.",
-      "Si das <b>valor exacto</b>: la app calcula <em>error relativo %</em> y si supera 1% reintenta con <code>n = 20</code> (te lo indica en el resumen).",
+      "Si das <b>valor exacto</b>: la app calcula <em>error relativo %</em> vs ese exacto. No reintenta con otro n \u2014 si queres mas precision, cambia <code>n</code> manualmente.",
       "Para la <b>comparacion con Simpson 1/3</b> (ultima parte del parcial): anota el <em>valor integral</em>, <em>error relativo</em> y la <em>cota</em>. Simpson con mismo n baja el error porque converge <code>O(h\u2074)</code> vs <code>O(h\xB2)</code> del trapecio \u2014 se ve claramente en la grafica de convergencia."
     ],
     solve(params) {
       const f = parseExpression(params.fx);
       const a = parseFloat(params.a);
       const b = parseFloat(params.b);
-      const n0 = parseInt(params.n) || 10;
+      const n = parseInt(params.n) || 10;
       const exactRaw = (params.exact ?? "").trim();
       const exact = exactRaw === "" ? void 0 : parseFloat(exactRaw);
-      const stop = parseStop(params.stop);
-      const maxIter = Math.max(1, parseInt(params.maxIter) || 5);
       if (isNaN(a) || isNaN(b)) throw new Error("a y b deben ser numeros validos");
       if (a >= b) throw new Error("a debe ser menor que b");
-      if (n0 < 1) throw new Error("n debe ser >= 1");
-      let n = n0;
-      let run = computeTrapecio(f, a, b, n);
-      let prevIntegral = null;
-      let converged = false;
-      let steps2 = 1;
-      const stepRows = [];
-      const firstFull = withExactErrors({ errAbs: 0, errRel: 0, errRelPct: 0 }, run.integral, exact);
-      stepRows.push({
-        step: 1,
-        n,
-        h: run.h,
-        integral: run.integral,
-        errAbs: null,
-        errRel: null,
-        errRelPct: null,
-        errAbsExact: firstFull.errAbsExact ?? null,
-        errRelExact: firstFull.errRelExact ?? null,
-        errRelPctExact: firstFull.errRelPctExact ?? null
-      });
-      if (exact !== void 0 && !isNaN(exact) && hasConverged(stop, firstFull)) {
-        converged = true;
-      }
-      while (!converged && steps2 < maxIter) {
-        prevIntegral = run.integral;
-        n *= 2;
-        run = computeTrapecio(f, a, b, n);
-        steps2++;
-        const errs = computeErrors(prevIntegral, run.integral);
-        const errsFull = withExactErrors(errs, run.integral, exact);
-        stepRows.push({
-          step: steps2,
-          n,
-          h: run.h,
-          integral: run.integral,
-          errAbs: errsFull.errAbs,
-          errRel: errsFull.errRel,
-          errRelPct: errsFull.errRelPct,
-          errAbsExact: errsFull.errAbsExact ?? null,
-          errRelExact: errsFull.errRelExact ?? null,
-          errRelPctExact: errsFull.errRelPctExact ?? null
-        });
-        if (hasConverged(stop, errsFull)) {
-          converged = true;
-          break;
-        }
-      }
-      const lastErr = stepRows[stepRows.length - 1];
+      if (n < 1) throw new Error("n debe ser >= 1");
+      const run = computeTrapecio(f, a, b, n);
       const errInfo = trapecioError(params.fx, a, b, run.h);
+      const errRelPct = exact !== void 0 && !isNaN(exact) && exact !== 0 ? Math.abs((run.integral - exact) / exact) * 100 : void 0;
       const msgParts = [`h = ${run.h.toPrecision(6)}, n = ${n}`];
       if (errInfo.derivativeExpr) msgParts.push(`f''(x) = ${errInfo.derivativeExpr}`);
-      msgParts.push(`Criterio: ${describeStop(stop)}`);
-      if (steps2 > 1) msgParts.push(`${steps2 - 1} duplicacion(es) (n: ${n0} \u2192 ${n})`);
-      if (!converged) msgParts.push("no convergio en maxIter");
+      if (errRelPct !== void 0) msgParts.push(`error relativo vs exacto: ${errRelPct.toPrecision(4)}%`);
       const panels = [];
+      const xsForDetect = run.iterations.map((r) => r.xi);
+      const singularities = detectRemovableSingularities(params.fx, xsForDetect);
+      if (singularities.length > 0) {
+        panels.push(renderLhopitalPanel(singularities, params.fx));
+      }
       panels.push(renderPerPointBreakdownPanel({
         methodName: "Trapecio Compuesto",
         n,
@@ -62742,20 +62891,18 @@
         (nv) => computeTrapecio(f, a, b, nv).integral,
         exact
       ));
-      const lastErrRelPct = lastErr.errRelPctExact ?? lastErr.errRelPct;
       return {
         integral: run.integral,
-        iterations: stepRows,
-        converged,
+        iterations: run.iterations,
+        converged: true,
         error: errInfo.bound,
         exact,
-        relativeErrorPercent: lastErrRelPct ?? void 0,
+        relativeErrorPercent: errRelPct,
         truncationBound: errInfo.bound,
         truncationOrder: 2,
         maxDerivative: errInfo.max,
         xiApprox: errInfo.xAtMax,
         derivativeExpr: errInfo.derivativeExpr ?? void 0,
-        retried: steps2 > 1,
         message: msgParts.join(" \xB7 "),
         theoremPanels: panels
       };
@@ -62764,8 +62911,7 @@
       const f = parseExpression(params.fx);
       const a = parseFloat(params.a);
       const b = parseFloat(params.b);
-      const lastRow = result.iterations[result.iterations.length - 1];
-      const n = lastRow?.n || (parseInt(params.n) || 10);
+      const n = Math.max(1, result.iterations.length - 1) || (parseInt(params.n) || 10);
       const h = (b - a) / n;
       const pad2 = (b - a) * 0.1;
       const xs = linspace(a - pad2, b + pad2, 500);
@@ -62807,14 +62953,19 @@
         xLabel: "x",
         yLabel: "f(x)"
       };
-      const stepNs = result.iterations.map((r) => r.n);
-      const stepIs = result.iterations.map((r) => r.integral);
+      const iterIdx = result.iterations.map((r) => r.i);
+      const cumContrib = [];
+      let cum = 0;
+      for (const r of result.iterations) {
+        cum += r.contrib || 0;
+        cumContrib.push(h / 2 * cum);
+      }
       const chart3 = {
-        title: "Convergencia por duplicaciones",
+        title: "Suma parcial de \u03A3 c_i\xB7f(x_i) \xB7 h/2",
         type: "line",
-        datasets: [{ label: "I_n", x: stepNs, y: stepIs, color: "#cba6f7", pointRadius: 4 }],
-        xLabel: "n",
-        yLabel: "I_n"
+        datasets: [{ label: "Parcial", x: iterIdx, y: cumContrib, color: "#cba6f7", pointRadius: 3 }],
+        xLabel: "i",
+        yLabel: "Suma parcial"
       };
       const nValues = [2, 4, 8, 16, 32, 64, 128, 256];
       const integrals = nValues.map((nv) => {
@@ -62877,7 +63028,12 @@
         { punto: "m = (a+b)/2", x: m, fx: fm, coeff: 4 },
         { punto: "b", x: b, fx: fb, coeff: 1 }
       ];
-      return { integral, iterations, converged: true, error: 0 };
+      const panels = [];
+      const singularities = detectRemovableSingularities(params.fx, [a, m, b]);
+      if (singularities.length > 0) {
+        panels.push(renderLhopitalPanel(singularities, params.fx));
+      }
+      return { integral, iterations, converged: true, error: 0, theoremPanels: panels };
     },
     getCharts(params, result) {
       const f = parseExpression(params.fx);
@@ -62977,23 +63133,16 @@
       { id: "fx", label: "f(x)", placeholder: "x^2", defaultValue: "x^2" },
       { id: "a", label: "a (limite inferior)", placeholder: "0", type: "number", defaultValue: "0" },
       { id: "b", label: "b (limite superior)", placeholder: "1", type: "number", defaultValue: "1" },
-      { id: "n", label: "n (subintervalos iniciales, debe ser par)", placeholder: "10", type: "number", defaultValue: "10" },
-      { id: "exact", label: "Valor exacto (opcional)", placeholder: "p.ej. 0.333333", type: "number", hint: 'Si se provee, se muestran errores vs exacto y se pueden usar criterios "vs exacto".' },
-      { id: "xi", label: "\u03BE para error de truncamiento (opcional)", placeholder: "p.ej. 0.5", type: "number", hint: "Punto donde evaluar E = -(b-a)h\u2074/180 \xB7 f\u207D\u2074\u207E(\u03BE). Dejar vacio para mostrar solo la cota del peor caso." },
-      { id: "stop", label: "Criterio de parada", placeholder: "err_rel_pct:1", type: "stopCriterion", defaultValue: "err_rel_pct:1", hint: "Se duplica n hasta que se cumplen los criterios. Default: error relativo < 1%." },
-      { id: "maxIter", label: "Max duplicaciones de n", placeholder: "5", type: "number", defaultValue: "5" }
+      { id: "n", label: "n (subintervalos, debe ser par)", placeholder: "10", type: "number", defaultValue: "10" },
+      { id: "exact", label: "Valor exacto (opcional)", placeholder: "p.ej. 0.333333", type: "number", hint: "Si se provee, se calcula el error relativo vs exacto." },
+      { id: "xi", label: "\u03BE para error de truncamiento (opcional)", placeholder: "p.ej. 0.5", type: "number", hint: "Punto donde evaluar E = -(b-a)h\u2074/180 \xB7 f\u207D\u2074\u207E(\u03BE). Dejar vacio para mostrar solo la cota del peor caso." }
     ],
     tableColumns: [
-      { key: "step", label: "Paso", latex: "k" },
-      { key: "n", label: "n", latex: "n" },
-      { key: "h", label: "h", latex: "h" },
-      { key: "integral", label: "I_n", latex: "I_n" },
-      { key: "errAbs", label: "|\u0394I|", latex: "|I_n - I_{n/2}|" },
-      { key: "errRel", label: "\u03B5_rel", latex: "\\varepsilon_{\\text{rel}}" },
-      { key: "errRelPct", label: "\u03B5_rel %", latex: "\\varepsilon_{\\text{rel}}\\,(\\%)" },
-      { key: "errAbsExact", label: "|I_n \u2212 exacto|", latex: "|I_n - I_{\\text{ex}}|" },
-      { key: "errRelExact", label: "\u03B5 vs ex", latex: "\\varepsilon_{\\text{ex}}" },
-      { key: "errRelPctExact", label: "\u03B5 vs ex %", latex: "\\varepsilon_{\\text{ex}}\\,(\\%)" }
+      { key: "i", label: "i", latex: "i" },
+      { key: "xi", label: "x_i", latex: "x_i" },
+      { key: "fxi", label: "f(x_i)", latex: "f(x_i)" },
+      { key: "coeff", label: "Coef", latex: "c_i" },
+      { key: "contrib", label: "c_i\xB7f(x_i)", latex: "c_i \\cdot f(x_i)" }
     ],
     steps: [
       "Escribe <code>f(x)</code>. Para el <b>parcial 02/07/2025</b> (parte b): <code>exp(x^2)</code> sobre <code>[0, 2]</code> con <code>n = 10</code>. Para <b>parcial 2025-I</b>: <code>ln(x+1)/x</code> sobre <code>[0, 1]</code> con <code>n = 4</code>.",
@@ -63003,7 +63152,7 @@
       "Pulsa <b>Resolver</b>. La columna <em>Contribucion = coef \xB7 f(x_i)</em>. Suma total \xD7 <code>h/3</code> = integral.",
       "<b>Error de truncamiento</b>: <code>|E| = -(b-a)\xB7h\u2074/180 \xB7 f\u207D\u2074\u207E(\u03BE)</code> para algun <code>\u03BE \u2208 (a,b)</code>. Es <code>O(h\u2074)</code> \u2014 mucho mas preciso que trapecio <code>O(h\xB2)</code>. La app calcula <code>f\u207D\u2074\u207E</code> simbolicamente y su maximo en [a,b].",
       "Si el parcial te fija <code>\u03BE</code> especifico, puedes comparar contra la cota reportada (peor caso). Para funciones suaves, Simpson da error <em>casi nulo</em> con n moderado.",
-      "Si diste <b>valor exacto</b>: app calcula error relativo y reintenta con <code>n = 20</code> si > 1%. Usa el exacto de Wolfram o <code>scipy.integrate.quad</code> \u2014 para \u222B\u2080\xB2 e^(x\xB2) dx: <code>\u2248 16.45262776</code>.",
+      "Si diste <b>valor exacto</b>: la app calcula el error relativo vs ese exacto. No reintenta con otro n \u2014 si queres mas precision, cambia <code>n</code> manualmente. Usa el exacto de Wolfram o <code>scipy.integrate.quad</code> \u2014 para \u222B\u2080\xB2 e^(x\xB2) dx: <code>\u2248 16.45262776</code>.",
       '<b>Comparacion vs Trapecio</b> (cierre del parcial): anota (1) integral, (2) error relativo %, (3) cota teorica. Simpson debe ser varios ordenes de magnitud mejor. Menciona en el informe: "Simpson O(h\u2074) domina a Trapecio O(h\xB2)".'
     ],
     solve(params) {
@@ -63013,64 +63162,22 @@
       const nReq = parseInt(params.n) || 10;
       const exactRaw = (params.exact ?? "").trim();
       const exact = exactRaw === "" ? void 0 : parseFloat(exactRaw);
-      const stop = parseStop(params.stop);
-      const maxIter = Math.max(1, parseInt(params.maxIter) || 5);
       if (isNaN(a) || isNaN(b)) throw new Error("a y b deben ser numeros validos");
       if (a >= b) throw new Error("a debe ser menor que b");
       if (nReq < 2) throw new Error("n debe ser >= 2");
-      let run = computeSimpson13(f, a, b, nReq);
-      const n0 = run.n;
-      let prevIntegral = null;
-      let converged = false;
-      let steps2 = 1;
-      const stepRows = [];
-      const firstFull = withExactErrors({ errAbs: 0, errRel: 0, errRelPct: 0 }, run.integral, exact);
-      stepRows.push({
-        step: 1,
-        n: run.n,
-        h: run.h,
-        integral: run.integral,
-        errAbs: null,
-        errRel: null,
-        errRelPct: null,
-        errAbsExact: firstFull.errAbsExact ?? null,
-        errRelExact: firstFull.errRelExact ?? null,
-        errRelPctExact: firstFull.errRelPctExact ?? null
-      });
-      if (exact !== void 0 && !isNaN(exact) && hasConverged(stop, firstFull)) {
-        converged = true;
-      }
-      while (!converged && steps2 < maxIter) {
-        prevIntegral = run.integral;
-        run = computeSimpson13(f, a, b, run.n * 2);
-        steps2++;
-        const errs = computeErrors(prevIntegral, run.integral);
-        const errsFull = withExactErrors(errs, run.integral, exact);
-        stepRows.push({
-          step: steps2,
-          n: run.n,
-          h: run.h,
-          integral: run.integral,
-          errAbs: errsFull.errAbs,
-          errRel: errsFull.errRel,
-          errRelPct: errsFull.errRelPct,
-          errAbsExact: errsFull.errAbsExact ?? null,
-          errRelExact: errsFull.errRelExact ?? null,
-          errRelPctExact: errsFull.errRelPctExact ?? null
-        });
-        if (hasConverged(stop, errsFull)) {
-          converged = true;
-          break;
-        }
-      }
-      const lastErr = stepRows[stepRows.length - 1];
+      const run = computeSimpson13(f, a, b, nReq);
       const errInfo = simpson13Error(params.fx, a, b, run.h);
+      const errRelPct = exact !== void 0 && !isNaN(exact) && exact !== 0 ? Math.abs((run.integral - exact) / exact) * 100 : void 0;
       const msgParts = [`h = ${run.h.toPrecision(6)}, n = ${run.n} (par)`];
+      if (run.n !== nReq) msgParts.push(`n ajustado de ${nReq} a ${run.n} (debe ser par)`);
       if (errInfo.derivativeExpr) msgParts.push(`f\u2074(x) = ${errInfo.derivativeExpr}`);
-      msgParts.push(`Criterio: ${describeStop(stop)}`);
-      if (steps2 > 1) msgParts.push(`${steps2 - 1} duplicacion(es) (n: ${n0} \u2192 ${run.n})`);
-      if (!converged) msgParts.push("no convergio en maxIter");
+      if (errRelPct !== void 0) msgParts.push(`error relativo vs exacto: ${errRelPct.toPrecision(4)}%`);
       const panels = [];
+      const xsForDetect = run.iterations.map((r) => r.xi);
+      const singularities = detectRemovableSingularities(params.fx, xsForDetect);
+      if (singularities.length > 0) {
+        panels.push(renderLhopitalPanel(singularities, params.fx));
+      }
       panels.push(renderPerPointBreakdownPanel({
         methodName: "Simpson 1/3 Compuesta",
         n: run.n,
@@ -63112,20 +63219,18 @@
         (nv) => computeSimpson13(f, a, b, nv).integral,
         exact
       ));
-      const lastErrRelPct = lastErr.errRelPctExact ?? lastErr.errRelPct;
       return {
         integral: run.integral,
-        iterations: stepRows,
-        converged,
+        iterations: run.iterations,
+        converged: true,
         error: errInfo.bound,
         exact,
-        relativeErrorPercent: lastErrRelPct ?? void 0,
+        relativeErrorPercent: errRelPct,
         truncationBound: errInfo.bound,
         truncationOrder: 4,
         maxDerivative: errInfo.max,
         xiApprox: errInfo.xAtMax,
         derivativeExpr: errInfo.derivativeExpr ?? void 0,
-        retried: steps2 > 1,
         message: msgParts.join(" \xB7 "),
         theoremPanels: panels
       };
@@ -63134,8 +63239,7 @@
       const f = parseExpression(params.fx);
       const a = parseFloat(params.a);
       const b = parseFloat(params.b);
-      const lastRow = result.iterations[result.iterations.length - 1];
-      let n = lastRow?.n || (parseInt(params.n) || 10);
+      let n = Math.max(2, result.iterations.length - 1) || (parseInt(params.n) || 10);
       if (n % 2 !== 0) n++;
       const h = (b - a) / n;
       const pad2 = (b - a) * 0.1;
@@ -63264,7 +63368,12 @@
         { punto: "x\u2082", x: x2, fx: f2, coeff: 3 },
         { punto: "x\u2083 = b", x: b, fx: fb, coeff: 1 }
       ];
-      return { integral, iterations, converged: true, error: 0 };
+      const panels = [];
+      const singularities = detectRemovableSingularities(params.fx, [a, x1, x2, b]);
+      if (singularities.length > 0) {
+        panels.push(renderLhopitalPanel(singularities, params.fx));
+      }
+      return { integral, iterations, converged: true, error: 0, theoremPanels: panels };
     },
     getCharts(params, result) {
       const f = parseExpression(params.fx);
@@ -63376,23 +63485,16 @@
       { id: "fx", label: "f(x)", placeholder: "x^2", defaultValue: "x^2" },
       { id: "a", label: "a (limite inferior)", placeholder: "0", type: "number", defaultValue: "0" },
       { id: "b", label: "b (limite superior)", placeholder: "1", type: "number", defaultValue: "1" },
-      { id: "n", label: "n (subintervalos iniciales, multiplo de 3)", placeholder: "9", type: "number", defaultValue: "9" },
-      { id: "exact", label: "Valor exacto (opcional)", placeholder: "p.ej. 0.333333", type: "number", hint: 'Si se provee, se muestran errores vs exacto y se pueden usar criterios "vs exacto".' },
-      { id: "xi", label: "\u03BE para error de truncamiento (opcional)", placeholder: "p.ej. 0.5", type: "number", hint: "Punto donde evaluar E = -(b-a)h\u2074/80 \xB7 f\u207D\u2074\u207E(\u03BE). Dejar vacio para mostrar solo la cota del peor caso." },
-      { id: "stop", label: "Criterio de parada", placeholder: "err_rel_pct:1", type: "stopCriterion", defaultValue: "err_rel_pct:1", hint: "Se duplica n hasta que se cumplen los criterios. Default: error relativo < 1%." },
-      { id: "maxIter", label: "Max duplicaciones de n", placeholder: "5", type: "number", defaultValue: "5" }
+      { id: "n", label: "n (subintervalos, multiplo de 3)", placeholder: "9", type: "number", defaultValue: "9" },
+      { id: "exact", label: "Valor exacto (opcional)", placeholder: "p.ej. 0.333333", type: "number", hint: "Si se provee, se calcula el error relativo vs exacto." },
+      { id: "xi", label: "\u03BE para error de truncamiento (opcional)", placeholder: "p.ej. 0.5", type: "number", hint: "Punto donde evaluar E = -(b-a)h\u2074/80 \xB7 f\u207D\u2074\u207E(\u03BE). Dejar vacio para mostrar solo la cota del peor caso." }
     ],
     tableColumns: [
-      { key: "step", label: "Paso", latex: "k" },
-      { key: "n", label: "n", latex: "n" },
-      { key: "h", label: "h", latex: "h" },
-      { key: "integral", label: "I_n", latex: "I_n" },
-      { key: "errAbs", label: "|\u0394I|", latex: "|I_n - I_{n/2}|" },
-      { key: "errRel", label: "\u03B5_rel", latex: "\\varepsilon_{\\text{rel}}" },
-      { key: "errRelPct", label: "\u03B5_rel %", latex: "\\varepsilon_{\\text{rel}}\\,(\\%)" },
-      { key: "errAbsExact", label: "|I_n \u2212 exacto|", latex: "|I_n - I_{\\text{ex}}|" },
-      { key: "errRelExact", label: "\u03B5 vs ex", latex: "\\varepsilon_{\\text{ex}}" },
-      { key: "errRelPctExact", label: "\u03B5 vs ex %", latex: "\\varepsilon_{\\text{ex}}\\,(\\%)" }
+      { key: "i", label: "i", latex: "i" },
+      { key: "xi", label: "x_i", latex: "x_i" },
+      { key: "fxi", label: "f(x_i)", latex: "f(x_i)" },
+      { key: "coeff", label: "Coef", latex: "c_i" },
+      { key: "contrib", label: "c_i\xB7f(x_i)", latex: "c_i \\cdot f(x_i)" }
     ],
     steps: [
       "Escribe <code>f(x)</code>, limites <code>a</code>, <code>b</code>, y subintervalos <code>n</code>. <b>Importante</b>: <code>n</code> debe ser <b>multiplo de 3</b> (la regla agrupa los puntos de 3 en 3). Si no lo es, la app lo redondea al siguiente multiplo (y te avisa).",
@@ -63401,7 +63503,7 @@
       "Pulsa <b>Resolver</b>. La tabla muestra cada punto con su coeficiente; verifica el patron visualmente en la grafica de coeficientes.",
       "<b>Error de truncamiento</b>: <code>|E| \u2264 (b-a)\xB7h\u2074/80 \xB7 M\u2084</code> con <code>M\u2084 = max|f\u207D\u2074\u207E|</code>. Orden <code>O(h\u2074)</code> igual que Simpson 1/3, pero la constante (<code>1/80</code>) es peor que <code>1/180</code>.",
       "En practica <em>Simpson 1/3 es preferible</em>. Usa 3/8 cuando <code>n</code> no sea par, o como complemento: por ejemplo, si <code>n = 7</code>, aplica 1/3 con <code>n = 4</code> y 3/8 con <code>n = 3</code>.",
-      "Si diste <b>valor exacto</b>: calcula error relativo y reintenta con <code>n = 21</code> si > 1%."
+      "Si diste <b>valor exacto</b>: la app calcula el error relativo vs ese exacto. No reintenta con otro n \u2014 si queres mas precision, cambia <code>n</code> manualmente."
     ],
     solve(params) {
       const f = parseExpression(params.fx);
@@ -63410,64 +63512,22 @@
       const nReq = parseInt(params.n) || 9;
       const exactRaw = (params.exact ?? "").trim();
       const exact = exactRaw === "" ? void 0 : parseFloat(exactRaw);
-      const stop = parseStop(params.stop);
-      const maxIter = Math.max(1, parseInt(params.maxIter) || 5);
       if (isNaN(a) || isNaN(b)) throw new Error("a y b deben ser numeros validos");
       if (a >= b) throw new Error("a debe ser menor que b");
       if (nReq < 3) throw new Error("n debe ser >= 3");
-      let run = runSimpson38(f, a, b, nReq);
-      const n0 = run.n;
-      let prevIntegral = null;
-      let converged = false;
-      let steps2 = 1;
-      const stepRows = [];
-      const firstFull = withExactErrors({ errAbs: 0, errRel: 0, errRelPct: 0 }, run.integral, exact);
-      stepRows.push({
-        step: 1,
-        n: run.n,
-        h: run.h,
-        integral: run.integral,
-        errAbs: null,
-        errRel: null,
-        errRelPct: null,
-        errAbsExact: firstFull.errAbsExact ?? null,
-        errRelExact: firstFull.errRelExact ?? null,
-        errRelPctExact: firstFull.errRelPctExact ?? null
-      });
-      if (exact !== void 0 && !isNaN(exact) && hasConverged(stop, firstFull)) {
-        converged = true;
-      }
-      while (!converged && steps2 < maxIter) {
-        prevIntegral = run.integral;
-        run = runSimpson38(f, a, b, run.n * 2);
-        steps2++;
-        const errs = computeErrors(prevIntegral, run.integral);
-        const errsFull = withExactErrors(errs, run.integral, exact);
-        stepRows.push({
-          step: steps2,
-          n: run.n,
-          h: run.h,
-          integral: run.integral,
-          errAbs: errsFull.errAbs,
-          errRel: errsFull.errRel,
-          errRelPct: errsFull.errRelPct,
-          errAbsExact: errsFull.errAbsExact ?? null,
-          errRelExact: errsFull.errRelExact ?? null,
-          errRelPctExact: errsFull.errRelPctExact ?? null
-        });
-        if (hasConverged(stop, errsFull)) {
-          converged = true;
-          break;
-        }
-      }
-      const lastErr = stepRows[stepRows.length - 1];
+      const run = runSimpson38(f, a, b, nReq);
       const errInfo = simpson38Error(params.fx, a, b, run.h);
+      const errRelPct = exact !== void 0 && !isNaN(exact) && exact !== 0 ? Math.abs((run.integral - exact) / exact) * 100 : void 0;
       const msgParts = [`h = ${run.h.toPrecision(6)}, n = ${run.n} (multiplo de 3)`];
+      if (run.n !== nReq) msgParts.push(`n ajustado de ${nReq} a ${run.n} (debe ser multiplo de 3)`);
       if (errInfo.derivativeExpr) msgParts.push(`f\u2074(x) = ${errInfo.derivativeExpr}`);
-      msgParts.push(`Criterio: ${describeStop(stop)}`);
-      if (steps2 > 1) msgParts.push(`${steps2 - 1} duplicacion(es) (n: ${n0} \u2192 ${run.n})`);
-      if (!converged) msgParts.push("no convergio en maxIter");
+      if (errRelPct !== void 0) msgParts.push(`error relativo vs exacto: ${errRelPct.toPrecision(4)}%`);
       const panels = [];
+      const xsForDetect = run.iterations.map((r) => r.xi);
+      const singularities = detectRemovableSingularities(params.fx, xsForDetect);
+      if (singularities.length > 0) {
+        panels.push(renderLhopitalPanel(singularities, params.fx));
+      }
       panels.push(renderPerPointBreakdownPanel({
         methodName: "Simpson 3/8 Compuesta",
         n: run.n,
@@ -63509,20 +63569,18 @@
         (nv) => runSimpson38(f, a, b, nv).integral,
         exact
       ));
-      const lastErrRelPct = lastErr.errRelPctExact ?? lastErr.errRelPct;
       return {
         integral: run.integral,
-        iterations: stepRows,
-        converged,
+        iterations: run.iterations,
+        converged: true,
         error: errInfo.bound,
         exact,
-        relativeErrorPercent: lastErrRelPct ?? void 0,
+        relativeErrorPercent: errRelPct,
         truncationBound: errInfo.bound,
         truncationOrder: 4,
         maxDerivative: errInfo.max,
         xiApprox: errInfo.xAtMax,
         derivativeExpr: errInfo.derivativeExpr ?? void 0,
-        retried: steps2 > 1,
         message: msgParts.join(" \xB7 "),
         theoremPanels: panels
       };
@@ -63531,8 +63589,7 @@
       const f = parseExpression(params.fx);
       const a = parseFloat(params.a);
       const b = parseFloat(params.b);
-      const lastRow = result.iterations[result.iterations.length - 1];
-      let n = lastRow?.n || (parseInt(params.n) || 9);
+      let n = Math.max(3, result.iterations.length - 1) || (parseInt(params.n) || 9);
       if (n % 3 !== 0) n = n + (3 - n % 3);
       const h = (b - a) / n;
       const pad2 = (b - a) * 0.1;
@@ -64858,6 +64915,7 @@
 
   // src/methods/interpolation/lagrange.ts
   var math6 = create(all);
+  registerMathAliases(math6);
   function evalLagrange(xs, ys, x) {
     const n = xs.length;
     const basis = [];
@@ -82739,6 +82797,7 @@ ${blocks.join("\n\n")}`;
 
   // src/symbolic.ts
   var math7 = create(all);
+  registerMathAliases(math7);
   function symbolicDerivativeSteps(expr, variable = "x") {
     try {
       const node = math7.parse(expr);
@@ -83632,6 +83691,12 @@ ${blocks.join("\n\n")}`;
   }
 
   // src/views/calculator.ts
+  function lhopitalPanelForExpr(expr) {
+    const samples = [-5, -4, -3, -2, -1, -0.5, 0, 0.5, 1, 2, 3, 4, 5];
+    const singularities = detectRemovableSingularities(expr, samples);
+    if (singularities.length === 0) return "";
+    return renderLhopitalPanel(singularities, expr);
+  }
   var normalHistory = [];
   function renderCalculator() {
     setTimeout(bindCalcEvents, 0);
@@ -83888,6 +83953,7 @@ ${blocks.join("\n\n")}`;
           </div>
           <div class="calc-result-expr">${result}</div>
         </div>
+        ${lhopitalPanelForExpr(fExpr)}
         ${renderStepsPanel("Procedimiento paso a paso", steps2)}
       `;
       }

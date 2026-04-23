@@ -1,5 +1,5 @@
 import type { MethodDefinition, MethodResult, ChartData } from '../types';
-import { parseExpression, linspace } from '../../parser';
+import { parseExpression, linspace, parseScalar } from '../../parser';
 import { parseTableData, parseTableDataWithStrings } from '../../ui';
 import { maxAbsDerivative } from '../../integrationHelpers';
 import { texBlock } from '../../latex';
@@ -390,7 +390,7 @@ export const lagrange: MethodDefinition = {
     },
     { id: 'xQuery', label: 'x objetivo (opcional, donde evaluar P_n(x))', placeholder: 'Vacio = solo polinomio', type: 'number', hint: 'Dejalo vacio si solo queres el polinomio (parte a del parcial).' },
     { id: 'fx', label: 'f(x) real (opcional, para error)', placeholder: 'p.ej. sin(x)', hint: 'Funcion subyacente para calcular error local y cota global.' },
-    { id: 'xi', label: 'ξ para error local (opcional)', placeholder: 'p.ej. 0.45', type: 'number', hint: 'Punto donde evaluar el error local |f(ξ) - P_n(ξ)|. Distinto de x objetivo.' },
+    { id: 'xi', label: 'ξ para error local (opcional)', placeholder: 'p.ej. 0.45, pi/4, sqrt(2)', hint: 'Punto donde evaluar el error local |f(ξ) - P_n(ξ)|. Acepta numeros y expresiones: pi, pi/4, e, sqrt(2), etc.' },
   ],
   tableColumns: [
     { key: 'i', label: 'i', latex: 'i' },
@@ -460,8 +460,8 @@ export const lagrange: MethodDefinition = {
     const fxExpr = (params.fx ?? '').trim();
     const xiRaw = (params.xi ?? '').trim();
     const hasXi = xiRaw !== '';
-    const xiVal = hasXi ? parseFloat(xiRaw) : NaN;
-    if (hasXi && isNaN(xiVal)) throw new Error('ξ invalido');
+    const xiVal = hasXi ? parseScalar(xiRaw) : NaN;
+    if (hasXi && isNaN(xiVal)) throw new Error(`ξ invalido: "${xiRaw}" no es un numero ni expresion valida (pi, pi/4, sqrt(2), etc.)`);
 
     let errorPanel: string | null = null;
 

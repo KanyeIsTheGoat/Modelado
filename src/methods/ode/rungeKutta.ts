@@ -2,6 +2,12 @@ import type { MethodDefinition, MethodResult, ChartData } from '../types';
 import { parseExpression, parseExpression2, linspace } from '../../parser';
 import { commonOdeInputs, applyOdeTargetAndVerification, verifyDiffColumn } from '../../odeHelpers';
 import { formatFull } from '../../precision';
+import {
+  runRK4,
+  renderIterationSummaryPanel,
+  renderErrorAnalysisPanel,
+  renderMethodComparisonPanel,
+} from './odeCommon';
 
 export const rungeKutta: MethodDefinition = {
   id: 'rungeKutta',
@@ -103,6 +109,14 @@ export const rungeKutta: MethodDefinition = {
       message: `y(${xEnd}) ≈ ${y.toFixed(8)} | ${N} pasos, h=${h}${maxError > 0 ? ` | Error max = ${formatFull(maxError)}` : ''}`,
     };
     applyOdeTargetAndVerification(result, params);
+
+    const steps = runRK4(f, x0, y0, xEnd, h, exactFn);
+    const panels: string[] = [];
+    panels.push(renderIterationSummaryPanel('RK4', steps, h, xEnd));
+    panels.push(renderErrorAnalysisPanel('RK4', 4, steps, h));
+    panels.push(renderMethodComparisonPanel(f, x0, y0, xEnd, h, exactFn, 'rk4'));
+    result.theoremPanels = panels;
+
     return result;
   },
 

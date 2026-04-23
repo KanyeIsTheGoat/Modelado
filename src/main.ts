@@ -3,10 +3,11 @@ import { renderHome } from './views/home';
 import { renderMethodView } from './views/methodView';
 import { renderCompareView } from './views/compareView';
 import { renderGeogebra } from './views/geogebra';
+import { renderGeogebraCAS } from './views/geogebraCAS';
 import { renderCalculator } from './views/calculator';
 import { destroyAllCharts } from './plotter';
 
-type View = 'home' | 'compare' | 'geogebra' | 'calculator' | string;
+type View = 'home' | 'compare' | 'geogebra' | 'geogebraCAS' | 'calculator' | string;
 
 let currentView: View = 'home';
 
@@ -37,6 +38,8 @@ function navigate(view: View): void {
     app.innerHTML = renderCompareView();
   } else if (view === 'geogebra') {
     app.innerHTML = renderGeogebra();
+  } else if (view === 'geogebraCAS') {
+    app.innerHTML = renderGeogebraCAS();
   } else if (view === 'calculator') {
     app.innerHTML = renderCalculator();
   } else {
@@ -55,7 +58,7 @@ function init(): void {
     btn.addEventListener('click', () => {
       const cat = btn.getAttribute('data-category');
       if (!cat) return;
-      if (['home', 'compare', 'geogebra', 'calculator'].includes(cat)) {
+      if (['home', 'compare', 'geogebra', 'geogebraCAS', 'calculator'].includes(cat)) {
         navigate(cat);
       } else {
         // Navigate to category = go home and scroll to it

@@ -1,5 +1,7 @@
 import type { MethodDefinition, MethodResult, ChartData } from '../types';
 import { parseExpression, linspace } from '../../parser';
+import { texBlock, exprToTex } from '../../latex';
+import { symbolicIntegralSteps } from '../../symbolic';
 import {
   mulberry32,
   parseSeed,
@@ -11,6 +13,182 @@ import {
   renderErrorHalvingPanel,
   renderAnalyticalPanelDifference,
 } from './monteCarloCommon';
+
+/**
+ * Find intersection points of f(x) = g(x) in [a, b] by scanning sign changes of f-g
+ * and refining each one via bisection. Returns sorted roots within [a, b].
+ */
+function findIntersections(
+  f: (x: number) => number, g: (x: number) => number,
+  a: number, b: number,
+): number[] {
+  const samples = 600;
+  const roots: number[] = [];
+  const h = (b - a) / samples;
+  const diff = (x: number) => f(x) - g(x);
+  let prev = diff(a);
+  if (Math.abs(prev) < 1e-10) roots.push(a);
+  for (let i = 1; i <= samples; i++) {
+    const x = a + i * h;
+    const v = diff(x);
+    if (isFinite(prev) && isFinite(v) && prev * v < 0) {
+      let lo = x - h, hi = x;
+      let vLo = prev, vHi = v;
+      for (let k = 0; k < 80 && hi - lo > 1e-12; k++) {
+        const mid = 0.5 * (lo + hi);
+        const vm = diff(mid);
+        if (!isFinite(vm)) break;
+        if (Math.abs(vm) < 1e-14) { lo = hi = mid; break; }
+        if (vLo * vm < 0) { hi = mid; vHi = vm; }
+        else { lo = mid; vLo = vm; }
+      }
+      const root = 0.5 * (lo + hi);
+      if (roots.length === 0 || Math.abs(root - roots[roots.length - 1]) > 1e-7) {
+        roots.push(root);
+      }
+    } else if (Math.abs(v) < 1e-10) {
+      if (roots.length === 0 || Math.abs(x - roots[roots.length - 1]) > 1e-7) {
+        roots.push(x);
+      }
+    }
+    prev = v;
+  }
+  return roots.sort((p, q) => p - q);
+}
+
+/**
+ * Simpson 1/3 rule for numerical fallback when symbolic integration fails on a sub-interval.
+ */
+function simpsonNumerical(fn: (x: number) => number, a: number, b: number, n: number): number {
+  if (n % 2 !== 0) n += 1;
+  const h = (b - a) / n;
+  let sum = fn(a) + fn(b);
+  for (let i = 1; i < n; i++) {
+    const x = a + i * h;
+    sum += (i % 2 === 0 ? 2 : 4) * fn(x);
+  }
+  return (h / 3) * sum;
+}
+
+/**
+ * Geometric analysis panel: find intersections, identify which curve is on top per sub-interval,
+ * integrate each sub-interval exactly, and sum to get total exact area.
+ */
+function renderGeometricAnalysisPanel(
+  fxExpr: string, gxExpr: string,
+  f: (x: number) => number, g: (x: number) => number,
+  a: number, b: number,
+): string {
+  const ints = findIntersections(f, g, a, b);
+  const boundariesRaw: number[] = [a];
+  for (const r of ints) {
+    if (r > a + 1e-9 && r < b - 1e-9) boundariesRaw.push(r);
+  }
+  boundariesRaw.push(b);
+  const boundaries = boundariesRaw.filter((v, i, arr) => i === 0 || Math.abs(v - arr[i - 1]) > 1e-8);
+
+  const subintervals: { xi: number; xj: number; topExpr: string; botExpr: string; area: number; method: string }[] = [];
+  let totalArea = 0;
+
+  for (let i = 0; i < boundaries.length - 1; i++) {
+    const xi = boundaries[i], xj = boundaries[i + 1];
+    const mid = 0.5 * (xi + xj);
+    const fv = f(mid), gv = g(mid);
+    const fTop = fv >= gv;
+    const topExpr = fTop ? fxExpr : gxExpr;
+    const botExpr = fTop ? gxExpr : fxExpr;
+    const diffExpr = `(${topExpr}) - (${botExpr})`;
+    let subArea = NaN;
+    let method = 'simbolica';
+    try {
+      const { result } = symbolicIntegralSteps(diffExpr, 'x');
+      const F = parseExpression(result.replace(/\s*\+\s*C\s*$/, ''));
+      const v = F(xj) - F(xi);
+      if (isFinite(v)) { subArea = v; }
+      else { throw new Error('no finito'); }
+    } catch {
+      method = 'Simpson n=200';
+      subArea = simpsonNumerical(x => Math.abs(f(x) - g(x)), xi, xj, 200);
+    }
+    totalArea += subArea;
+    subintervals.push({ xi, xj, topExpr, botExpr, area: subArea, method });
+  }
+
+  // Build HTML pieces
+  const eqRoots = ints.length > 0
+    ? ints.map(r => `x = ${fmtNum(r, 8)}`).join(', ')
+    : 'ninguna en el interior del intervalo';
+  const rowsHtml = subintervals.map(s => `
+    <tr>
+      <td>[${fmtNum(s.xi, 6)}, ${fmtNum(s.xj, 6)}]</td>
+      <td><code>${s.topExpr}</code></td>
+      <td><code>${s.botExpr}</code></td>
+      <td>${fmtNum(s.area, 10)}</td>
+      <td style="color:var(--subtext0); font-size:0.85rem">${s.method}</td>
+    </tr>
+  `).join('');
+
+  // Visual preview: for the first sub-interval, show the full symbolic steps as example
+  let exampleSteps = '';
+  if (subintervals.length > 0) {
+    const s0 = subintervals[0];
+    try {
+      const diffExpr = `(${s0.topExpr}) - (${s0.botExpr})`;
+      const { result, steps } = symbolicIntegralSteps(diffExpr, 'x');
+      const Fclean = result.replace(/\s*\+\s*C\s*$/, '');
+      exampleSteps = `
+        <div style="margin-top:12px"><b>Ejemplo — primer sub-intervalo [${fmtNum(s0.xi, 6)}, ${fmtNum(s0.xj, 6)}]:</b></div>
+        ${texBlock(`\\int (${exprToTex(s0.topExpr)} - ${exprToTex(s0.botExpr)})\\, dx = ${exprToTex(Fclean)} + C`)}
+        ${steps.map((st, i) => `
+          <div style="margin-top:6px; padding-left:10px; border-left:2px solid var(--surface1, #45475a);">
+            <div><b>${i + 1}. ${st.rule}</b> — <span style="color:var(--subtext0)">${st.explanation}</span></div>
+            ${texBlock(st.latex)}
+          </div>
+        `).join('')}
+        ${texBlock(`A_1 = \\Big[${exprToTex(Fclean)}\\Big]_{${fmtNum(s0.xi, 6)}}^{${fmtNum(s0.xj, 6)}} = ${fmtNum(s0.area, 10)}`)}
+      `;
+    } catch {
+      exampleSteps = '';
+    }
+  }
+
+  return `
+    <div class="theorem-panel theorem-pass">
+      <div class="theorem-header"><span class="theorem-icon">△</span> Analisis geometrico — intersecciones y region encerrada</div>
+      <div class="theorem-body">
+        <div><b>Paso 1 — Encontrar intersecciones:</b> resolvemos <code>f(x) = g(x)</code> en <code>[${fmtNum(a, 6)}, ${fmtNum(b, 6)}]</code>.</div>
+        ${texBlock(`${exprToTex(fxExpr)} = ${exprToTex(gxExpr)} \\;\\Longleftrightarrow\\; ${exprToTex(fxExpr)} - ${exprToTex(gxExpr)} = 0`)}
+        <div>Raices detectadas numericamente (bisecta sobre cambios de signo): <b>${eqRoots}</b>.</div>
+        <div>Junto con los limites <code>a = ${fmtNum(a, 6)}</code> y <code>b = ${fmtNum(b, 6)}</code>, se forman <b>${subintervals.length} sub-intervalo(s)</b>.</div>
+
+        <div style="margin-top:12px"><b>Paso 2 — Identificar la curva superior en cada sub-intervalo</b> (evaluando en el punto medio):</div>
+        <div class="iter-table-wrap" style="margin-top:8px">
+          <table class="iter-table">
+            <thead>
+              <tr>
+                <th>Sub-intervalo</th>
+                <th>Curva superior</th>
+                <th>Curva inferior</th>
+                <th>Area (∫(top−bot)dx)</th>
+                <th>Metodo</th>
+              </tr>
+            </thead>
+            <tbody>${rowsHtml}</tbody>
+          </table>
+        </div>
+
+        <div style="margin-top:12px"><b>Paso 3 — Sumar las areas parciales</b>:</div>
+        ${texBlock(`A_{\\text{total}} = \\sum_{i} \\int_{x_i}^{x_{i+1}} \\bigl(\\text{top}_i(x) - \\text{bot}_i(x)\\bigr)\\, dx = \\boxed{\\; ${fmtNum(totalArea, 10)} \\;}`)}
+
+        ${exampleSteps}
+
+        <div style="margin-top:8px; color:var(--subtext0); font-size:0.85rem">
+          El metodo Hit-or-Miss aproxima precisamente esta misma area: lanza puntos en el rectangulo circunscrito y cuenta los que caen en la region <code>bot(x) ≤ y ≤ top(x)</code>. Si las curvas se cruzan, la region se descompone automaticamente en los sub-intervalos mostrados arriba.
+        </div>
+      </div>
+    </div>
+  `;
+}
 
 /**
  * Run one Hit-or-Miss simulation between f and g over [a,b], within bounding rectangle [yLo, yHi].
@@ -47,8 +225,8 @@ export const montecarloArea: MethodDefinition = {
   latexFormula: 'A = \\int_a^b \\bigl(f(x) - g(x)\\bigr)\\,dx \\approx A_{\\text{rect}} \\cdot \\frac{\\#\\{\\text{puntos dentro}\\}}{N}',
   description: 'Estima el area entre f(x) y g(x) sobre [a,b] lanzando puntos aleatorios y contando cuantos caen en la region. Promedia K repeticiones. Nivel de confianza configurable.',
   inputs: [
-    { id: 'fx', label: 'f(x) (curva superior)', placeholder: 'x^2', defaultValue: 'x^2' },
-    { id: 'gx', label: 'g(x) (curva inferior)', placeholder: 'x^3', defaultValue: 'x^3' },
+    { id: 'fx', label: 'f(x) (una curva)', placeholder: 'sqrt(x)', defaultValue: 'sqrt(x)', hint: 'La app detecta automaticamente intersecciones y que curva va arriba en cada sub-intervalo.' },
+    { id: 'gx', label: 'g(x) (otra curva)', placeholder: 'x^2', defaultValue: 'x^2', hint: 'Si f y g se cruzan, se descompone la region y se suman las areas parciales.' },
     { id: 'a', label: 'a (limite inferior x)', placeholder: '0', type: 'number', defaultValue: '0' },
     { id: 'b', label: 'b (limite superior x)', placeholder: '1', type: 'number', defaultValue: '1' },
     { id: 'n', label: 'N (puntos por repeticion)', placeholder: '10000', type: 'number', defaultValue: '10000' },
@@ -66,12 +244,12 @@ export const montecarloArea: MethodDefinition = {
     { key: 'exactDiff', label: '|A_k - Exacto|', latex: '|A_k - A^*|' },
   ],
   steps: [
-    'Para el <b>parcial 30/04/2025</b>: escribe <code>f(x)</code> (superior) y <code>g(x)</code> (inferior). Ej: <code>f = x²</code>, <code>g = x³</code> en <code>[0, 1]</code>.',
-    'Define <code>[a, b]</code>. Si las curvas se cruzan, la app usa <code>|f - g|</code> automaticamente (toma el max y min en cada x).',
+    'Escribe las dos curvas <code>f(x)</code> y <code>g(x)</code>. <b>No importa cual es superior</b> — la app detecta las intersecciones en <code>[a, b]</code> y decide en cada sub-intervalo cual curva queda arriba. Ejemplo: <code>f = sqrt(x)</code>, <code>g = x²</code> en <code>[0, 1]</code> → se cruzan en 0 y 1, forman una "lente".',
+    'Define <code>[a, b]</code> como intervalo de busqueda. Si las curvas se cruzan en el interior, la region se descompone automaticamente en sub-intervalos y se suman las areas parciales.',
     'Configura <code>N</code>, <code>K</code> y el <b>nivel de confianza</b> (90/95/99).',
     '<b>Estrategia Hit-or-Miss</b>: rectangulo circunscrito <code>[a, b] × [y_min, y_max]</code>. Puntos uniformes, cuenta los que caen entre las curvas. <code>A ≈ (Area rect) · (hits / N)</code>.',
-    'Pulsa <b>Resolver</b>. Se muestran: (1) <b>Solucion analitica paso a paso</b> (∫(f-g)dx); (2) tabla de K repeticiones; (3) <b>Resumen estadistico</b> con media, varianza, SE, IC; (4) <b>demostracion 1/√n</b> con simulacion a 4N.',
-    'Para el informe: (1) tabla de A_k; (2) promedio; (3) σ entre repeticiones; (4) IC; (5) comparacion con exacto si lo hay.',
+    'Pulsa <b>Resolver</b>. Se muestran: (1) <b>Analisis geometrico</b> — intersecciones, sub-intervalos y cual curva va arriba en cada uno, con area exacta por sub-intervalo; (2) <b>Solucion analitica</b> con primitiva; (3) K repeticiones; (4) <b>Resumen estadistico</b> con IC; (5) <b>demostracion 1/√n</b>.',
+    'Para el informe: (1) intersecciones detectadas; (2) tabla de sub-intervalos con curva superior/inferior y area parcial; (3) area total exacta; (4) tabla de A_k; (5) promedio Monte Carlo, σ entre repeticiones, IC; (6) comparacion con exacto.',
   ],
 
   solve(params) {
@@ -168,6 +346,7 @@ export const montecarloArea: MethodDefinition = {
     }
 
     const panels: string[] = [];
+    panels.push(renderGeometricAnalysisPanel(params.fx, params.gx, f, g, a, b));
     panels.push(renderAnalyticalPanelDifference(params.fx, params.gx, a, b));
     if (K > 1) panels.push(renderKRepsPanel(reps, '\\hat{A}'));
     panels.push(renderSummaryPanel({

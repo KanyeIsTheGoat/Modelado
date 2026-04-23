@@ -2,6 +2,12 @@ import type { MethodDefinition, MethodResult, ChartData } from '../types';
 import { parseExpression, parseExpression2, linspace } from '../../parser';
 import { commonOdeInputs, applyOdeTargetAndVerification, verifyDiffColumn } from '../../odeHelpers';
 import { formatFull } from '../../precision';
+import {
+  runEuler,
+  renderIterationSummaryPanel,
+  renderErrorAnalysisPanel,
+  renderMethodComparisonPanel,
+} from './odeCommon';
 
 export const euler: MethodDefinition = {
   id: 'euler',
@@ -95,6 +101,14 @@ export const euler: MethodDefinition = {
       message: `y(${xEnd}) ≈ ${y.toFixed(8)} | ${N} pasos, h=${h}${maxError > 0 ? ` | Error max = ${formatFull(maxError)}` : ''}`,
     };
     applyOdeTargetAndVerification(result, params);
+
+    const steps = runEuler(f, x0, y0, xEnd, h, exactFn);
+    const panels: string[] = [];
+    panels.push(renderIterationSummaryPanel('Euler', steps, h, xEnd));
+    panels.push(renderErrorAnalysisPanel('Euler', 1, steps, h));
+    panels.push(renderMethodComparisonPanel(f, x0, y0, xEnd, h, exactFn, 'euler'));
+    result.theoremPanels = panels;
+
     return result;
   },
 

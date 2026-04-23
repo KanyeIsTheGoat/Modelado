@@ -2,6 +2,12 @@ import type { MethodDefinition, MethodResult, ChartData } from '../types';
 import { parseExpression, parseExpression2, linspace } from '../../parser';
 import { commonOdeInputs, applyOdeTargetAndVerification, verifyDiffColumn } from '../../odeHelpers';
 import { formatFull } from '../../precision';
+import {
+  runHeun,
+  renderIterationSummaryPanel,
+  renderErrorAnalysisPanel,
+  renderMethodComparisonPanel,
+} from './odeCommon';
 
 export const heun: MethodDefinition = {
   id: 'heun',
@@ -106,6 +112,14 @@ export const heun: MethodDefinition = {
       message: `y(${xEnd}) ≈ ${y.toFixed(8)} | ${N} pasos, h=${h}${maxError > 0 ? ` | Error max = ${formatFull(maxError)}` : ''}`,
     };
     applyOdeTargetAndVerification(result, params);
+
+    const steps = runHeun(f, x0, y0, xEnd, h, exactFn);
+    const panels: string[] = [];
+    panels.push(renderIterationSummaryPanel('Heun (RK2)', steps, h, xEnd));
+    panels.push(renderErrorAnalysisPanel('Heun (RK2)', 2, steps, h));
+    panels.push(renderMethodComparisonPanel(f, x0, y0, xEnd, h, exactFn, 'heun'));
+    result.theoremPanels = panels;
+
     return result;
   },
 

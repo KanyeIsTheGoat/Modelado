@@ -62327,17 +62327,17 @@
       prevI = I;
     }
     const hasExact = exact !== void 0 && isFinite(exact);
-    const fmt2 = (v, digits2 = 8) => v === null ? "\u2014" : isFinite(v) ? v.toPrecision(digits2) : "\u2014";
+    const fmt3 = (v, digits2 = 8) => v === null ? "\u2014" : isFinite(v) ? v.toPrecision(digits2) : "\u2014";
     const exactCols = hasExact ? `<th>|I<sub>n</sub> \u2212 exacto|</th><th>\u03B5<sub>rel</sub> vs exacto</th><th>\u03B5<sub>rel</sub> % vs exacto</th><th>Cifras sig.</th>` : "";
     const tableRows = rows.map((r) => `
     <tr>
       <td>${r.n}</td>
-      <td>${fmt2(r.h, 6)}</td>
-      <td>${fmt2(r.integral)}</td>
-      <td>${fmt2(r.dI)}</td>
-      <td>${fmt2(r.errRel)}</td>
-      <td>${fmt2(r.errRelPct, 6)}</td>
-      ${hasExact ? `<td>${fmt2(r.errAbsEx)}</td><td>${fmt2(r.errRelEx)}</td><td>${fmt2(r.errRelPctEx, 6)}</td><td>${r.sigDigits === null ? "\u2014" : r.sigDigits}</td>` : ""}
+      <td>${fmt3(r.h, 6)}</td>
+      <td>${fmt3(r.integral)}</td>
+      <td>${fmt3(r.dI)}</td>
+      <td>${fmt3(r.errRel)}</td>
+      <td>${fmt3(r.errRelPct, 6)}</td>
+      ${hasExact ? `<td>${fmt3(r.errAbsEx)}</td><td>${fmt3(r.errRelEx)}</td><td>${fmt3(r.errRelPctEx, 6)}</td><td>${r.sigDigits === null ? "\u2014" : r.sigDigits}</td>` : ""}
     </tr>
   `).join("");
     return `
@@ -65731,6 +65731,163 @@
   };
 
   // src/methods/integration/montecarloArea.ts
+  function findIntersections(f, g, a, b) {
+    const samples = 600;
+    const roots = [];
+    const h = (b - a) / samples;
+    const diff2 = (x) => f(x) - g(x);
+    let prev = diff2(a);
+    if (Math.abs(prev) < 1e-10) roots.push(a);
+    for (let i2 = 1; i2 <= samples; i2++) {
+      const x = a + i2 * h;
+      const v = diff2(x);
+      if (isFinite(prev) && isFinite(v) && prev * v < 0) {
+        let lo = x - h, hi = x;
+        let vLo = prev, vHi = v;
+        for (let k = 0; k < 80 && hi - lo > 1e-12; k++) {
+          const mid = 0.5 * (lo + hi);
+          const vm = diff2(mid);
+          if (!isFinite(vm)) break;
+          if (Math.abs(vm) < 1e-14) {
+            lo = hi = mid;
+            break;
+          }
+          if (vLo * vm < 0) {
+            hi = mid;
+            vHi = vm;
+          } else {
+            lo = mid;
+            vLo = vm;
+          }
+        }
+        const root = 0.5 * (lo + hi);
+        if (roots.length === 0 || Math.abs(root - roots[roots.length - 1]) > 1e-7) {
+          roots.push(root);
+        }
+      } else if (Math.abs(v) < 1e-10) {
+        if (roots.length === 0 || Math.abs(x - roots[roots.length - 1]) > 1e-7) {
+          roots.push(x);
+        }
+      }
+      prev = v;
+    }
+    return roots.sort((p, q) => p - q);
+  }
+  function simpsonNumerical(fn, a, b, n) {
+    if (n % 2 !== 0) n += 1;
+    const h = (b - a) / n;
+    let sum3 = fn(a) + fn(b);
+    for (let i2 = 1; i2 < n; i2++) {
+      const x = a + i2 * h;
+      sum3 += (i2 % 2 === 0 ? 2 : 4) * fn(x);
+    }
+    return h / 3 * sum3;
+  }
+  function renderGeometricAnalysisPanel(fxExpr, gxExpr, f, g, a, b) {
+    const ints = findIntersections(f, g, a, b);
+    const boundariesRaw = [a];
+    for (const r of ints) {
+      if (r > a + 1e-9 && r < b - 1e-9) boundariesRaw.push(r);
+    }
+    boundariesRaw.push(b);
+    const boundaries = boundariesRaw.filter((v, i2, arr) => i2 === 0 || Math.abs(v - arr[i2 - 1]) > 1e-8);
+    const subintervals = [];
+    let totalArea = 0;
+    for (let i2 = 0; i2 < boundaries.length - 1; i2++) {
+      const xi = boundaries[i2], xj = boundaries[i2 + 1];
+      const mid = 0.5 * (xi + xj);
+      const fv = f(mid), gv = g(mid);
+      const fTop = fv >= gv;
+      const topExpr = fTop ? fxExpr : gxExpr;
+      const botExpr = fTop ? gxExpr : fxExpr;
+      const diffExpr = `(${topExpr}) - (${botExpr})`;
+      let subArea = NaN;
+      let method = "simbolica";
+      try {
+        const { result } = symbolicIntegralSteps(diffExpr, "x");
+        const F = parseExpression(result.replace(/\s*\+\s*C\s*$/, ""));
+        const v = F(xj) - F(xi);
+        if (isFinite(v)) {
+          subArea = v;
+        } else {
+          throw new Error("no finito");
+        }
+      } catch {
+        method = "Simpson n=200";
+        subArea = simpsonNumerical((x) => Math.abs(f(x) - g(x)), xi, xj, 200);
+      }
+      totalArea += subArea;
+      subintervals.push({ xi, xj, topExpr, botExpr, area: subArea, method });
+    }
+    const eqRoots = ints.length > 0 ? ints.map((r) => `x = ${fmtNum2(r, 8)}`).join(", ") : "ninguna en el interior del intervalo";
+    const rowsHtml = subintervals.map((s) => `
+    <tr>
+      <td>[${fmtNum2(s.xi, 6)}, ${fmtNum2(s.xj, 6)}]</td>
+      <td><code>${s.topExpr}</code></td>
+      <td><code>${s.botExpr}</code></td>
+      <td>${fmtNum2(s.area, 10)}</td>
+      <td style="color:var(--subtext0); font-size:0.85rem">${s.method}</td>
+    </tr>
+  `).join("");
+    let exampleSteps = "";
+    if (subintervals.length > 0) {
+      const s0 = subintervals[0];
+      try {
+        const diffExpr = `(${s0.topExpr}) - (${s0.botExpr})`;
+        const { result, steps: steps2 } = symbolicIntegralSteps(diffExpr, "x");
+        const Fclean = result.replace(/\s*\+\s*C\s*$/, "");
+        exampleSteps = `
+        <div style="margin-top:12px"><b>Ejemplo \u2014 primer sub-intervalo [${fmtNum2(s0.xi, 6)}, ${fmtNum2(s0.xj, 6)}]:</b></div>
+        ${texBlock(`\\int (${exprToTex(s0.topExpr)} - ${exprToTex(s0.botExpr)})\\, dx = ${exprToTex(Fclean)} + C`)}
+        ${steps2.map((st, i2) => `
+          <div style="margin-top:6px; padding-left:10px; border-left:2px solid var(--surface1, #45475a);">
+            <div><b>${i2 + 1}. ${st.rule}</b> \u2014 <span style="color:var(--subtext0)">${st.explanation}</span></div>
+            ${texBlock(st.latex)}
+          </div>
+        `).join("")}
+        ${texBlock(`A_1 = \\Big[${exprToTex(Fclean)}\\Big]_{${fmtNum2(s0.xi, 6)}}^{${fmtNum2(s0.xj, 6)}} = ${fmtNum2(s0.area, 10)}`)}
+      `;
+      } catch {
+        exampleSteps = "";
+      }
+    }
+    return `
+    <div class="theorem-panel theorem-pass">
+      <div class="theorem-header"><span class="theorem-icon">\u25B3</span> Analisis geometrico \u2014 intersecciones y region encerrada</div>
+      <div class="theorem-body">
+        <div><b>Paso 1 \u2014 Encontrar intersecciones:</b> resolvemos <code>f(x) = g(x)</code> en <code>[${fmtNum2(a, 6)}, ${fmtNum2(b, 6)}]</code>.</div>
+        ${texBlock(`${exprToTex(fxExpr)} = ${exprToTex(gxExpr)} \\;\\Longleftrightarrow\\; ${exprToTex(fxExpr)} - ${exprToTex(gxExpr)} = 0`)}
+        <div>Raices detectadas numericamente (bisecta sobre cambios de signo): <b>${eqRoots}</b>.</div>
+        <div>Junto con los limites <code>a = ${fmtNum2(a, 6)}</code> y <code>b = ${fmtNum2(b, 6)}</code>, se forman <b>${subintervals.length} sub-intervalo(s)</b>.</div>
+
+        <div style="margin-top:12px"><b>Paso 2 \u2014 Identificar la curva superior en cada sub-intervalo</b> (evaluando en el punto medio):</div>
+        <div class="iter-table-wrap" style="margin-top:8px">
+          <table class="iter-table">
+            <thead>
+              <tr>
+                <th>Sub-intervalo</th>
+                <th>Curva superior</th>
+                <th>Curva inferior</th>
+                <th>Area (\u222B(top\u2212bot)dx)</th>
+                <th>Metodo</th>
+              </tr>
+            </thead>
+            <tbody>${rowsHtml}</tbody>
+          </table>
+        </div>
+
+        <div style="margin-top:12px"><b>Paso 3 \u2014 Sumar las areas parciales</b>:</div>
+        ${texBlock(`A_{\\text{total}} = \\sum_{i} \\int_{x_i}^{x_{i+1}} \\bigl(\\text{top}_i(x) - \\text{bot}_i(x)\\bigr)\\, dx = \\boxed{\\; ${fmtNum2(totalArea, 10)} \\;}`)}
+
+        ${exampleSteps}
+
+        <div style="margin-top:8px; color:var(--subtext0); font-size:0.85rem">
+          El metodo Hit-or-Miss aproxima precisamente esta misma area: lanza puntos en el rectangulo circunscrito y cuenta los que caen en la region <code>bot(x) \u2264 y \u2264 top(x)</code>. Si las curvas se cruzan, la region se descompone automaticamente en los sub-intervalos mostrados arriba.
+        </div>
+      </div>
+    </div>
+  `;
+  }
   function runArea(f, g, a, b, yLo, yHi, N, seed) {
     const rand = mulberry32(seed);
     const rectArea = (b - a) * (yHi - yLo);
@@ -65757,8 +65914,8 @@
     latexFormula: "A = \\int_a^b \\bigl(f(x) - g(x)\\bigr)\\,dx \\approx A_{\\text{rect}} \\cdot \\frac{\\#\\{\\text{puntos dentro}\\}}{N}",
     description: "Estima el area entre f(x) y g(x) sobre [a,b] lanzando puntos aleatorios y contando cuantos caen en la region. Promedia K repeticiones. Nivel de confianza configurable.",
     inputs: [
-      { id: "fx", label: "f(x) (curva superior)", placeholder: "x^2", defaultValue: "x^2" },
-      { id: "gx", label: "g(x) (curva inferior)", placeholder: "x^3", defaultValue: "x^3" },
+      { id: "fx", label: "f(x) (una curva)", placeholder: "sqrt(x)", defaultValue: "sqrt(x)", hint: "La app detecta automaticamente intersecciones y que curva va arriba en cada sub-intervalo." },
+      { id: "gx", label: "g(x) (otra curva)", placeholder: "x^2", defaultValue: "x^2", hint: "Si f y g se cruzan, se descompone la region y se suman las areas parciales." },
       { id: "a", label: "a (limite inferior x)", placeholder: "0", type: "number", defaultValue: "0" },
       { id: "b", label: "b (limite superior x)", placeholder: "1", type: "number", defaultValue: "1" },
       { id: "n", label: "N (puntos por repeticion)", placeholder: "10000", type: "number", defaultValue: "10000" },
@@ -65776,12 +65933,12 @@
       { key: "exactDiff", label: "|A_k - Exacto|", latex: "|A_k - A^*|" }
     ],
     steps: [
-      "Para el <b>parcial 30/04/2025</b>: escribe <code>f(x)</code> (superior) y <code>g(x)</code> (inferior). Ej: <code>f = x\xB2</code>, <code>g = x\xB3</code> en <code>[0, 1]</code>.",
-      "Define <code>[a, b]</code>. Si las curvas se cruzan, la app usa <code>|f - g|</code> automaticamente (toma el max y min en cada x).",
+      'Escribe las dos curvas <code>f(x)</code> y <code>g(x)</code>. <b>No importa cual es superior</b> \u2014 la app detecta las intersecciones en <code>[a, b]</code> y decide en cada sub-intervalo cual curva queda arriba. Ejemplo: <code>f = sqrt(x)</code>, <code>g = x\xB2</code> en <code>[0, 1]</code> \u2192 se cruzan en 0 y 1, forman una "lente".',
+      "Define <code>[a, b]</code> como intervalo de busqueda. Si las curvas se cruzan en el interior, la region se descompone automaticamente en sub-intervalos y se suman las areas parciales.",
       "Configura <code>N</code>, <code>K</code> y el <b>nivel de confianza</b> (90/95/99).",
       "<b>Estrategia Hit-or-Miss</b>: rectangulo circunscrito <code>[a, b] \xD7 [y_min, y_max]</code>. Puntos uniformes, cuenta los que caen entre las curvas. <code>A \u2248 (Area rect) \xB7 (hits / N)</code>.",
-      "Pulsa <b>Resolver</b>. Se muestran: (1) <b>Solucion analitica paso a paso</b> (\u222B(f-g)dx); (2) tabla de K repeticiones; (3) <b>Resumen estadistico</b> con media, varianza, SE, IC; (4) <b>demostracion 1/\u221An</b> con simulacion a 4N.",
-      "Para el informe: (1) tabla de A_k; (2) promedio; (3) \u03C3 entre repeticiones; (4) IC; (5) comparacion con exacto si lo hay."
+      "Pulsa <b>Resolver</b>. Se muestran: (1) <b>Analisis geometrico</b> \u2014 intersecciones, sub-intervalos y cual curva va arriba en cada uno, con area exacta por sub-intervalo; (2) <b>Solucion analitica</b> con primitiva; (3) K repeticiones; (4) <b>Resumen estadistico</b> con IC; (5) <b>demostracion 1/\u221An</b>.",
+      "Para el informe: (1) intersecciones detectadas; (2) tabla de sub-intervalos con curva superior/inferior y area parcial; (3) area total exacta; (4) tabla de A_k; (5) promedio Monte Carlo, \u03C3 entre repeticiones, IC; (6) comparacion con exacto."
     ],
     solve(params) {
       const f = parseExpression(params.fx);
@@ -65862,6 +66019,7 @@
         message += ` | Exacto = ${fmtNum2(exactVal, 8)} | |error| = ${fmtNum2(absErr, 6)}`;
       }
       const panels = [];
+      panels.push(renderGeometricAnalysisPanel(params.fx, params.gx, f, g, a, b));
       panels.push(renderAnalyticalPanelDifference(params.fx, params.gx, a, b));
       if (K > 1) panels.push(renderKRepsPanel(reps, "\\hat{A}"));
       panels.push(renderSummaryPanel({
@@ -66698,7 +66856,7 @@
       },
       { id: "xQuery", label: "x objetivo (opcional, donde evaluar P_n(x))", placeholder: "Vacio = solo polinomio", type: "number", hint: "Dejalo vacio si solo queres el polinomio (parte a del parcial)." },
       { id: "fx", label: "f(x) real (opcional, para error)", placeholder: "p.ej. sin(x)", hint: "Funcion subyacente para calcular error local y cota global." },
-      { id: "xi", label: "\u03BE para error local (opcional)", placeholder: "p.ej. 0.45", type: "number", hint: "Punto donde evaluar el error local |f(\u03BE) - P_n(\u03BE)|. Distinto de x objetivo." }
+      { id: "xi", label: "\u03BE para error local (opcional)", placeholder: "p.ej. 0.45, pi/4, sqrt(2)", hint: "Punto donde evaluar el error local |f(\u03BE) - P_n(\u03BE)|. Acepta numeros y expresiones: pi, pi/4, e, sqrt(2), etc." }
     ],
     tableColumns: [
       { key: "i", label: "i", latex: "i" },
@@ -66757,8 +66915,8 @@
       const fxExpr = (params.fx ?? "").trim();
       const xiRaw = (params.xi ?? "").trim();
       const hasXi = xiRaw !== "";
-      const xiVal = hasXi ? parseFloat(xiRaw) : NaN;
-      if (hasXi && isNaN(xiVal)) throw new Error("\u03BE invalido");
+      const xiVal = hasXi ? parseScalar(xiRaw) : NaN;
+      if (hasXi && isNaN(xiVal)) throw new Error(`\u03BE invalido: "${xiRaw}" no es un numero ni expresion valida (pi, pi/4, sqrt(2), etc.)`);
       let errorPanel = null;
       if (fxExpr !== "") {
         try {
@@ -67230,6 +67388,262 @@
   }
   var verifyDiffColumn = { key: "verifyDiff", label: "|y\u2099 \u2212 esperado|", latex: "|y_n - y_{\\text{esperado}}|" };
 
+  // src/methods/ode/odeCommon.ts
+  function runEuler(f, x0, y0, xEnd, h, exactFn) {
+    const N = Math.ceil((xEnd - x0) / h);
+    const steps2 = [];
+    let x = x0, y = y0;
+    for (let n = 0; n <= N; n++) {
+      x = x0 + n * h;
+      if (x > xEnd) x = xEnd;
+      const exact = exactFn ? exactFn(x) : null;
+      const error = exact !== null ? Math.abs(y - exact) : null;
+      steps2.push({ n, xn: x, yn: y, exact, error });
+      if (n < N) y = y + h * f(x, y);
+    }
+    return steps2;
+  }
+  function runHeun(f, x0, y0, xEnd, h, exactFn) {
+    const N = Math.ceil((xEnd - x0) / h);
+    const steps2 = [];
+    let x = x0, y = y0;
+    for (let n = 0; n <= N; n++) {
+      x = x0 + n * h;
+      if (x > xEnd) x = xEnd;
+      const exact = exactFn ? exactFn(x) : null;
+      const error = exact !== null ? Math.abs(y - exact) : null;
+      steps2.push({ n, xn: x, yn: y, exact, error });
+      if (n < N) {
+        const k1 = f(x, y);
+        const yPred = y + h * k1;
+        const k2 = f(x + h, yPred);
+        y = y + h / 2 * (k1 + k2);
+      }
+    }
+    return steps2;
+  }
+  function runRK4(f, x0, y0, xEnd, h, exactFn) {
+    const N = Math.ceil((xEnd - x0) / h);
+    const steps2 = [];
+    let x = x0, y = y0;
+    for (let n = 0; n <= N; n++) {
+      x = x0 + n * h;
+      if (x > xEnd) x = xEnd;
+      const exact = exactFn ? exactFn(x) : null;
+      const error = exact !== null ? Math.abs(y - exact) : null;
+      steps2.push({ n, xn: x, yn: y, exact, error });
+      if (n < N) {
+        const k1 = f(x, y);
+        const k2 = f(x + h / 2, y + h / 2 * k1);
+        const k3 = f(x + h / 2, y + h / 2 * k2);
+        const k4 = f(x + h, y + h * k3);
+        y = y + h / 6 * (k1 + 2 * k2 + 2 * k3 + k4);
+      }
+    }
+    return steps2;
+  }
+  function fmt(n, p = 8) {
+    if (n === null || !isFinite(n)) return "\u2014";
+    return formatFull(n).slice(0, p + 6);
+  }
+  function renderIterationSummaryPanel(methodLabel, steps2, h, xEnd) {
+    const hasExact = steps2.some((s) => s.exact !== null);
+    const rows = steps2.map((s) => `
+    <tr>
+      <td>${s.n}</td>
+      <td>${fmt(s.xn, 6)}</td>
+      <td>${fmt(s.yn, 10)}</td>
+      ${hasExact ? `<td>${fmt(s.exact, 10)}</td><td>${fmt(s.error, 10)}</td>` : ""}
+    </tr>
+  `).join("");
+    const errors = steps2.map((s) => s.error).filter((e3) => e3 !== null);
+    const maxErr = errors.length > 0 ? Math.max(...errors) : 0;
+    const finalErr = errors.length > 0 ? errors[errors.length - 1] : 0;
+    const avgErr = errors.length > 0 ? errors.reduce((a, b) => a + b, 0) / errors.length : 0;
+    const yFinal = steps2[steps2.length - 1].yn;
+    const summaryStats = hasExact ? `
+    <div class="iter-table-wrap" style="margin-top:8px">
+      <table class="iter-table">
+        <thead><tr><th>Estadistico</th><th>Valor</th></tr></thead>
+        <tbody>
+          <tr><td>y(${fmt(xEnd, 6)}) aproximado</td><td><b>${fmt(yFinal, 10)}</b></td></tr>
+          <tr><td>y(${fmt(xEnd, 6)}) exacto</td><td>${fmt(steps2[steps2.length - 1].exact, 10)}</td></tr>
+          <tr><td>|Error| final</td><td><b>${fmt(finalErr, 10)}</b></td></tr>
+          <tr><td>|Error| maximo</td><td>${fmt(maxErr, 10)}</td></tr>
+          <tr><td>|Error| promedio</td><td>${fmt(avgErr, 10)}</td></tr>
+          <tr><td>Numero de pasos</td><td>${steps2.length - 1}</td></tr>
+          <tr><td>Paso h</td><td>${fmt(h, 8)}</td></tr>
+        </tbody>
+      </table>
+    </div>
+  ` : "";
+    return `
+    <div class="theorem-panel theorem-pass">
+      <div class="theorem-header"><span class="theorem-icon">\u03A3</span> Cuadro resumen \u2014 iteraciones y error absoluto (${methodLabel})</div>
+      <div class="theorem-body">
+        <div>Cada fila es una iteracion del metodo. El error absoluto se define como <code>|E_n| = |y_n \u2212 y*(x_n)|</code>, donde <code>y*(x)</code> es la solucion exacta.</div>
+        <div class="iter-table-wrap" style="margin-top:8px; max-height: 400px; overflow-y: auto">
+          <table class="iter-table">
+            <thead>
+              <tr>
+                <th>n</th><th>x_n</th><th>y_n (aprox)</th>
+                ${hasExact ? "<th>y*(x_n) exacto</th><th>|E_n|</th>" : ""}
+              </tr>
+            </thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>
+        ${summaryStats}
+      </div>
+    </div>
+  `;
+  }
+  function renderErrorAnalysisPanel2(methodLabel, methodOrder, steps2, h) {
+    const errs = steps2.map((s) => s.error).filter((e3) => e3 !== null);
+    if (errs.length < 2) {
+      return `
+      <div class="theorem-panel theorem-pass">
+        <div class="theorem-header"><span class="theorem-icon">\u03B5</span> Analisis del comportamiento del error</div>
+        <div class="theorem-body">
+          <div>No se proporciono la solucion exacta, por lo que no se puede calcular el error absoluto por paso.</div>
+          <div>Error global teorico de ${methodLabel}: <code>O(h<sup>${methodOrder}</sup>)</code> = <code>O(${h}<sup>${methodOrder}</sup>)</code> = <code>O(${fmt(Math.pow(h, methodOrder), 6)})</code>.</div>
+        </div>
+      </div>
+    `;
+    }
+    const ratios = [];
+    for (let i2 = 1; i2 < errs.length; i2++) {
+      if (errs[i2 - 1] > 1e-18) ratios.push(errs[i2] / errs[i2 - 1]);
+    }
+    const avgRatio = ratios.length > 0 ? ratios.reduce((a, b) => a + b, 0) / ratios.length : NaN;
+    const maxErr = Math.max(...errs);
+    const finalErr = errs[errs.length - 1];
+    let monotonic = "oscilante";
+    let up = 0, down = 0;
+    for (let i2 = 1; i2 < errs.length; i2++) {
+      if (errs[i2] > errs[i2 - 1]) up++;
+      else if (errs[i2] < errs[i2 - 1]) down++;
+    }
+    if (up === errs.length - 1) monotonic = "creciente";
+    else if (down === errs.length - 1) monotonic = "decreciente";
+    const interpretation = monotonic === "creciente" ? "El error crece monotonamente: es el comportamiento tipico. Cada paso acumula un error local O(h<sup>" + (methodOrder + 1) + "</sup>) que se suma sobre N \u2248 (b\u2212a)/h pasos, dando error global O(h<sup>" + methodOrder + "</sup>)." : monotonic === "decreciente" ? 'El error decrece \u2014 esto ocurre cuando la EDO tiene solucion estable que "atrae" la aproximacion, compensando errores locales.' : "El error oscila entre pasos: hay cancelacion parcial de errores locales. El error maximo alcanzado es lo que importa para la precision.";
+    const ratioRows = steps2.map((s, i2) => {
+      if (i2 === 0 || s.error === null || steps2[i2 - 1].error === null || steps2[i2 - 1].error === 0) {
+        return `<tr><td>${s.n}</td><td>${fmt(s.xn, 6)}</td><td>${fmt(s.error, 10)}</td><td>\u2014</td></tr>`;
+      }
+      const ratio = s.error / steps2[i2 - 1].error;
+      return `<tr><td>${s.n}</td><td>${fmt(s.xn, 6)}</td><td>${fmt(s.error, 10)}</td><td>${fmt(ratio, 6)}</td></tr>`;
+    }).join("");
+    const hHalved = h / 2;
+    const factor = Math.pow(2, methodOrder);
+    const predictedMaxErrHalved = maxErr / factor;
+    return `
+    <div class="theorem-panel theorem-pass">
+      <div class="theorem-header"><span class="theorem-icon">\u03B5</span> Analisis del comportamiento del error (${methodLabel})</div>
+      <div class="theorem-body">
+        <div><b>Comportamiento observado:</b> el error es <b>${monotonic}</b>.</div>
+        <div style="margin-top:4px">${interpretation}</div>
+
+        <div class="iter-table-wrap" style="margin-top:10px; max-height: 300px; overflow-y: auto">
+          <table class="iter-table">
+            <thead><tr><th>n</th><th>x_n</th><th>|E_n|</th><th>|E_n|/|E_{n-1}|</th></tr></thead>
+            <tbody>${ratioRows}</tbody>
+          </table>
+        </div>
+
+        <div style="margin-top:10px"><b>Estadistica del error:</b></div>
+        <ul style="margin:4px 0; padding-left:20px">
+          <li>|Error| maximo: <code>${fmt(maxErr, 10)}</code></li>
+          <li>|Error| final en x_N: <code>${fmt(finalErr, 10)}</code></li>
+          <li>Razon promedio |E_{n+1}|/|E_n|: <code>${fmt(avgRatio, 6)}</code> ${avgRatio > 1 ? "(>1: error crece)" : avgRatio < 1 ? "(<1: error decrece)" : ""}</li>
+        </ul>
+
+        <div style="margin-top:10px"><b>Teoria \u2014 orden global de ${methodLabel}:</b></div>
+        ${texBlock(`|E_n| = O(h^{${methodOrder}}) \\;\\Longleftrightarrow\\; \\frac{|E(h/2)|}{|E(h)|} \\approx \\frac{1}{2^{${methodOrder}}} = \\frac{1}{${factor}}`)}
+        <div>Si repitieras la simulacion con <code>h/2 = ${fmt(hHalved, 8)}</code>, el error maximo predicho seria aproximadamente <code>${fmt(predictedMaxErrHalved, 10)}</code> (factor ${factor}\xD7 menor que el actual).</div>
+      </div>
+    </div>
+  `;
+  }
+  function renderMethodComparisonPanel(f, x0, y0, xEnd, h, exactFn, highlightMethod) {
+    const eulerSteps = runEuler(f, x0, y0, xEnd, h, exactFn);
+    const heunSteps = runHeun(f, x0, y0, xEnd, h, exactFn);
+    const rk4Steps = runRK4(f, x0, y0, xEnd, h, exactFn);
+    const hasExact = exactFn !== null;
+    const maxN = Math.max(eulerSteps.length, heunSteps.length, rk4Steps.length);
+    const rows = [];
+    for (let i2 = 0; i2 < maxN; i2++) {
+      const e3 = eulerSteps[i2];
+      const h22 = heunSteps[i2];
+      const r4 = rk4Steps[i2];
+      if (!e3 || !h22 || !r4) continue;
+      const mark = (m) => m === highlightMethod ? ' style="background: var(--surface1, #45475a); font-weight: 600"' : "";
+      rows.push(`
+      <tr>
+        <td>${e3.n}</td>
+        <td>${fmt(e3.xn, 6)}</td>
+        ${hasExact ? `<td>${fmt(e3.exact, 10)}</td>` : ""}
+        <td${mark("euler")}>${fmt(e3.yn, 10)}</td>
+        ${hasExact ? `<td${mark("euler")}>${fmt(e3.error, 10)}</td>` : ""}
+        <td${mark("heun")}>${fmt(h22.yn, 10)}</td>
+        ${hasExact ? `<td${mark("heun")}>${fmt(h22.error, 10)}</td>` : ""}
+        <td${mark("rk4")}>${fmt(r4.yn, 10)}</td>
+        ${hasExact ? `<td${mark("rk4")}>${fmt(r4.error, 10)}</td>` : ""}
+      </tr>
+    `);
+    }
+    const errorsEuler = eulerSteps.map((s) => s.error).filter((e3) => e3 !== null);
+    const errorsHeun = heunSteps.map((s) => s.error).filter((e3) => e3 !== null);
+    const errorsRK4 = rk4Steps.map((s) => s.error).filter((e3) => e3 !== null);
+    const maxEuler = errorsEuler.length > 0 ? Math.max(...errorsEuler) : 0;
+    const maxHeun = errorsHeun.length > 0 ? Math.max(...errorsHeun) : 0;
+    const maxRK4 = errorsRK4.length > 0 ? Math.max(...errorsRK4) : 0;
+    const summary = hasExact ? `
+    <div style="margin-top:10px"><b>Comparacion de errores maximos (mismo h = ${fmt(h, 6)}):</b></div>
+    <div class="iter-table-wrap" style="margin-top:6px">
+      <table class="iter-table">
+        <thead><tr><th>Metodo</th><th>Orden global</th><th>|E_max|</th><th>Razon vs RK4</th></tr></thead>
+        <tbody>
+          <tr><td>Euler</td><td>O(h)</td><td>${fmt(maxEuler, 10)}</td><td>${maxRK4 > 0 ? fmt(maxEuler / maxRK4, 4) : "\u2014"}\xD7</td></tr>
+          <tr><td>Heun (RK2)</td><td>O(h\xB2)</td><td>${fmt(maxHeun, 10)}</td><td>${maxRK4 > 0 ? fmt(maxHeun / maxRK4, 4) : "\u2014"}\xD7</td></tr>
+          <tr><td>RK4</td><td>O(h\u2074)</td><td>${fmt(maxRK4, 10)}</td><td>1\xD7</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div style="margin-top:8px">
+      <b>Conclusion:</b> a mayor orden, menor error por el mismo costo en h.
+      Para la <em>misma precision</em> RK4 puede usar <code>h</code> mucho mayor que Euler, lo que compensa las 4 evaluaciones de <code>f</code> por paso.
+    </div>
+  ` : "";
+    return `
+    <div class="theorem-panel theorem-pass">
+      <div class="theorem-header"><span class="theorem-icon">\u2696</span> Comparacion Euler vs Heun (RK2) vs RK4</div>
+      <div class="theorem-body">
+        <div>Las tres simulaciones usan <b>mismo paso h = ${fmt(h, 6)}</b>, <b>misma condicion inicial</b> y <b>mismo intervalo</b>. Comparamos <code>y</code> y el error absoluto por iteracion. La columna resaltada corresponde al metodo actual.</div>
+        <div class="iter-table-wrap" style="margin-top:8px; max-height: 400px; overflow-y: auto">
+          <table class="iter-table">
+            <thead>
+              <tr>
+                <th>n</th>
+                <th>x_n</th>
+                ${hasExact ? "<th>y*(x_n) exacta</th>" : ""}
+                <th>y Euler</th>
+                ${hasExact ? "<th>|E| Euler</th>" : ""}
+                <th>y Heun (RK2)</th>
+                ${hasExact ? "<th>|E| RK2</th>" : ""}
+                <th>y RK4</th>
+                ${hasExact ? "<th>|E| RK4</th>" : ""}
+              </tr>
+            </thead>
+            <tbody>${rows.join("")}</tbody>
+          </table>
+        </div>
+        ${summary}
+      </div>
+    </div>
+  `;
+  }
+
   // src/methods/ode/euler.ts
   var euler = {
     id: "euler",
@@ -67314,6 +67728,12 @@
         message: `y(${xEnd}) \u2248 ${y.toFixed(8)} | ${N} pasos, h=${h}${maxError > 0 ? ` | Error max = ${formatFull(maxError)}` : ""}`
       };
       applyOdeTargetAndVerification(result, params);
+      const steps2 = runEuler(f, x0, y0, xEnd, h, exactFn);
+      const panels = [];
+      panels.push(renderIterationSummaryPanel("Euler", steps2, h, xEnd));
+      panels.push(renderErrorAnalysisPanel2("Euler", 1, steps2, h));
+      panels.push(renderMethodComparisonPanel(f, x0, y0, xEnd, h, exactFn, "euler"));
+      result.theoremPanels = panels;
       return result;
     },
     getCharts(params, result) {
@@ -67508,6 +67928,12 @@
         message: `y(${xEnd}) \u2248 ${y.toFixed(8)} | ${N} pasos, h=${h}${maxError > 0 ? ` | Error max = ${formatFull(maxError)}` : ""}`
       };
       applyOdeTargetAndVerification(result, params);
+      const steps2 = runHeun(f, x0, y0, xEnd, h, exactFn);
+      const panels = [];
+      panels.push(renderIterationSummaryPanel("Heun (RK2)", steps2, h, xEnd));
+      panels.push(renderErrorAnalysisPanel2("Heun (RK2)", 2, steps2, h));
+      panels.push(renderMethodComparisonPanel(f, x0, y0, xEnd, h, exactFn, "heun"));
+      result.theoremPanels = panels;
       return result;
     },
     getCharts(params, result) {
@@ -67706,6 +68132,12 @@
         message: `y(${xEnd}) \u2248 ${y.toFixed(8)} | ${N} pasos, h=${h}${maxError > 0 ? ` | Error max = ${formatFull(maxError)}` : ""}`
       };
       applyOdeTargetAndVerification(result, params);
+      const steps2 = runRK4(f, x0, y0, xEnd, h, exactFn);
+      const panels = [];
+      panels.push(renderIterationSummaryPanel("RK4", steps2, h, xEnd));
+      panels.push(renderErrorAnalysisPanel2("RK4", 4, steps2, h));
+      panels.push(renderMethodComparisonPanel(f, x0, y0, xEnd, h, exactFn, "rk4"));
+      result.theoremPanels = panels;
       return result;
     },
     getCharts(params, result) {
@@ -82900,8 +83332,8 @@
       const options = this.options;
       const formats = options.time.displayFormats;
       const unit2 = this._unit;
-      const fmt2 = format5 || formats[unit2];
-      return this._adapter.format(value, fmt2);
+      const fmt3 = format5 || formats[unit2];
+      return this._adapter.format(value, fmt3);
     }
     _tickFormatFunction(time, index3, ticks, format5) {
       const options = this.options;
@@ -83442,7 +83874,7 @@
 
   // src/exportReport.ts
   var MAX_TABLE_ROWS = 50;
-  function fmt(v) {
+  function fmt2(v) {
     if (v === null || v === void 0) return "\u2014";
     if (typeof v === "number") {
       if (!isFinite(v)) return String(v);
@@ -83468,21 +83900,21 @@ ${rows}`;
   function buildResultSection(result) {
     const lines = ["## Resultado"];
     const kv = [];
-    if (result.root !== void 0) kv.push(["Raiz", fmt(result.root)]);
-    if (result.integral !== void 0) kv.push(["Integral", fmt(result.integral)]);
-    if (result.derivative !== void 0) kv.push(["Derivada", fmt(result.derivative)]);
-    if (result.exact !== void 0) kv.push(["Valor exacto", fmt(result.exact)]);
-    if (result.relativeErrorPercent !== void 0) kv.push(["Error relativo (%)", fmt(result.relativeErrorPercent)]);
+    if (result.root !== void 0) kv.push(["Raiz", fmt2(result.root)]);
+    if (result.integral !== void 0) kv.push(["Integral", fmt2(result.integral)]);
+    if (result.derivative !== void 0) kv.push(["Derivada", fmt2(result.derivative)]);
+    if (result.exact !== void 0) kv.push(["Valor exacto", fmt2(result.exact)]);
+    if (result.relativeErrorPercent !== void 0) kv.push(["Error relativo (%)", fmt2(result.relativeErrorPercent)]);
     if (result.truncationBound !== void 0) {
-      kv.push([`Cota |E| (orden ${result.truncationOrder ?? "?"})`, fmt(result.truncationBound)]);
+      kv.push([`Cota |E| (orden ${result.truncationOrder ?? "?"})`, fmt2(result.truncationBound)]);
     }
     if (result.maxDerivative !== void 0) {
-      kv.push([`max |f^(${result.truncationOrder ?? "?"})(\u03BE)|`, `${fmt(result.maxDerivative)} en \u03BE \u2248 ${fmt(result.xiApprox)}`]);
+      kv.push([`max |f^(${result.truncationOrder ?? "?"})(\u03BE)|`, `${fmt2(result.maxDerivative)} en \u03BE \u2248 ${fmt2(result.xiApprox)}`]);
     }
     if (result.derivativeExpr) kv.push(["Derivada simbolica", `\`${result.derivativeExpr}\``]);
     if (result.retried) kv.push(["Reintento", "Error > 1 % \u2192 n refinado"]);
     kv.push(["Iteraciones", String(result.iterations.length)]);
-    kv.push(["Error final", fmt(result.error)]);
+    kv.push(["Error final", fmt2(result.error)]);
     kv.push(["Convergido", result.converged ? "Si" : "No"]);
     if (result.message) kv.push(["Nota", result.message]);
     lines.push("", "| Campo | Valor |", "|---|---|");
@@ -83498,7 +83930,7 @@ ${rows}`;
     const limit = Math.min(total, MAX_TABLE_ROWS);
     for (let i2 = 0; i2 < limit; i2++) {
       const row2 = result.iterations[i2];
-      const cells = columns.map((c) => escapePipes(fmt(row2[c.key]))).join(" | ");
+      const cells = columns.map((c) => escapePipes(fmt2(row2[c.key]))).join(" | ");
       rows.push(`| ${cells} |`);
     }
     const truncatedNote = total > limit ? `
@@ -84264,6 +84696,183 @@ ${blocks.join("\n\n")}`;
     if (el) el.textContent = msg;
   }
 
+  // src/views/geogebraCAS.ts
+  var ggbCasApi = null;
+  function renderGeogebraCAS() {
+    setTimeout(bindGeogebraCASEvents, 100);
+    return `
+    <div style="margin-bottom:20px;">
+      <h2 style="font-size:1.5rem;margin-bottom:8px;">GeoGebra CAS - Calculo Simbolico</h2>
+      <p style="color:var(--subtext0);margin-bottom:16px;">
+        Computer Algebra System: integrales, derivadas, limites, factorizacion, simplificacion y resolucion simbolica paso a paso.
+      </p>
+
+      <div class="compare-config" style="margin-bottom:16px;">
+        <div style="display:flex;gap:12px;align-items:end;flex-wrap:wrap;">
+          <div class="input-group" style="flex:1;min-width:250px;">
+            <label>Enviar comando CAS</label>
+            <input id="ggb-cas-input" type="text" placeholder="Integral(sin(x)/x, 0, 1)" value="" style="font-family:Consolas,monospace" autocomplete="off" spellcheck="false">
+            <div class="hint">Ej: Integral(x^2, 0, 1), Derivada(sin(x)), Resolver(x^2 - 4 = 0), Factorizar(x^2 - 4)</div>
+          </div>
+          <div style="display:flex;gap:8px;padding-bottom:4px;">
+            <button class="btn btn-primary" id="ggb-cas-send-btn" style="white-space:nowrap;">Evaluar</button>
+            <button class="btn btn-secondary" id="ggb-cas-clear-btn" style="white-space:nowrap;">Limpiar</button>
+          </div>
+        </div>
+
+        <div style="margin-top:12px;">
+          <div style="font-size:0.8rem;color:var(--subtext0);margin-bottom:6px;"><b>Calculo</b></div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <button class="btn btn-secondary ggb-cas-quick" data-cmd="Integral(x^2, 0, 1)" style="font-size:0.8rem;padding:6px 12px;">\u222Bx\xB2 dx [0,1]</button>
+            <button class="btn btn-secondary ggb-cas-quick" data-cmd="Integral(sin(x)/x, 0, 1)" style="font-size:0.8rem;padding:6px 12px;">\u222Bsin(x)/x dx</button>
+            <button class="btn btn-secondary ggb-cas-quick" data-cmd="Integral(exp(x^2), 0, 2)" style="font-size:0.8rem;padding:6px 12px;">\u222Be^(x\xB2) dx [0,2]</button>
+            <button class="btn btn-secondary ggb-cas-quick" data-cmd="Derivada(sin(x)*cos(x))" style="font-size:0.8rem;padding:6px 12px;">d/dx sin\xB7cos</button>
+            <button class="btn btn-secondary ggb-cas-quick" data-cmd="Derivada(x^3 - 3*x^2 + 2, 2)" style="font-size:0.8rem;padding:6px 12px;">d\xB2/dx\xB2</button>
+            <button class="btn btn-secondary ggb-cas-quick" data-cmd="Limite(sin(x)/x, 0)" style="font-size:0.8rem;padding:6px 12px;">lim sin(x)/x</button>
+          </div>
+        </div>
+
+        <div style="margin-top:10px;">
+          <div style="font-size:0.8rem;color:var(--subtext0);margin-bottom:6px;"><b>Algebra</b></div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <button class="btn btn-secondary ggb-cas-quick" data-cmd="Resolver(x^2 - 5*x + 6 = 0)" style="font-size:0.8rem;padding:6px 12px;">Resolver x\xB2\u22125x+6=0</button>
+            <button class="btn btn-secondary ggb-cas-quick" data-cmd="Resolver({x + y = 5, x - y = 1}, {x, y})" style="font-size:0.8rem;padding:6px 12px;">Sistema 2\xD72</button>
+            <button class="btn btn-secondary ggb-cas-quick" data-cmd="Factorizar(x^2 - 9)" style="font-size:0.8rem;padding:6px 12px;">Factorizar x\xB2\u22129</button>
+            <button class="btn btn-secondary ggb-cas-quick" data-cmd="Expandir((x + 1)^4)" style="font-size:0.8rem;padding:6px 12px;">(x+1)\u2074</button>
+            <button class="btn btn-secondary ggb-cas-quick" data-cmd="Simplificar((x^2 - 1)/(x - 1))" style="font-size:0.8rem;padding:6px 12px;">Simplificar</button>
+            <button class="btn btn-secondary ggb-cas-quick" data-cmd="Sustituir(x^2 + 2*x, x = 3)" style="font-size:0.8rem;padding:6px 12px;">Sustituir</button>
+          </div>
+        </div>
+
+        <div style="margin-top:10px;">
+          <div style="font-size:0.8rem;color:var(--subtext0);margin-bottom:6px;"><b>Parcial \u2014 Casos practicos</b></div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <button class="btn btn-secondary ggb-cas-quick" data-cmd="Integral(sqrt(x) - x^2, 0, 1)" style="font-size:0.8rem;padding:6px 12px;">\u222B(\u221Ax\u2212x\xB2)dx (area)</button>
+            <button class="btn btn-secondary ggb-cas-quick" data-cmd="Integral(Integral(x^2 + y^2, y, 0, 1), x, 0, 1)" style="font-size:0.8rem;padding:6px 12px;">\u222B\u222B(x\xB2+y\xB2) dydx</button>
+            <button class="btn btn-secondary ggb-cas-quick" data-cmd="NIntegral(exp(x^2), 0, 2)" style="font-size:0.8rem;padding:6px 12px;">N\u222Be^(x\xB2) [0,2]</button>
+            <button class="btn btn-secondary ggb-cas-quick" data-cmd="TaylorPolinomio(sin(x), 0, 5)" style="font-size:0.8rem;padding:6px 12px;">Taylor sin(x) n=5</button>
+            <button class="btn btn-secondary ggb-cas-quick" data-cmd="Intersecar(sqrt(x), x^2)" style="font-size:0.8rem;padding:6px 12px;">Intersecar \u221Ax=x\xB2</button>
+          </div>
+        </div>
+
+        <div id="kb-container"></div>
+      </div>
+
+      <div id="ggb-cas-status" style="margin-bottom:8px;font-size:0.85rem;color:var(--green);"></div>
+    </div>
+
+    <div id="ggb-cas-element" style="width:100%;min-height:650px;border-radius:var(--radius);overflow:hidden;border:1px solid var(--surface0);"></div>
+
+    <div style="margin-top:16px; padding:12px 16px; background:var(--surface0); border-radius:var(--radius); font-size:0.85rem; color:var(--subtext0); line-height:1.6;">
+      <b style="color:var(--text)">Referencia rapida de comandos CAS:</b><br>
+      <code>Integral(f, a, b)</code> integral definida \xB7 <code>Integral(f)</code> primitiva \xB7
+      <code>NIntegral(f, a, b)</code> numerica \xB7
+      <code>Derivada(f)</code> derivada \xB7 <code>Derivada(f, n)</code> n-esima derivada \xB7
+      <code>Limite(f, x0)</code> limite \xB7
+      <code>Resolver(ec)</code> ecuacion \xB7 <code>Resolver({ec1, ec2}, {x, y})</code> sistema \xB7
+      <code>Factorizar(p)</code> \xB7 <code>Expandir(p)</code> \xB7 <code>Simplificar(expr)</code> \xB7
+      <code>Sustituir(expr, x = val)</code> \xB7
+      <code>TaylorPolinomio(f, x0, n)</code> serie de Taylor \xB7
+      <code>Intersecar(f, g)</code> interseccion simbolica
+    </div>
+  `;
+  }
+  function bindGeogebraCASEvents() {
+    injectCASApplet();
+    mountKeyboard("kb-container");
+    setupKeyboardListeners();
+    const input = document.getElementById("ggb-cas-input");
+    if (input) {
+      input.addEventListener("keydown", (e3) => {
+        if (e3.key === "Enter") sendCASCommand();
+      });
+    }
+    document.getElementById("ggb-cas-send-btn")?.addEventListener("click", sendCASCommand);
+    document.getElementById("ggb-cas-clear-btn")?.addEventListener("click", () => {
+      if (ggbCasApi) {
+        const names2 = ggbCasApi.getAllObjectNames();
+        if (names2) {
+          for (const name315 of names2) {
+            ggbCasApi.deleteObject(name315);
+          }
+        }
+        setCASStatus("CAS limpiado");
+      }
+    });
+    document.querySelectorAll(".ggb-cas-quick").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const cmd = btn.getAttribute("data-cmd");
+        if (cmd && ggbCasApi) {
+          ggbCasApi.evalCommand(cmd);
+          setCASStatus(`Enviado: ${cmd}`);
+        } else if (!ggbCasApi) {
+          setCASStatus("CAS aun no esta listo, espera un momento...");
+        }
+      });
+    });
+  }
+  function injectCASApplet() {
+    if (typeof GGBApplet === "undefined") {
+      setCASStatus("Cargando GeoGebra CAS...");
+      const checkInterval = setInterval(() => {
+        if (typeof GGBApplet !== "undefined") {
+          clearInterval(checkInterval);
+          createCASApplet();
+        }
+      }, 500);
+      setTimeout(() => clearInterval(checkInterval), 15e3);
+      return;
+    }
+    createCASApplet();
+  }
+  function createCASApplet() {
+    const container = document.getElementById("ggb-cas-element");
+    if (!container) return;
+    const params = {
+      appName: "cas",
+      width: container.clientWidth || 1200,
+      height: 650,
+      showToolBar: true,
+      showAlgebraInput: true,
+      showMenuBar: false,
+      showResetIcon: true,
+      enableLabelDrags: false,
+      enableShiftDragZoom: true,
+      enableRightClick: true,
+      capturingThreshold: null,
+      showToolBarHelp: false,
+      errorDialogsActive: false,
+      useBrowserForJS: false,
+      language: "es",
+      appletOnLoad: (api) => {
+        ggbCasApi = api;
+        setCASStatus("GeoGebra CAS listo \u2014 escribe un comando o usa un boton rapido.");
+      }
+    };
+    const applet = new GGBApplet(params, true);
+    applet.inject("ggb-cas-element");
+  }
+  function sendCASCommand() {
+    const input = document.getElementById("ggb-cas-input");
+    if (!input || !ggbCasApi) {
+      if (!ggbCasApi) setCASStatus("CAS aun no esta listo, espera un momento...");
+      return;
+    }
+    const cmd = input.value.trim();
+    if (!cmd) return;
+    const success = ggbCasApi.evalCommand(cmd);
+    if (success !== false) {
+      setCASStatus(`Enviado: ${cmd}`);
+      input.value = "";
+    } else {
+      setCASStatus("Error en el comando. Verifica la sintaxis (ej: Integral(x^2, 0, 1)).");
+    }
+  }
+  function setCASStatus(msg) {
+    const el = document.getElementById("ggb-cas-status");
+    if (el) el.textContent = msg;
+  }
+
   // src/views/calculator.ts
   function lhopitalPanelForExpr(expr) {
     const samples = [-5, -4, -3, -2, -1, -0.5, 0, 0.5, 1, 2, 3, 4, 5];
@@ -84651,6 +85260,8 @@ ${blocks.join("\n\n")}`;
       app.innerHTML = renderCompareView();
     } else if (view === "geogebra") {
       app.innerHTML = renderGeogebra();
+    } else if (view === "geogebraCAS") {
+      app.innerHTML = renderGeogebraCAS();
     } else if (view === "calculator") {
       app.innerHTML = renderCalculator();
     } else {
@@ -84667,7 +85278,7 @@ ${blocks.join("\n\n")}`;
       btn.addEventListener("click", () => {
         const cat = btn.getAttribute("data-category");
         if (!cat) return;
-        if (["home", "compare", "geogebra", "calculator"].includes(cat)) {
+        if (["home", "compare", "geogebra", "geogebraCAS", "calculator"].includes(cat)) {
           navigate(cat);
         } else {
           navigate("home");
